@@ -1,0 +1,308 @@
+import React, { useState } from 'react';
+import Sidebar from '../components/Sidebar';
+import { 
+  Users, 
+  Search, 
+  Plus, 
+  Shield, 
+  ShieldAlert, 
+  Activity, 
+  Mail, 
+  MapPin, 
+  SlidersHorizontal,
+  ChevronRight,
+  Radio,
+  CheckCircle2
+} from 'lucide-react';
+
+export default function OperatorRoles() {
+  const [currentTab, setCurrentTab] = useState('team');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('All');
+
+  const operators = [
+    {
+      id: '#OP-9012',
+      name: 'John Doe',
+      email: 'j.doe@veggofresh.com',
+      role: 'Primary Director',
+      status: 'Active',
+      zone: 'All Facilities',
+      lastActive: 'Just now',
+      securityLevel: 'Tier 1 Admin',
+      initials: 'JD',
+      activity: 'Adjusted thermal bounds for Cold Room B'
+    },
+    {
+      id: '#OP-4412',
+      name: 'Sarah Jenkins',
+      email: 's.jenkins@veggofresh.com',
+      role: 'Cold Room Manager',
+      status: 'Active',
+      zone: 'Zone A & B',
+      lastActive: '4 mins ago',
+      securityLevel: 'Tier 2 Manager',
+      initials: 'SJ',
+      activity: 'Logged daily ambient temperature audits'
+    },
+    {
+      id: '#OP-3310',
+      name: 'Marcus Vance',
+      email: 'm.vance@veggofresh.com',
+      role: 'Logistics Supervisor',
+      status: 'On Break',
+      zone: 'Dispatch Terminal',
+      lastActive: '32 mins ago',
+      securityLevel: 'Tier 2 Manager',
+      initials: 'MV',
+      activity: 'Authorized dispatch for Green Grocers Inc.'
+    },
+    {
+      id: '#OP-1108',
+      name: 'Elena Rostova',
+      email: 'e.rostova@veggofresh.com',
+      role: 'Inbound Specialist',
+      status: 'Active',
+      zone: 'Loading Docks',
+      lastActive: '12 mins ago',
+      securityLevel: 'Tier 3 Operator',
+      initials: 'ER',
+      activity: 'Registered incoming batch of Sweet Potatoes'
+    },
+    {
+      id: '#OP-8890',
+      name: 'David Kim',
+      email: 'd.kim@veggofresh.com',
+      role: 'Compliance Inspector',
+      status: 'Offline',
+      zone: 'Quality Labs',
+      lastActive: '2 hours ago',
+      securityLevel: 'Tier 2 Auditor',
+      initials: 'DK',
+      activity: 'Completed weekly biological safety review'
+    }
+  ];
+
+  const rolesList = ['All', 'Primary Director', 'Cold Room Manager', 'Logistics Supervisor', 'Inbound Specialist', 'Compliance Inspector'];
+
+  const filteredOperators = operators.filter((op) => {
+    const matchesSearch = op.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          op.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          op.id.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === 'All' || op.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  return (
+    <div className="min-h-screen bg-slate-50/50 flex font-sans antialiased">
+      <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+
+      <main className="flex-1 p-6 md:p-10 lg:p-12 overflow-y-auto max-h-screen">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 pb-8 border-b border-slate-200/60">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-xs uppercase font-bold tracking-widest text-emerald-600 bg-emerald-50/80 px-2.5 py-1 rounded-md">
+                Access Management
+              </span>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 mt-3">
+              Operator Roles & Security
+            </h1>
+          </div>
+          <button className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-emerald-700/10 transition-all">
+            <Plus size={16} />
+            <span>Provision New Role</span>
+          </button>
+        </header>
+
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Crew Members</span>
+              <h3 className="text-2xl font-extrabold text-slate-900">5 Operators</h3>
+            </div>
+            <div className="p-3.5 bg-slate-50 rounded-xl text-slate-600 border border-slate-100">
+              <Users size={20} />
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">System Sessions</span>
+              <h3 className="text-2xl font-extrabold text-slate-900">3 Online Now</h3>
+            </div>
+            <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100/50">
+              <Radio size={20} className="animate-pulse" />
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Policy Enforcement</span>
+              <h3 className="text-2xl font-extrabold text-slate-900">Tiered Auth</h3>
+            </div>
+            <div className="p-3.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100/50">
+              <Shield size={20} />
+            </div>
+          </div>
+        </section>
+
+        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search operators by name, email or reference..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <SlidersHorizontal size={16} className="text-slate-400" />
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="bg-white border border-slate-200 text-sm font-bold text-slate-700 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+              >
+                {rolesList.map((role) => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-100 text-[10px] uppercase font-bold tracking-wider text-slate-400 bg-slate-50/30">
+                  <th className="py-4 px-6">Operator Profiles</th>
+                  <th className="py-4 px-6">Assigned Domain</th>
+                  <th className="py-4 px-6">Security Permissions</th>
+                  <th className="py-4 px-6">Recent Interaction Log</th>
+                  <th className="py-4 px-6 text-right">Operational Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredOperators.map((operator) => (
+                  <tr key={operator.id} className="group hover:bg-slate-50/30 transition-all">
+                    <td className="py-5 px-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center font-bold text-sm tracking-wide">
+                          {operator.initials}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 text-sm">{operator.name}</span>
+                            <span className="text-[10px] bg-slate-100 font-bold text-slate-500 px-1.5 py-0.5 rounded">
+                              {operator.id}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-1">
+                            <Mail size={12} />
+                            <span>{operator.email}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-5 px-6">
+                      <div className="flex items-center gap-1.5 text-slate-700 text-sm font-medium">
+                        <MapPin size={14} className="text-slate-400" />
+                        <span>{operator.zone}</span>
+                      </div>
+                      <span className="text-[11px] text-slate-400 block mt-1">{operator.role}</span>
+                    </td>
+                    <td className="py-5 px-6">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border ${
+                        operator.securityLevel.includes('Admin') 
+                          ? 'bg-emerald-50/50 text-emerald-700 border-emerald-100' 
+                          : 'bg-slate-100/60 text-slate-700 border-slate-200'
+                      }`}>
+                        {operator.securityLevel.includes('Admin') ? <ShieldAlert size={12} /> : <Shield size={12} />}
+                        {operator.securityLevel}
+                      </span>
+                    </td>
+                    <td className="py-5 px-6 max-w-xs">
+                      <p className="text-xs font-medium text-slate-600 truncate">{operator.activity}</p>
+                      <span className="text-[10px] text-slate-400 block mt-1">{operator.lastActive}</span>
+                    </td>
+                    <td className="py-5 px-6 text-right">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                        operator.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                        operator.status === 'On Break' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                        'bg-slate-100 text-slate-400 border border-slate-200'
+                      }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${
+                          operator.status === 'Active' ? 'bg-emerald-500 animate-pulse' :
+                          operator.status === 'On Break' ? 'bg-amber-500' : 'bg-slate-300'
+                        }`} />
+                        {operator.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 md:p-8">
+            <h2 className="text-lg font-bold text-slate-900 mb-2">Global Access Policy</h2>
+            <p className="text-xs text-slate-400 mb-6">Security protocols and validation states currently in effect</p>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between p-4 bg-slate-50/80 rounded-xl border border-slate-100">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-slate-800">Multi-Factor Hardware Key</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">All operations directors require verified physical passkeys for parameter changes.</p>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">Active</span>
+              </div>
+              <div className="flex items-start justify-between p-4 bg-slate-50/80 rounded-xl border border-slate-100">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-slate-800">Geo-Fenced Operations</h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">Limit supervisor credentials to specific zones and internal facility subnet ranges.</p>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded">Active</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 md:p-8 flex flex-col justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 mb-2">Session Audit Log</h2>
+              <p className="text-xs text-slate-400 mb-6">Recent platform events related to operational credentials</p>
+              <div className="space-y-5">
+                <div className="flex items-start gap-3">
+                  <div className="p-1 bg-emerald-50 rounded-full text-emerald-600 mt-0.5">
+                    <CheckCircle2 size={14} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">John Doe completed key validation</p>
+                    <span className="text-[10px] text-slate-400">10 mins ago • 192.168.1.42</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="p-1 bg-emerald-50 rounded-full text-emerald-600 mt-0.5">
+                    <CheckCircle2 size={14} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">Sarah Jenkins re-synchronized sensors</p>
+                    <span className="text-[10px] text-slate-400">22 mins ago • 192.168.1.18</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button className="w-full flex items-center justify-between mt-8 p-3 text-xs font-bold text-slate-600 bg-slate-50 hover:bg-slate-100/85 rounded-xl border border-slate-200/50 transition-colors">
+              <span>View Full System Audit Trail</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
