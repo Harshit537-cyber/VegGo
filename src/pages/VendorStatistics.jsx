@@ -1,15 +1,128 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import { Calendar, RefreshCw, Store, CheckCircle, AlertTriangle, Clock, ArrowUpRight, ArrowDownRight, Star } from 'lucide-react';
+import { 
+  Calendar, 
+  RefreshCw, 
+  Store, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Clock, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  Star,
+  Package,
+  Activity,
+  Award,
+  ShieldAlert
+} from 'lucide-react';
+
+function AnimatedValue({ value }) {
+  const [displayValue, setDisplayValue] = useState('');
+
+  useEffect(() => {
+    const match = value.match(/([₹\d,.]+)\s*(.*)/);
+    if (!match) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const isRupee = value.startsWith('₹');
+    const rawNumberStr = match[1].replace(/[₹,]/g, '');
+    const targetNum = parseFloat(rawNumberStr);
+    const suffix = match[2] || '';
+    const isDecimal = rawNumberStr.includes('.');
+    const hasComma = match[1].includes(',');
+
+    const duration = 1200;
+    const startTime = performance.now();
+    let animationFrameId;
+
+    const updateCount = (timestamp) => {
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      const currentVal = easeProgress * targetNum;
+
+      let formatted;
+      if (isDecimal) {
+        formatted = currentVal.toFixed(2);
+      } else {
+        formatted = Math.floor(currentVal).toString();
+      }
+
+      if (hasComma) {
+        const parts = formatted.split('.');
+        parts[0] = parseInt(parts[0], 10).toLocaleString('en-IN');
+        formatted = parts.join('.');
+      }
+
+      setDisplayValue(`${isRupee ? '₹' : ''}${formatted}${suffix ? ' ' + suffix : ''}`);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(updateCount);
+      } else {
+        setDisplayValue(value);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(updateCount);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [value]);
+
+  return <span>{displayValue}</span>;
+}
 
 export default function VendorStatistics() {
   const [currentTab, setCurrentTab] = useState('vendor-statistics');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const vendorStats = [
-    { label: 'Active Registered Shops', value: '1,248', change: '+8.6%', up: true },
-    { label: 'Pending Approvals', value: '42 Shops', change: '-12.3%', up: false },
-    { label: 'Suspended Accounts', value: '14', change: '+1.4%', up: true },
-    { label: 'Avg Vendor Rating', value: '4.82 / 5.0', change: '+0.4%', up: true }
+    { 
+      label: 'Active Registered Shops', 
+      value: '1,248', 
+      change: '+8.6%', 
+      up: true,
+      cardBg: 'bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-transparent',
+      cardBorder: 'border-emerald-500/20',
+      iconBg: 'bg-emerald-500/15 text-emerald-700',
+      tagColor: 'text-emerald-800 bg-emerald-50 border-emerald-100/50',
+      icon: Store
+    },
+    { 
+      label: 'Pending Approvals', 
+      value: '42 Shops', 
+      change: '-12.3%', 
+      up: false,
+      cardBg: 'bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent',
+      cardBorder: 'border-amber-500/20',
+      iconBg: 'bg-amber-500/15 text-amber-700',
+      tagColor: 'text-amber-800 bg-amber-50 border-amber-100/50',
+      icon: Clock
+    },
+    { 
+      label: 'Suspended Accounts', 
+      value: '14', 
+      change: '+1.4%', 
+      up: true,
+      cardBg: 'bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-transparent',
+      cardBorder: 'border-rose-500/20',
+      iconBg: 'bg-rose-500/15 text-rose-750',
+      tagColor: 'text-rose-800 bg-rose-50 border-rose-100/50',
+      icon: ShieldAlert
+    },
+    { 
+      label: 'Avg Vendor Rating', 
+      value: '4.82 / 5.0', 
+      change: '+0.4%', 
+      up: true,
+      cardBg: 'bg-gradient-to-br from-teal-500/10 via-teal-400/5 to-transparent',
+      cardBorder: 'border-teal-500/20',
+      iconBg: 'bg-teal-500/15 text-teal-700',
+      tagColor: 'text-teal-800 bg-teal-50 border-teal-100/50',
+      icon: Award
+    }
   ];
 
   const categoryShare = [
@@ -20,70 +133,121 @@ export default function VendorStatistics() {
   ];
 
   const vendorPerformance = [
-    { name: 'Organic Valley Farms', owner: 'Arthur Pendelton', products: '82 Items', monthlySales: '$14,820', rating: '4.9', status: 'Active' },
-    { name: 'Greenhouse Co-op', owner: 'Clara Oswald', products: '41 Items', monthlySales: '$12,300', rating: '4.8', status: 'Active' },
-    { name: 'Sunshine Orchards', owner: 'Marcus Aurelius', products: '65 Items', monthlySales: '$9,120', rating: '4.7', status: 'Active' },
-    { name: 'Purely Plants Co.', owner: 'Sarah Connor', products: '28 Items', monthlySales: '$7,840', rating: '4.9', status: 'Active' },
-    { name: 'Evergreen Hydroponics', owner: 'Bruce Wayne', products: '19 Items', monthlySales: '$6,900', rating: '4.4', status: 'Warning' },
-    { name: 'Valley Herbals LLC', owner: 'Selina Kyle', products: '34 Items', monthlySales: '$4,110', rating: '4.6', status: 'Active' }
+    { name: 'Organic Valley Farms', owner: 'Arthur Pendelton', products: '82 Items', monthlySales: '₹14,820.00', rating: '4.9', status: 'Active' },
+    { name: 'Greenhouse Co-op', owner: 'Clara Oswald', products: '41 Items', monthlySales: '₹12,300.00', rating: '4.8', status: 'Active' },
+    { name: 'Sunshine Orchards', owner: 'Marcus Aurelius', products: '65 Items', monthlySales: '₹9,120.00', rating: '4.7', status: 'Active' },
+    { name: 'Purely Plants Co.', owner: 'Sarah Connor', products: '28 Items', monthlySales: '₹7,840.00', rating: '4.9', status: 'Active' },
+    { name: 'Evergreen Hydroponics', owner: 'Bruce Wayne', products: '19 Items', monthlySales: '₹6,900.00', rating: '4.4', status: 'Warning' },
+    { name: 'Valley Herbals LLC', owner: 'Selina Kyle', products: '34 Items', monthlySales: '₹4,110.00', rating: '4.6', status: 'Active' }
   ];
 
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setRefreshKey((prev) => prev + 1);
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1000);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-emerald-50/10 to-teal-50/20 flex font-sans antialiased text-slate-800">
       <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
 
-      <main className="flex-1 p-8 lg:p-12 overflow-y-auto max-h-screen">
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-6 border-b border-slate-200/60">
-          <div>
-            <span className="text-xs uppercase font-bold tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-              Vendor Infrastructure Core
-            </span>
-            <h1 className="text-3xl font-black text-slate-900 mt-2">Vendor Statistics</h1>
+      <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto max-h-screen">
+        <header className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 p-6 md:p-8 rounded-3xl bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-850 text-white shadow-lg overflow-hidden border border-emerald-700/30">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:16px_24px] pointer-events-none" />
+          <div className="absolute top-0 right-1/4 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="space-y-4 z-10 flex-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[11px] uppercase font-bold tracking-widest text-emerald-100 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/15">
+                Vendor Infrastructure Core
+              </span>
+              
+              <div className="flex items-center gap-3 bg-rose-950/60 backdrop-blur-md border border-rose-500/30 px-3.5 py-1.5 rounded-full text-rose-300 shadow-[0_0_20px_rgba(244,63,94,0.2)] max-w-[190px] overflow-hidden">
+                <span className="relative flex h-3.5 w-3.5 flex-shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] border border-white/20"></span>
+                </span>
+                <div className="overflow-hidden whitespace-nowrap text-[11px] font-black uppercase tracking-widest text-white w-full">
+                  <marquee scrollamount="3.5" className="leading-none">LIVE ADMIN VEG GO</marquee>
+                </div>
+              </div>
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
+              Vendor Statistics
+            </h1>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-sm text-sm font-semibold text-slate-600">
-              <Calendar size={18} className="text-slate-400" />
+          
+          <div className="flex items-center gap-3 z-10">
+            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 shadow-sm text-sm font-bold text-emerald-50">
+              <Calendar size={16} className="text-emerald-300" />
               <span>Oct 12, 2026</span>
             </div>
-            <button className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm text-slate-600">
-              <RefreshCw size={18} />
+            <button 
+              onClick={handleRefresh}
+              className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl hover:bg-white/20 transition-all duration-300 active:scale-95 shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 group"
+            >
+              <RefreshCw size={16} className={`text-emerald-300 transition-transform duration-700 ${isRefreshing ? 'rotate-180' : 'group-hover:rotate-45'}`} />
             </button>
           </div>
         </header>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          {vendorStats.map((stat, idx) => (
-            <div key={idx} className="bg-white p-6 rounded-[24px] border border-slate-200/60 shadow-sm flex flex-col justify-between">
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                <h3 className="text-2xl font-black text-slate-900 mt-3">{stat.value}</h3>
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {vendorStats.map((stat, idx) => {
+            const IconComponent = stat.icon;
+            return (
+              <div 
+                key={idx} 
+                className={`${stat.cardBg} ${stat.cardBorder} p-6 rounded-3xl border shadow-sm hover:shadow-xl hover:shadow-emerald-950/[0.02] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden`}
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8 transition-transform duration-500 group-hover:scale-125 pointer-events-none" />
+                
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest group-hover:text-slate-700 transition-colors">
+                      {stat.label}
+                    </span>
+                    <div className={`${stat.iconBg} p-2.5 rounded-2xl transition-colors duration-300`}>
+                      <IconComponent size={18} />
+                    </div>
+                  </div>
+                  <h3 className="text-3xl md:text-4xl font-black text-slate-900 mt-4 tracking-tight">
+                    <AnimatedValue value={stat.value} key={refreshKey} />
+                  </h3>
+                </div>
+                
+                <div className="mt-6 pt-4 border-t border-slate-100/50 flex items-center justify-between">
+                  <span className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${stat.tagColor}`}>
+                    {stat.up ? <ArrowUpRight size={14} className="text-emerald-600" /> : <ArrowDownRight size={14} className="text-rose-600" />}
+                    {stat.change}
+                  </span>
+                  <span className="text-xs text-slate-400 font-bold">Monthly Progress</span>
+                </div>
               </div>
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className={`flex items-center gap-1 text-sm font-bold ${stat.up ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {stat.up ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-                  {stat.change}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">Monthly Progress</span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-          <div className="lg:col-span-1 bg-white rounded-[24px] border border-slate-200/60 shadow-sm p-6 flex flex-col justify-between">
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-1 bg-white rounded-3xl border border-emerald-100/50 shadow-sm p-6 md:p-8 flex flex-col justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-900 mb-6">Vendor Segments</h2>
+              <div className="flex items-center gap-2 mb-6">
+                <Activity size={20} className="text-emerald-600" />
+                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Vendor Segments</h2>
+              </div>
+              
               <div className="space-y-4">
                 {categoryShare.map((category, idx) => (
-                  <div key={idx} className="p-4 rounded-xl border border-slate-100 hover:bg-slate-50/50 transition-colors">
+                  <div key={idx} className="p-4 rounded-2xl border border-slate-100 hover:bg-emerald-50/25 transition-colors duration-300">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-900">{category.type}</span>
-                      <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">{category.percentage}</span>
+                      <span className="text-sm font-bold text-slate-800">{category.type}</span>
+                      <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">{category.percentage}</span>
                     </div>
-                    <div className="flex items-center justify-between mt-2.5">
-                      <span className="text-sm text-slate-500">{category.count}</span>
-                      <span className={`px-2 py-0.5 text-[10px] rounded font-bold ${
-                        category.trend === 'Upward' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-100 text-slate-600'
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="font-mono text-sm font-bold text-slate-500">{category.count}</span>
+                      <span className={`px-2.5 py-1 text-[10px] rounded-lg font-bold border ${
+                        category.trend === 'Upward' ? 'bg-emerald-50 text-emerald-700 border-emerald-100/50' : 'bg-slate-50 text-slate-500 border-slate-100'
                       }`}>
                         {category.trend}
                       </span>
@@ -94,50 +258,55 @@ export default function VendorStatistics() {
             </div>
           </div>
 
-          <div className="lg:col-span-2 bg-white rounded-[24px] border border-slate-200/60 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-xl font-bold text-slate-900">Top Performing Shops Ledger</h2>
-              <span className="text-sm font-semibold text-emerald-600 hover:underline cursor-pointer">Export Vendors</span>
-            </div>
+          <div className="lg:col-span-2 bg-white rounded-3xl border border-emerald-100/50 shadow-sm p-6 md:p-8 flex flex-col justify-between">
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                  <Package size={20} className="text-emerald-600" />
+                  <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Top Performing Shops Ledger</h2>
+                </div>
+                <span className="text-sm font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer transition-colors">Export Vendors</span>
+              </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-100 text-xs uppercase font-black tracking-wider text-slate-400">
-                    <th className="pb-4">Shop Name</th>
-                    <th className="pb-4">Primary Contact</th>
-                    <th className="pb-4">Catalog Vol</th>
-                    <th className="pb-4">Monthly GTV</th>
-                    <th className="pb-4">Rating Index</th>
-                    <th className="pb-4 text-right">Shop Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {vendorPerformance.map((vendor, idx) => (
-                    <tr key={idx} className="text-sm font-medium text-slate-700 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4.5 font-bold text-slate-900">{vendor.name}</td>
-                      <td className="py-4.5 text-slate-500">{vendor.owner}</td>
-                      <td className="py-4.5 font-mono text-slate-600">{vendor.products}</td>
-                      <td className="py-4.5 font-mono text-slate-900 font-bold">{vendor.monthlySales}</td>
-                      <td className="py-4.5">
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold bg-amber-50 text-amber-600 border border-amber-100">
-                          <Star size={12} className="fill-amber-500 text-amber-500" />
-                          {vendor.rating}
-                        </span>
-                      </td>
-                      <td className="py-4.5 text-right">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                          vendor.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/40' :
-                          'bg-amber-50 text-amber-600 border border-amber-200/40'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${vendor.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                          {vendor.status}
-                        </span>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[11px] uppercase font-bold tracking-widest text-slate-400">
+                      <th className="pb-4">Shop Name</th>
+                      <th className="pb-4">Primary Contact</th>
+                      <th className="pb-4">Catalog Vol</th>
+                      <th className="pb-4">Monthly GTV</th>
+                      <th className="pb-4">Rating Index</th>
+                      <th className="pb-4 text-right">Shop Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/60">
+                    {vendorPerformance.map((vendor, idx) => (
+                      <tr key={idx} className="text-sm font-semibold text-slate-600 hover:bg-emerald-50/20 transition-colors">
+                        <td className="py-4 font-bold text-slate-900">{vendor.name}</td>
+                        <td className="py-4 text-slate-500">{vendor.owner}</td>
+                        <td className="py-4 font-mono text-slate-600">{vendor.products}</td>
+                        <td className="py-4 font-mono text-slate-800 font-extrabold">{vendor.monthlySales}</td>
+                        <td className="py-4">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-600 border border-amber-100/50 shadow-sm">
+                            <Star size={12} className="fill-amber-550 text-amber-500" />
+                            {vendor.rating}
+                          </span>
+                        </td>
+                        <td className="py-4 text-right">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border ${
+                            vendor.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                            'bg-amber-50 text-amber-700 border-amber-100'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${vendor.status === 'Active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                            {vendor.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </section>

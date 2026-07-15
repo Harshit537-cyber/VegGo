@@ -26,6 +26,11 @@ import PushNotifications from "./pages/PushNotifications";
 import PromotionalNotifications from "./pages/PromotionalNotifications";
 import Categories from "./pages/Categories";
 import Products from "./pages/Products";
+import LiveOrders from "./pages/LiveOrders";
+import OrderMonitoring from "./pages/OrderMonitoring";
+import RevenueReports from "./pages/RevenueReports";
+import VendorReports from "./pages/VendorReports";
+import DeliveryReports from "./pages/DeliveryReports";
 
 export default function App() {
   return (
@@ -41,6 +46,16 @@ export default function App() {
         <Route path="/vendors/approval" element={<ShopApproval />} />
         <Route path="/vendors/suspension" element={<ShopSuspension />} />
         <Route path="/delivery/approval" element={<RiderApproval />} />
+
+        <Route path="/orders/live" element={<LiveOrders />} /> 
+         <Route path="/orders/monitoring" element={<OrderMonitoring />} />
+
+       <Route path="/reports/revenue" element={<RevenueReports />} />
+
+       <Route path="/reports/vendors" element={<VendorReports />} />
+
+       <Route path="/reports/delivery" element={<DeliveryReports />} />
+
         <Route
           path="/delivery/verification"
           element={<DocumentVerification />}

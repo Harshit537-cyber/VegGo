@@ -1,10 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import { Calendar, RefreshCw, Store, AlertTriangle, CheckCircle, ShieldAlert, XCircle, Search } from 'lucide-react';
+import { 
+  Calendar, 
+  RefreshCw, 
+  Store, 
+  AlertTriangle, 
+  CheckCircle2, 
+  ShieldAlert, 
+  XCircle, 
+  Search 
+} from 'lucide-react';
+
+function AnimatedValue({ value }) {
+  const [displayValue, setDisplayValue] = useState('');
+
+  useEffect(() => {
+    const match = value.match(/([\d,.]+)\s*(.*)/);
+    if (!match) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const rawNumberStr = match[1].replace(/,/g, '');
+    const targetNum = parseFloat(rawNumberStr);
+    const suffix = match[2] || '';
+    const isDecimal = rawNumberStr.includes('.');
+    const hasComma = match[1].includes(',');
+
+    const duration = 1200;
+    const startTime = performance.now();
+    let animationFrameId;
+
+    const updateCount = (timestamp) => {
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      const currentVal = easeProgress * targetNum;
+
+      let formatted;
+      if (isDecimal) {
+        formatted = currentVal.toFixed(2);
+      } else {
+        formatted = Math.floor(currentVal).toString();
+      }
+
+      if (hasComma) {
+        const parts = formatted.split('.');
+        parts[0] = parseInt(parts[0], 10).toLocaleString('en-IN');
+        formatted = parts.join('.');
+      }
+
+      setDisplayValue(`${formatted}${suffix ? ' ' + suffix : ''}`);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(updateCount);
+      } else {
+        setDisplayValue(value);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(updateCount);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [value]);
+
+  return <span>{displayValue}</span>;
+}
 
 export default function ShopSuspension() {
   const [currentTab, setCurrentTab] = useState('shop-suspension');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [shops, setShops] = useState([
     { id: 'SH-5012', name: 'Organic Valley Farms', owner: 'David Sterling', flags: 0, reason: 'None', status: 'Active' },
@@ -29,6 +96,14 @@ export default function ShopSuspension() {
     }));
   };
 
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setRefreshKey((prev) => prev + 1);
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1000);
+  };
+
   const activeCount = shops.filter(s => s.status === 'Active').length;
   const suspendedCount = shops.filter(s => s.status === 'Suspended').length;
   const flaggedCount = shops.filter(s => s.flags > 0 && s.status === 'Active').length;
@@ -39,70 +114,114 @@ export default function ShopSuspension() {
     shop.owner.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const suspensionStats = [
+    {
+      label: 'Unrestricted Shops',
+      value: `${activeCount} Profiles`,
+      cardBg: 'bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-transparent',
+      cardBorder: 'border-emerald-500/20',
+      iconBg: 'bg-emerald-500/15 text-emerald-700',
+      icon: CheckCircle2
+    },
+    {
+      label: 'Suspended Stores',
+      value: `${suspendedCount} Accounts`,
+      cardBg: 'bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-transparent',
+      cardBorder: 'border-rose-500/20',
+      iconBg: 'bg-rose-500/15 text-rose-755',
+      icon: XCircle
+    },
+    {
+      label: 'Flagged Warnings',
+      value: `${flaggedCount} Warnings`,
+      cardBg: 'bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent',
+      cardBorder: 'border-amber-500/20',
+      iconBg: 'bg-amber-500/15 text-amber-700',
+      icon: ShieldAlert
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-emerald-50/10 to-teal-50/20 flex font-sans antialiased text-slate-800">
       <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
 
-      <main className="flex-1 p-8 lg:p-12 overflow-y-auto max-h-screen">
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-6 border-b border-slate-200/60">
-          <div>
-            <span className="text-xs uppercase font-bold tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-              Infrastructure Control Panel
-            </span>
-            <h1 className="text-3xl font-black text-slate-900 mt-2">Shop Suspensions</h1>
+      <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto max-h-screen">
+        <header className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 p-6 md:p-8 rounded-3xl bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-850 text-white shadow-lg overflow-hidden border border-emerald-700/30">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:16px_24px] pointer-events-none" />
+          <div className="absolute top-0 right-1/4 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="space-y-4 z-10 flex-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[11px] uppercase font-bold tracking-widest text-emerald-100 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/15">
+                Infrastructure Control Panel
+              </span>
+              
+              <div className="flex items-center gap-3 bg-rose-950/60 backdrop-blur-md border border-rose-500/30 px-3.5 py-1.5 rounded-full text-rose-300 shadow-[0_0_20px_rgba(244,63,94,0.2)] max-w-[190px] overflow-hidden">
+                <span className="relative flex h-3.5 w-3.5 flex-shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] border border-white/20"></span>
+                </span>
+                <div className="overflow-hidden whitespace-nowrap text-[11px] font-black uppercase tracking-widest text-white w-full">
+                  <marquee scrollamount="3.5" className="leading-none">LIVE ADMIN VEG GO</marquee>
+                </div>
+              </div>
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
+              Shop Suspensions
+            </h1>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-sm text-sm font-semibold text-slate-600">
-              <Calendar size={18} className="text-slate-400" />
+          
+          <div className="flex items-center gap-3 z-10">
+            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 shadow-sm text-sm font-bold text-emerald-50">
+              <Calendar size={16} className="text-emerald-300" />
               <span>Oct 12, 2026</span>
             </div>
-            <button className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm text-slate-600">
-              <RefreshCw size={18} />
+            <button 
+              onClick={handleRefresh}
+              className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl hover:bg-white/20 transition-all duration-300 active:scale-95 shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 group"
+            >
+              <RefreshCw size={16} className={`text-emerald-300 transition-transform duration-700 ${isRefreshing ? 'rotate-180' : 'group-hover:rotate-45'}`} />
             </button>
           </div>
         </header>
 
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
-          <div className="bg-white p-6 rounded-[24px] border border-slate-200/60 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Unrestricted Shops</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-2">{activeCount} Profiles</h3>
-            </div>
-            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-emerald-600">
-              <CheckCircle size={24} />
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-[24px] border border-slate-200/60 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Suspended Stores</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-2">{suspendedCount} Accounts</h3>
-            </div>
-            <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 text-rose-600">
-              <XCircle size={24} />
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-[24px] border border-slate-200/60 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Flagged Warnings</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-2">{flaggedCount} Warnings</h3>
-            </div>
-            <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-amber-600">
-              <ShieldAlert size={24} />
-            </div>
-          </div>
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+          {suspensionStats.map((stat, idx) => {
+            const IconComponent = stat.icon;
+            return (
+              <div 
+                key={idx} 
+                className={`${stat.cardBg} ${stat.cardBorder} p-6 rounded-3xl border shadow-sm hover:shadow-xl hover:shadow-emerald-950/[0.02] hover:-translate-y-1 transition-all duration-300 flex items-center justify-between group relative overflow-hidden`}
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8 transition-transform duration-500 group-hover:scale-125 pointer-events-none" />
+                
+                <div>
+                  <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest group-hover:text-slate-700 transition-colors">
+                    {stat.label}
+                  </p>
+                  <h3 className="text-2xl font-black text-slate-900 mt-2 tracking-tight">
+                    <AnimatedValue value={stat.value} key={refreshKey} />
+                  </h3>
+                </div>
+                <div className={`${stat.iconBg} p-4 rounded-2xl border border-white/10 shadow-sm transition-colors duration-300 z-10`}>
+                  <IconComponent size={22} />
+                </div>
+              </div>
+            );
+          })}
         </section>
 
-        <section className="bg-white rounded-[24px] border border-slate-200/60 shadow-sm p-6">
+        <section className="bg-white rounded-3xl border border-emerald-100/50 shadow-sm p-6 md:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <h2 className="text-xl font-bold text-slate-900">Vendor Enforcement Registry</h2>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Vendor Enforcement Registry</h2>
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3.5 top-3.5 text-slate-400" size={16} />
               <input
                 type="text"
                 placeholder="Search shops..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-slate-700"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-semibold focus:outline-none focus:border-emerald-550 focus:bg-white transition-all text-slate-700"
               />
             </div>
           </div>
@@ -110,7 +229,7 @@ export default function ShopSuspension() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 text-xs uppercase font-black tracking-wider text-slate-400">
+                <tr className="border-b border-slate-100 text-[11px] uppercase font-bold tracking-widest text-slate-400">
                   <th className="pb-4">Shop Details</th>
                   <th className="pb-4">Shop ID</th>
                   <th className="pb-4">Quality Warnings</th>
@@ -119,45 +238,45 @@ export default function ShopSuspension() {
                   <th className="pb-4 text-right">Operational Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100/60">
                 {filteredShops.map((shop) => (
-                  <tr key={shop.id} className="text-sm font-medium text-slate-700 hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4.5">
+                  <tr key={shop.id} className="text-sm font-semibold text-slate-600 hover:bg-emerald-50/20 transition-colors">
+                    <td className="py-4">
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-900">{shop.name}</span>
                         <span className="text-xs text-slate-400 font-normal">{shop.owner}</span>
                       </div>
                     </td>
-                    <td className="py-4.5 font-mono text-xs font-semibold text-slate-400">{shop.id}</td>
-                    <td className="py-4.5">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                        shop.flags >= 8 ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-                        shop.flags > 0 ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                        'bg-slate-100 text-slate-600'
+                    <td className="py-4 font-mono text-slate-400 font-bold">{shop.id}</td>
+                    <td className="py-4">
+                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                        shop.flags >= 8 ? 'bg-rose-50 text-rose-700 border-rose-100/50' :
+                        shop.flags > 0 ? 'bg-amber-50 text-amber-700 border-amber-100/50' :
+                        'bg-slate-50 text-slate-500 border-slate-100'
                       }`}>
                         {shop.flags} Warnings
                       </span>
                     </td>
-                    <td className="py-4.5 text-slate-500 font-normal">{shop.reason}</td>
-                    <td className="py-4.5">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                        shop.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200/40' :
-                        'bg-rose-50 text-rose-600 border border-rose-200/40'
+                    <td className="py-4 text-slate-500 font-medium">{shop.reason}</td>
+                    <td className="py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border ${
+                        shop.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                        'bg-rose-50 text-rose-700 border-rose-100'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${shop.status === 'Active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                         {shop.status}
                       </span>
                     </td>
-                    <td className="py-4.5 text-right">
+                    <td className="py-4 text-right">
                       <button
                         onClick={() => toggleShopStatus(shop.id)}
-                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[11px] font-bold transition-all border ${
                           shop.status === 'Active'
-                            ? 'bg-rose-50 hover:bg-rose-100/80 text-rose-600 border-rose-200'
-                            : 'bg-emerald-50 hover:bg-emerald-100/80 text-emerald-600 border-emerald-200'
+                            ? 'bg-rose-50 hover:bg-rose-100/80 text-rose-700 border-rose-200'
+                            : 'bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border-emerald-200'
                         }`}
                       >
-                        {shop.status === 'Active' ? <XCircle size={14} /> : <CheckCircle size={14} />}
+                        {shop.status === 'Active' ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
                         {shop.status === 'Active' ? 'Suspend Shop' : 'Restore Shop'}
                       </button>
                     </td>
