@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Shield, Check, Leaf, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import SuccessModal from '../Common/SuccessModal';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -9,10 +10,14 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setIsSuccess(true);
+    setTimeout(() => {
+      navigate('/dashboard');
+    }, 2400);
   };
 
   const containerVariants = {
@@ -283,6 +288,10 @@ export default function Login() {
           </div>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {isSuccess && <SuccessModal isOpen={isSuccess} />}
+      </AnimatePresence>
     </div>
   );
 }

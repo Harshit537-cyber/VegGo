@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import ShopDetailModal from '../Models/ShopDetailModal';
+import { AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
   RefreshCw, 
   Check, 
   X, 
-  ShieldAlert, 
-  Store, 
   Clock, 
-  Eye,
-  CheckCircle2
+  Eye
 } from 'lucide-react';
 
 function AnimatedValue({ value }) {
@@ -72,6 +71,7 @@ export default function ShopApproval() {
   const [currentTab, setCurrentTab] = useState('shop-approval');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedApplication, setSelectedApplication] = useState(null);
 
   const [applications, setApplications] = useState([
     { id: 'REQ-1094', name: 'Golden Harvest Co.', owner: 'David Sterling', category: 'Organic Vegetables', date: 'Oct 10, 2026', status: 'Pending' },
@@ -229,7 +229,10 @@ export default function ShopApproval() {
                       </td>
                       <td className="py-4 text-xs text-slate-400 font-medium">{app.date}</td>
                       <td className="py-4 text-right space-x-2">
-                        <button className="inline-flex items-center justify-center p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/50 text-slate-600 transition-all">
+                        <button
+                          onClick={() => setSelectedApplication(app)}
+                          className="inline-flex items-center justify-center p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/50 text-slate-600 transition-all"
+                        >
                           <Eye size={16} />
                         </button>
                         <button
@@ -253,6 +256,16 @@ export default function ShopApproval() {
           </div>
         </section>
       </main>
+
+      <AnimatePresence>
+        {selectedApplication && (
+          <ShopDetailModal
+            isOpen={!!selectedApplication}
+            application={selectedApplication}
+            onClose={() => setSelectedApplication(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -9,10 +9,13 @@ import {
   ArrowUpRight, 
   ArrowDownRight, 
   Search,
-  CheckCircle2,
-  Clock,
   Sparkles,
-  ShieldAlert
+  Eye,
+  Trash2,
+  X,
+  ShoppingBag,
+  CreditCard,
+  User
 } from 'lucide-react';
 
 function AnimatedValue({ value }) {
@@ -77,6 +80,16 @@ export default function ViewCustomers() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+
+  const [customers, setCustomers] = useState([
+    { id: 'CUST-84920', name: 'Alexander Wright', email: 'alexander.w@gmail.com', orders: '42 Orders', spent: '₹1,840.50', status: 'Active', joined: 'Jan 12, 2025' },
+    { id: 'CUST-84919', name: 'Beatrice Vance', email: 'b.vance@yahoo.com', orders: '28 Orders', spent: '₹1,290.00', status: 'Active', joined: 'Feb 04, 2025' },
+    { id: 'CUST-84918', name: 'Charlie Peterson', email: 'charliep@live.com', orders: '15 Orders', spent: '₹610.20', status: 'Suspended', joined: 'Feb 19, 2025' },
+    { id: 'CUST-84917', name: 'Diana Prince', email: 'diana.p@amazon.com', orders: '64 Orders', spent: '₹3,120.40', status: 'Active', joined: 'Mar 01, 2025' },
+    { id: 'CUST-84916', name: 'Ethan Hunt', email: 'ethan.h@imf.org', orders: '3 Orders', spent: '₹94.00', status: 'Inactive', joined: 'Apr 11, 2025' },
+    { id: 'CUST-84915', name: 'Fiona Gallagher', email: 'fiona.g@southside.com', orders: '37 Orders', spent: '₹1,110.10', status: 'Active', joined: 'May 20, 2025' }
+  ]);
 
   const customerStats = [
     { 
@@ -125,16 +138,7 @@ export default function ViewCustomers() {
     }
   ];
 
-  const customersList = [
-    { id: 'CUST-84920', name: 'Alexander Wright', email: 'alexander.w@gmail.com', orders: '42 Orders', spent: '₹1,840.50', status: 'Active', joined: 'Jan 12, 2025' },
-    { id: 'CUST-84919', name: 'Beatrice Vance', email: 'b.vance@yahoo.com', orders: '28 Orders', spent: '₹1,290.00', status: 'Active', joined: 'Feb 04, 2025' },
-    { id: 'CUST-84918', name: 'Charlie Peterson', email: 'charliep@live.com', orders: '15 Orders', spent: '₹610.20', status: 'Suspended', joined: 'Feb 19, 2025' },
-    { id: 'CUST-84917', name: 'Diana Prince', email: 'diana.p@amazon.com', orders: '64 Orders', spent: '₹3,120.40', status: 'Active', joined: 'Mar 01, 2025' },
-    { id: 'CUST-84916', name: 'Ethan Hunt', email: 'ethan.h@imf.org', orders: '3 Orders', spent: '₹94.00', status: 'Inactive', joined: 'Apr 11, 2025' },
-    { id: 'CUST-84915', name: 'Fiona Gallagher', email: 'fiona.g@southside.com', orders: '37 Orders', spent: '₹1,110.10', status: 'Active', joined: 'May 20, 2025' }
-  ];
-
-  const filteredCustomers = customersList.filter(customer =>
+  const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -146,6 +150,10 @@ export default function ViewCustomers() {
     setTimeout(() => {
       setIsRefreshing(false);
     }, 1000);
+  };
+
+  const handleDelete = (id) => {
+    setCustomers((prev) => prev.filter(customer => customer.id !== id));
   };
 
   return (
@@ -238,7 +246,7 @@ export default function ViewCustomers() {
                 placeholder="Search by ID, name, email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-semibold focus:outline-none focus:border-emerald-550 focus:bg-white transition-all text-slate-700"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-semibold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-slate-700"
               />
             </div>
           </div>
@@ -252,7 +260,8 @@ export default function ViewCustomers() {
                   <th className="pb-4">Completed Purchases</th>
                   <th className="pb-4">Lifetime Outlay</th>
                   <th className="pb-4">Registration Date</th>
-                  <th className="pb-4 text-right">Account State</th>
+                  <th className="pb-4 text-center">Account State</th>
+                  <th className="pb-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100/60">
@@ -268,7 +277,7 @@ export default function ViewCustomers() {
                     <td className="py-4 font-mono text-slate-600">{customer.orders}</td>
                     <td className="py-4 font-mono text-slate-800 font-extrabold">{customer.spent}</td>
                     <td className="py-4 text-xs text-slate-400 font-medium">{customer.joined}</td>
-                    <td className="py-4 text-right">
+                    <td className="py-4 text-center">
                       <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border ${
                         customer.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                         customer.status === 'Inactive' ? 'bg-slate-50 text-slate-500 border-slate-100' :
@@ -282,6 +291,22 @@ export default function ViewCustomers() {
                         {customer.status}
                       </span>
                     </td>
+                    <td className="py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setSelectedCustomer(customer)}
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all duration-200"
+                        >
+                          <Eye size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(customer.id)}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all duration-200"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -289,6 +314,62 @@ export default function ViewCustomers() {
           </div>
         </section>
       </main>
+
+      {selectedCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] w-full max-w-lg p-8 shadow-2xl border border-slate-100 relative">
+            <button
+              onClick={() => setSelectedCustomer(null)}
+              className="absolute right-6 top-6 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+                <User size={28} />
+              </div>
+              <div>
+                <span className="text-[11px] font-mono font-bold text-slate-400 block tracking-wider">{selectedCustomer.id}</span>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">{selectedCustomer.name}</h3>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/10 text-emerald-700 rounded-xl">
+                    <ShoppingBag size={18} />
+                  </div>
+                  <span className="text-sm font-semibold text-slate-500">Total Purchase Volume</span>
+                </div>
+                <span className="font-mono font-extrabold text-slate-900">{selectedCustomer.orders}</span>
+              </div>
+
+              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/10 text-emerald-700 rounded-xl">
+                    <CreditCard size={18} />
+                  </div>
+                  <span className="text-sm font-semibold text-slate-500">Lifetime Account Outlay</span>
+                </div>
+                <span className="font-mono font-extrabold text-emerald-600">{selectedCustomer.spent}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-slate-100 text-sm">
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Email Address</span>
+                <span className="font-semibold text-slate-800 break-all">{selectedCustomer.email}</span>
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Registration Date</span>
+                <span className="font-semibold text-slate-800">{selectedCustomer.joined}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

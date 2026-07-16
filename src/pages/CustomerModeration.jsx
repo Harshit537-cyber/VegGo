@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import Sidebar from '../components/Sidebar';
+import ConfirmModal from '../Common/ConfirmModal';
 import { 
   Calendar, 
   RefreshCw, 
@@ -7,9 +9,7 @@ import {
   UserCheck, 
   UserX, 
   Search, 
-  ShieldCheck,
-  CheckCircle2,
-  Clock
+  ShieldCheck
 } from 'lucide-react';
 
 function AnimatedValue({ value }) {
@@ -73,6 +73,7 @@ export default function CustomerModeration() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, account: null });
   
   const [accounts, setAccounts] = useState([
     { id: 'CUST-84920', name: 'Alexander Wright', email: 'alexander.w@gmail.com', flags: 0, reason: 'None', status: 'Active' },
@@ -83,7 +84,17 @@ export default function CustomerModeration() {
     { id: 'CUST-84915', name: 'Fiona Gallagher', email: 'fiona.g@southside.com', flags: 0, reason: 'None', status: 'Active' }
   ]);
 
-  const toggleAccountStatus = (id) => {
+  const initiateToggleStatus = (account) => {
+    setModalConfig({
+      isOpen: true,
+      account
+    });
+  };
+
+  const handleConfirmAction = () => {
+    if (!modalConfig.account) return;
+
+    const { id } = modalConfig.account;
     setAccounts(prev => prev.map(account => {
       if (account.id === id) {
         const nextStatus = account.status === 'Active' ? 'Blocked' : 'Active';
@@ -95,6 +106,8 @@ export default function CustomerModeration() {
       }
       return account;
     }));
+
+    setModalConfig({ isOpen: false, account: null });
   };
 
   const handleRefresh = () => {
@@ -270,7 +283,7 @@ export default function CustomerModeration() {
                     </td>
                     <td className="py-4 text-right">
                       <button
-                        onClick={() => toggleAccountStatus(account.id)}
+                        onClick={() => initiateToggleStatus(account)}
                         className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[11px] font-bold transition-all border ${
                           account.status === 'Active'
                             ? 'bg-rose-50 hover:bg-rose-100/80 text-rose-700 border-rose-200'
@@ -288,6 +301,25 @@ export default function CustomerModeration() {
           </div>
         </section>
       </main>
+
+      <AnimatePresence>
+        {modalConfig.isOpen && modalConfig.account && (
+          <ConfirmModal
+            isOpen={modalConfig.isOpen}
+            onClose={() => setModalConfig({ isOpen: false, account: null })}
+            onConfirm={handleConfirmAction}
+            type={modalConfig.account.status === 'Active' ? 'danger' : 'success'}
+            title={modalConfig.account.status === 'Active' ? 'Restrict Account Access' : 'Restore Account Access'}
+            message={
+              modalConfig.account.status === 'Active'
+                ? `Are you sure you want to suspend access for ${modalConfig.account.name}? They will lose immediately access to platform services.`
+                : `Are you sure you want to restore workspace privileges for ${modalConfig.account.name}? This resets their flags status.`
+            }
+            confirmText={modalConfig.account.status === 'Active' ? 'Yes, Block Account' : 'Yes, Restore Access'}
+            cancelText="Cancel Action"
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
