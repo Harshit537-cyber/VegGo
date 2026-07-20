@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import RiderModal from '../Models/RiderModal';
 import { 
   Calendar, 
   RefreshCw, 
@@ -8,8 +9,7 @@ import {
   Truck, 
   Clock, 
   Eye, 
-  ShieldCheck,
-  CheckCircle2
+  ShieldCheck
 } from 'lucide-react';
 
 function AnimatedValue({ value }) {
@@ -72,6 +72,7 @@ export default function RiderApproval() {
   const [currentTab, setCurrentTab] = useState('rider-approval');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedRider, setSelectedRider] = useState(null);
 
   const [applicants, setApplicants] = useState([
     { id: 'RDR-4091', name: 'Marcus Sterling', city: 'North Sector', vehicle: 'Electric Bike', date: 'Oct 10, 2026', status: 'Pending' },
@@ -229,7 +230,10 @@ export default function RiderApproval() {
                       </td>
                       <td className="py-4 text-xs text-slate-400 font-medium">{rider.date}</td>
                       <td className="py-4 text-right space-x-2">
-                        <button className="inline-flex items-center justify-center p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/50 text-slate-600 transition-all">
+                        <button 
+                          onClick={() => setSelectedRider(rider)}
+                          className="inline-flex items-center justify-center p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/50 text-slate-600 transition-all"
+                        >
                           <Eye size={16} />
                         </button>
                         <button
@@ -253,6 +257,20 @@ export default function RiderApproval() {
           </div>
         </section>
       </main>
+
+      <RiderModal
+        rider={selectedRider}
+        isOpen={!!selectedRider}
+        onClose={() => setSelectedRider(null)}
+        onApprove={(id) => {
+          handleAction(id);
+          setSelectedRider(null);
+        }}
+        onReject={(id) => {
+          handleAction(id);
+          setSelectedRider(null);
+        }}
+      />
     </div>
   );
 }

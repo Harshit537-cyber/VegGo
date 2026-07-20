@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import OrderDetailModal from '../Models/OrderDetailModal';
 import { 
   Calendar, 
   RefreshCw, 
@@ -7,13 +8,9 @@ import {
   Clock, 
   Truck, 
   CheckCircle2, 
-  AlertCircle, 
   Eye, 
-  User, 
   MapPin, 
-  Plus, 
-  Search, 
-  SlidersHorizontal 
+  Search 
 } from 'lucide-react';
 
 function AnimatedValue({ value }) {
@@ -79,6 +76,7 @@ export default function LiveOrders() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const [orders, setOrders] = useState([
     { id: 'ORD-4091', customer: 'Rohan Sharma', address: 'Connaught Place, New Delhi', items: 'Organic Spinach (2kg), Red Tomatoes (3kg)', amount: '₹340.00', status: 'Incoming', time: 'Just now' },
@@ -313,7 +311,10 @@ export default function LiveOrders() {
                       </td>
                       <td className="py-5 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button className="inline-flex items-center justify-center p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/50 text-slate-600 transition-all">
+                          <button 
+                            onClick={() => setSelectedOrder(order)}
+                            className="inline-flex items-center justify-center p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/50 text-slate-600 transition-all"
+                          >
                             <Eye size={14} />
                           </button>
                           {order.status === 'Incoming' && (
@@ -342,6 +343,16 @@ export default function LiveOrders() {
           </div>
         </section>
       </main>
+
+      <OrderDetailModal
+        order={selectedOrder}
+        isOpen={!!selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        onAction={(id, nextStatus) => {
+          handleAction(id, nextStatus);
+          setSelectedOrder(null);
+        }}
+      />
     </div>
   );
 }

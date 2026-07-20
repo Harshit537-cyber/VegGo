@@ -10,17 +10,20 @@ import {
   ShoppingCart,
   BarChart3,
   Bell,
+  Settings,
   ChevronDown,
   ChevronUp,
   LogOut,
   Menu,
   X
 } from 'lucide-react';
+import LogoutModal from '../Common/LogoutModal';
 
 function Sidebar({ currentTab, setCurrentTab }) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [expandedGroup, setExpandedGroup] = useState('dashboard');
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const menuGroups = [
     {
@@ -96,6 +99,15 @@ function Sidebar({ currentTab, setCurrentTab }) {
         { id: 'push-notifications', label: 'Push Notifications', path: '/notifications/push' },
         { id: 'promotional-notifications', label: 'Promotional Notifications', path: '/notifications/promotional' }
       ]
+    },
+    {
+      id: 'settings',
+      label: 'System Settings',
+      icon: Settings,
+      subItems: [
+        { id: 'general-settings', label: 'Platform Configuration', path: '/settings/general' },
+        { id: 'payment-methods', label: 'Payment & Commissions', path: '/settings/payments' }
+      ]
     }
   ];
 
@@ -109,7 +121,14 @@ function Sidebar({ currentTab, setCurrentTab }) {
     navigate(path);
   };
 
-  const handleLogout = () => navigate('/login');
+  const handleLogoutClick = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  const handleConfirmLogout = () => {
+    setIsLogoutModalOpen(false);
+    navigate('/login');
+  };
 
   return (
     <>
@@ -212,7 +231,7 @@ function Sidebar({ currentTab, setCurrentTab }) {
           </div>
 
           <button
-            onClick={handleLogout}
+            onClick={handleLogoutClick}
             className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-sm font-bold text-rose-300/80 hover:text-white hover:bg-rose-500/10 transition-all duration-300"
           >
             <LogOut size={18} />
@@ -220,6 +239,12 @@ function Sidebar({ currentTab, setCurrentTab }) {
           </button>
         </div>
       </aside>
+
+      <LogoutModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleConfirmLogout}
+      />
     </>
   );
 }

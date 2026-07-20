@@ -32,6 +32,9 @@ import RevenueReports from "./pages/RevenueReports";
 import VendorReports from "./pages/VendorReports";
 import DeliveryReports from "./pages/DeliveryReports";
 
+import PlatformConfiguration from "../src/pages/PlatformConfiguration";
+import PaymentCommissions from "./pages/PaymentCommissions";
+
 export default function App() {
   return (
     <Router>
@@ -55,6 +58,8 @@ export default function App() {
        <Route path="/reports/vendors" element={<VendorReports />} />
 
        <Route path="/reports/delivery" element={<DeliveryReports />} />
+          
+       
 
         <Route
           path="/delivery/verification"
@@ -73,6 +78,10 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/products/categories" element={<Categories />} />
         <Route path="/products/list" element={<Products />} />
+
+      <Route path="/settings/general" element={<PlatformConfiguration />} /> 
+      <Route path="/settings/payments" element={<PaymentCommissions />} />  
+
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
