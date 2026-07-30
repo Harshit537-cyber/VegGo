@@ -10,7 +10,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://veggofresh.in',
+        target: 'https://veggofresh.in',
         changeOrigin: true,
         secure: false,
       },
