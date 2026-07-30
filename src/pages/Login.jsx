@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Shield, Check, Leaf, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Shield, Check, Leaf, ArrowRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import SuccessModal from '../Common/SuccessModal';
+import ForgotPasswordModal from '../Models/ForgotPasswordModal';
+import { adminLogin } from '../Api/authService/authService';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,13 +13,32 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSuccess(true);
-    setTimeout(() => {
-      navigate('/dashboard');
-    }, 2400);
+    setErrorMessage('');
+    setLoading(true);
+
+    try {
+      const response = await adminLogin({ email, password });
+
+      if (response?.success && response?.data) {
+        localStorage.setItem('accessToken', response.data.accessToken);
+        localStorage.setItem('refreshToken', response.data.refreshToken);
+        
+        setIsSuccess(true);
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 2400);
+      }
+    } catch (error) {
+      setErrorMessage(error?.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const containerVariants = {
@@ -187,6 +208,16 @@ export default function Login() {
               </p>
             </motion.div>
 
+            {errorMessage && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 text-sm font-medium"
+              >
+                {errorMessage}
+              </motion.div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-8">
               <motion.div variants={itemVariants}>
                 <label className="block text-sm font-bold uppercase tracking-wider text-slate-400 mb-3">
@@ -202,7 +233,7 @@ export default function Login() {
                     value={email} 
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/5 outline-none transition-all text-slate-800 text-base font-medium placeholder:text-slate-400"
-                    placeholder="admin@veggofresh.com" 
+                    placeholder="admin@veg.go" 
                   />
                 </div>
               </motion.div>
@@ -212,9 +243,13 @@ export default function Login() {
                   <label className="block text-sm font-bold uppercase tracking-wider text-slate-400">
                     Password
                   </label>
-                  <a href="#forgot" className="text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors">
+                  <button 
+                    type="button"
+                    onClick={() => setIsForgotOpen(true)}
+                    className="text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                  >
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -276,12 +311,19 @@ export default function Login() {
               <motion.div variants={itemVariants}>
                 <motion.button 
                   type="submit" 
+                  disabled={loading}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
-                  className="w-full py-4.5 bg-emerald-600 hover:bg-emerald-700 transition-all text-white font-bold text-base rounded-2xl shadow-xl shadow-emerald-600/15 flex items-center justify-center gap-2.5 group mt-4 cursor-pointer"
+                  className="w-full py-4.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 transition-all text-white font-bold text-base rounded-2xl shadow-xl shadow-emerald-600/15 flex items-center justify-center gap-2.5 group mt-4 cursor-pointer"
                 >
-                  Sign In to Dashboard
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
+                  {loading ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : (
+                    <>
+                      Sign In to Dashboard
+                      <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
+                    </>
+                  )}
                 </motion.button>
               </motion.div>
             </form>
@@ -291,6 +333,15 @@ export default function Login() {
 
       <AnimatePresence>
         {isSuccess && <SuccessModal isOpen={isSuccess} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isForgotOpen && (
+          <ForgotPasswordModal 
+            isOpen={isForgotOpen} 
+            onClose={() => setIsForgotOpen(false)} 
+          />
+        )}
       </AnimatePresence>
     </div>
   );

@@ -5,6 +5,8 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+import ProtectedRoute from "../src/components/ProtectedRoute";
+
 import Login from "../src/pages/Login";
 import Dashboard from "../src/components/Dashboard";
 import OrderStatus from "../src/pages/Orders";
@@ -31,7 +33,6 @@ import OrderMonitoring from "./pages/OrderMonitoring";
 import RevenueReports from "./pages/RevenueReports";
 import VendorReports from "./pages/VendorReports";
 import DeliveryReports from "./pages/DeliveryReports";
-
 import PlatformConfiguration from "../src/pages/PlatformConfiguration";
 import PaymentCommissions from "./pages/PaymentCommissions";
 
@@ -40,47 +41,36 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/dashboard/revenue" element={<RevenueOverview />} />
-        <Route path="/dashboard/orders" element={<OrderStatistics />} />
-        <Route path="/dashboard/vendors" element={<VendorStatistics />} />
-        <Route path="/customers/view" element={<ViewCustomers />} />
-        <Route path="/customers/moderation" element={<CustomerModeration />} />
-        <Route path="/vendors/approval" element={<ShopApproval />} />
-        <Route path="/vendors/suspension" element={<ShopSuspension />} />
-        <Route path="/delivery/approval" element={<RiderApproval />} />
 
-        <Route path="/orders/live" element={<LiveOrders />} /> 
-         <Route path="/orders/monitoring" element={<OrderMonitoring />} />
-
-       <Route path="/reports/revenue" element={<RevenueReports />} />
-
-       <Route path="/reports/vendors" element={<VendorReports />} />
-
-       <Route path="/reports/delivery" element={<DeliveryReports />} />
-          
-       
-
-        <Route
-          path="/delivery/verification"
-          element={<DocumentVerification />}
-        />
-        <Route path="/notifications/push" element={<PushNotifications />} />
-        <Route
-          path="/notifications/promotional"
-          element={<PromotionalNotifications />}
-        />
-        <Route path="/orders" element={<OrderStatus />} />
-        <Route path="/logistics" element={<ColdChain />} />
-        <Route path="/analytics" element={<MarketMetrics />} />
-        <Route path="/team" element={<OperatorRoles />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/products/categories" element={<Categories />} />
-        <Route path="/products/list" element={<Products />} />
-
-      <Route path="/settings/general" element={<PlatformConfiguration />} /> 
-      <Route path="/settings/payments" element={<PaymentCommissions />} />  
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard/revenue" element={<RevenueOverview />} />
+          <Route path="/dashboard/orders" element={<OrderStatistics />} />
+          <Route path="/dashboard/vendors" element={<VendorStatistics />} />
+          <Route path="/customers/view" element={<ViewCustomers />} />
+          <Route path="/customers/moderation" element={<CustomerModeration />} />
+          <Route path="/vendors/approval" element={<ShopApproval />} />
+          <Route path="/vendors/suspension" element={<ShopSuspension />} />
+          <Route path="/delivery/approval" element={<RiderApproval />} />
+          <Route path="/orders/live" element={<LiveOrders />} />
+          <Route path="/orders/monitoring" element={<OrderMonitoring />} />
+          <Route path="/reports/revenue" element={<RevenueReports />} />
+          <Route path="/reports/vendors" element={<VendorReports />} />
+          <Route path="/reports/delivery" element={<DeliveryReports />} />
+          <Route path="/delivery/verification" element={<DocumentVerification />} />
+          <Route path="/notifications/push" element={<PushNotifications />} />
+          <Route path="/notifications/promotional" element={<PromotionalNotifications />} />
+          <Route path="/orders" element={<OrderStatus />} />
+          <Route path="/logistics" element={<ColdChain />} />
+          <Route path="/analytics" element={<MarketMetrics />} />
+          <Route path="/team" element={<OperatorRoles />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/products/categories" element={<Categories />} />
+          <Route path="/products/list" element={<Products />} />
+          <Route path="/settings/general" element={<PlatformConfiguration />} />
+          <Route path="/settings/payments" element={<PaymentCommissions />} />
+        </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
