@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
+import { getAdminDashboard } from '../Api//authService/authService';
 import { 
   Calendar, 
   TrendingUp, 
@@ -11,19 +12,24 @@ import {
   AlertCircle, 
   Thermometer, 
   ShieldCheck,
-  Leaf,
   Activity,
   Package,
-  Gauge
+  Users,
+  Server
 } from 'lucide-react';
 
 function AnimatedValue({ value }) {
   const [displayValue, setDisplayValue] = useState('');
 
   useEffect(() => {
-    const match = value.match(/([\d,.]+)\s*(.*)/);
+    if (!value) {
+      setDisplayValue('');
+      return;
+    }
+
+    const match = String(value).match(/([\d,.]+)\s*(.*)/);
     if (!match) {
-      setDisplayValue(value);
+      setDisplayValue(String(value));
       return;
     }
 
@@ -61,7 +67,7 @@ function AnimatedValue({ value }) {
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(updateCount);
       } else {
-        setDisplayValue(value);
+        setDisplayValue(String(value));
       }
     };
 
@@ -76,43 +82,67 @@ function AnimatedValue({ value }) {
 export default function Dashboard() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState(null);
+
+  const fetchDashboardData = async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await getAdminDashboard();
+      if (response && response.success) {
+        setDashboardData(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+    } finally {
+      setIsRefreshing(false);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const handleRefresh = () => {
+    fetchDashboardData();
+  };
 
   const stats = [
     { 
-      label: 'Fresh Dispatch Orders', 
-      value: '14,820 kg', 
-      change: '+12.4%', 
+      label: 'Total Customers', 
+      value: dashboardData?.totalCustomers ? String(dashboardData.totalCustomers) : '0', 
+      change: '+100%', 
       up: true, 
-      desc: 'Compared to yesterday',
-      icon: Leaf,
+      desc: 'Active registered clients',
+      icon: Users,
       color: 'emerald'
     },
     { 
-      label: 'Active Supply Lines', 
-      value: '34 active', 
-      change: '+3.2%', 
+      label: 'Total Users', 
+      value: dashboardData?.totalUsers ? String(dashboardData.totalUsers) : '0', 
+      change: '+100%', 
       up: true, 
-      desc: '2 cold rooms standby',
+      desc: 'System users',
       icon: Activity,
       color: 'teal'
     },
     { 
-      label: 'Ambient Temp Average', 
-      value: '4.2 °C', 
-      change: '-0.8%', 
-      up: false, 
-      desc: 'Targeting 3.5 - 5 °C',
-      icon: Thermometer,
+      label: 'System Status', 
+      value: dashboardData?.systemStatus ? dashboardData.systemStatus.toUpperCase() : 'UNKNOWN', 
+      change: '100%', 
+      up: true, 
+      desc: 'All services running',
+      icon: ShieldCheck,
       color: 'emerald'
     },
     { 
-      label: 'Estimated Profit Margin', 
-      value: '87.4%', 
-      change: '+1.5%', 
+      label: 'Environment', 
+      value: dashboardData?.environment ? dashboardData.environment.toUpperCase() : 'N/A', 
+      change: 'Active', 
       up: true, 
-      desc: 'Excluding freight costs',
-      icon: Gauge,
+      desc: 'Current deployment env',
+      icon: Server,
       color: 'green'
     }
   ];
@@ -124,14 +154,6 @@ export default function Dashboard() {
     { id: '#VGF-2915', client: 'Healthy Living Market', produce: 'Avocados', quantity: '500 kg', status: 'Delayed', temp: '8.2°C' },
     { id: '#VGF-2914', client: 'Nature Express Hub', produce: 'Red Tomatoes', quantity: '2,100 kg', status: 'Shipped', temp: '5.1°C' }
   ];
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setRefreshKey((prev) => prev + 1);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-emerald-50/10 to-teal-50/20 flex font-sans antialiased text-slate-800">
@@ -166,13 +188,14 @@ export default function Dashboard() {
           <div className="flex items-center gap-3 z-10">
             <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 shadow-sm text-xs font-semibold text-emerald-50">
               <Calendar size={14} className="text-emerald-300" />
-              <span>Oct 12, 2026</span>
+              <span>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             </div>
             <button 
               onClick={handleRefresh}
-              className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl hover:bg-white/20 transition-all duration-300 active:scale-95 shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 group"
+              disabled={isRefreshing}
+              className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl hover:bg-white/20 transition-all duration-300 active:scale-95 shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 group disabled:opacity-50"
             >
-              <RefreshCw size={14} className={`text-emerald-300 transition-transform duration-700 ${isRefreshing ? 'rotate-180' : 'group-hover:rotate-45'}`} />
+              <RefreshCw size={14} className={`text-emerald-300 transition-transform duration-700 ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-45'}`} />
             </button>
           </div>
         </header>
@@ -197,7 +220,11 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <h3 className="text-3xl font-black text-slate-900 mt-4 tracking-tight">
-                    <AnimatedValue value={stat.value} key={refreshKey} />
+                    {loading ? (
+                      <span className="text-slate-300 animate-pulse">...</span>
+                    ) : (
+                      <AnimatedValue value={stat.value} key={stat.value} />
+                    )}
                   </h3>
                 </div>
                 

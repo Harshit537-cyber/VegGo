@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import Sidebar from '../components/Sidebar';
 import ConfirmModal from '../Common/ConfirmModal';
+import { getCustomerStats } from '../Api/authService/customerService';
 import { 
   Calendar, 
   RefreshCw, 
@@ -9,16 +10,23 @@ import {
   UserCheck, 
   UserX, 
   Search, 
-  ShieldCheck
+  ShieldCheck,
+  Users,
+  Crown
 } from 'lucide-react';
 
 function AnimatedValue({ value }) {
   const [displayValue, setDisplayValue] = useState('');
 
   useEffect(() => {
-    const match = value.match(/([\d,.]+)\s*(.*)/);
+    if (!value) {
+      setDisplayValue('');
+      return;
+    }
+
+    const match = String(value).match(/([\d,.]+)\s*(.*)/);
     if (!match) {
-      setDisplayValue(value);
+      setDisplayValue(String(value));
       return;
     }
 
@@ -56,7 +64,7 @@ function AnimatedValue({ value }) {
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(updateCount);
       } else {
-        setDisplayValue(value);
+        setDisplayValue(String(value));
       }
     };
 
@@ -72,9 +80,10 @@ export default function CustomerModeration() {
   const [currentTab, setCurrentTab] = useState('block-unblock');
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [modalConfig, setModalConfig] = useState({ isOpen: false, account: null });
-  
+  const [statsData, setStatsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   const [accounts, setAccounts] = useState([
     { id: 'CUST-84920', name: 'Alexander Wright', email: 'alexander.w@gmail.com', flags: 0, reason: 'None', status: 'Active' },
     { id: 'CUST-84919', name: 'Beatrice Vance', email: 'b.vance@yahoo.com', flags: 3, reason: 'Multiple payment failures', status: 'Active' },
@@ -83,6 +92,29 @@ export default function CustomerModeration() {
     { id: 'CUST-84916', name: 'Ethan Hunt', email: 'ethan.h@imf.org', flags: 12, reason: 'Promo code manipulation', status: 'Blocked' },
     { id: 'CUST-84915', name: 'Fiona Gallagher', email: 'fiona.g@southside.com', flags: 0, reason: 'None', status: 'Active' }
   ]);
+
+  const fetchCustomerStats = async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await getCustomerStats();
+      if (response && response.success) {
+        setStatsData(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch customer stats:', error);
+    } finally {
+      setIsRefreshing(false);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomerStats();
+  }, []);
+
+  const handleRefresh = () => {
+    fetchCustomerStats();
+  };
 
   const initiateToggleStatus = (account) => {
     setModalConfig({
@@ -110,18 +142,6 @@ export default function CustomerModeration() {
     setModalConfig({ isOpen: false, account: null });
   };
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setRefreshKey((prev) => prev + 1);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
-  };
-
-  const activeCount = accounts.filter(a => a.status === 'Active').length;
-  const blockedCount = accounts.filter(a => a.status === 'Blocked').length;
-  const flaggedCount = accounts.filter(a => a.flags > 0 && a.status === 'Active').length;
-
   const filteredAccounts = accounts.filter(account =>
     account.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     account.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -130,28 +150,36 @@ export default function CustomerModeration() {
 
   const moderationStats = [
     {
-      label: 'Unrestricted Users',
-      value: `${activeCount} Accounts`,
+      label: 'Total Customers',
+      value: statsData?.totalCustomers !== undefined ? `${statsData.totalCustomers} Accounts` : '0 Accounts',
       cardBg: 'bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-transparent',
       cardBorder: 'border-emerald-500/20',
       iconBg: 'bg-emerald-500/15 text-emerald-700',
+      icon: Users
+    },
+    {
+      label: 'Active This Month',
+      value: statsData?.activeThisMonth !== undefined ? `${statsData.activeThisMonth} Active` : '0 Active',
+      cardBg: 'bg-gradient-to-br from-teal-500/10 via-teal-400/5 to-transparent',
+      cardBorder: 'border-teal-500/20',
+      iconBg: 'bg-teal-500/15 text-teal-700',
       icon: UserCheck
     },
     {
-      label: 'Suspended / Blocked',
-      value: `${blockedCount} Accounts`,
-      cardBg: 'bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-transparent',
-      cardBorder: 'border-rose-500/20',
-      iconBg: 'bg-rose-500/15 text-rose-755',
-      icon: UserX
-    },
-    {
-      label: 'Flagged Warnings',
-      value: `${flaggedCount} Active`,
+      label: 'Premium Subscribers',
+      value: statsData?.premiumSubscribers !== undefined ? `${statsData.premiumSubscribers} Premium` : '0 Premium',
       cardBg: 'bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent',
       cardBorder: 'border-amber-500/20',
       iconBg: 'bg-amber-500/15 text-amber-700',
-      icon: ShieldAlert
+      icon: Crown
+    },
+    {
+      label: 'Suspended Accounts',
+      value: statsData?.suspendedAccounts !== undefined ? `${statsData.suspendedAccounts} Blocked` : '0 Blocked',
+      cardBg: 'bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-transparent',
+      cardBorder: 'border-rose-500/20',
+      iconBg: 'bg-rose-500/15 text-rose-700',
+      icon: UserX
     }
   ];
 
@@ -188,18 +216,19 @@ export default function CustomerModeration() {
           <div className="flex items-center gap-3 z-10">
             <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 shadow-sm text-sm font-bold text-emerald-50">
               <Calendar size={16} className="text-emerald-300" />
-              <span>Oct 12, 2026</span>
+              <span>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             </div>
             <button 
               onClick={handleRefresh}
-              className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl hover:bg-white/20 transition-all duration-300 active:scale-95 shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 group"
+              disabled={isRefreshing}
+              className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl hover:bg-white/20 transition-all duration-300 active:scale-95 shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 group disabled:opacity-50"
             >
-              <RefreshCw size={16} className={`text-emerald-300 transition-transform duration-700 ${isRefreshing ? 'rotate-180' : 'group-hover:rotate-45'}`} />
+              <RefreshCw size={16} className={`text-emerald-300 transition-transform duration-700 ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-45'}`} />
             </button>
           </div>
         </header>
 
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {moderationStats.map((stat, idx) => {
             const IconComponent = stat.icon;
             return (
@@ -214,7 +243,11 @@ export default function CustomerModeration() {
                     {stat.label}
                   </p>
                   <h3 className="text-2xl font-black text-slate-900 mt-2 tracking-tight">
-                    <AnimatedValue value={stat.value} key={refreshKey} />
+                    {loading ? (
+                      <span className="text-slate-300 animate-pulse">...</span>
+                    ) : (
+                      <AnimatedValue value={stat.value} key={stat.value} />
+                    )}
                   </h3>
                 </div>
                 <div className={`${stat.iconBg} p-4 rounded-2xl border border-white/10 shadow-sm transition-colors duration-300 z-10`}>
