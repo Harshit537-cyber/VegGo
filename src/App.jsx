@@ -5,14 +5,15 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import ProtectedRoute from "../src/components/ProtectedRoute";
 
-import Login from "../src/pages/Login";
-import Dashboard from "../src/components/Dashboard";
-import OrderStatus from "../src/pages/Orders";
-import ColdChain from "../src/pages/ColdChain";
-import MarketMetrics from "../src/pages/MarketMetrics";
-import OperatorRoles from "../src/pages/OperatorRoles";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Dashboard from "./components/Dashboard";
+
+import Login from "./pages/Login";
+import OrderStatus from "./pages/Orders";
+import ColdChain from "./pages/ColdChain";
+import MarketMetrics from "./pages/MarketMetrics";
+import OperatorRoles from "./pages/OperatorRoles";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
 import RevenueOverview from "./pages/RevenueOverview";
@@ -33,7 +34,7 @@ import OrderMonitoring from "./pages/OrderMonitoring";
 import RevenueReports from "./pages/RevenueReports";
 import VendorReports from "./pages/VendorReports";
 import DeliveryReports from "./pages/DeliveryReports";
-import PlatformConfiguration from "../src/pages/PlatformConfiguration";
+import PlatformConfiguration from "./pages/PlatformConfiguration";
 import PaymentCommissions from "./pages/PaymentCommissions";
 
 export default function App() {
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
 
         <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/revenue" element={<RevenueOverview />} />
           <Route path="/dashboard/orders" element={<OrderStatistics />} />
@@ -52,27 +54,27 @@ export default function App() {
           <Route path="/vendors/approval" element={<ShopApproval />} />
           <Route path="/vendors/suspension" element={<ShopSuspension />} />
           <Route path="/delivery/approval" element={<RiderApproval />} />
+          <Route path="/delivery/verification" element={<DocumentVerification />} />
+          <Route path="/orders" element={<OrderStatus />} />
           <Route path="/orders/live" element={<LiveOrders />} />
           <Route path="/orders/monitoring" element={<OrderMonitoring />} />
           <Route path="/reports/revenue" element={<RevenueReports />} />
           <Route path="/reports/vendors" element={<VendorReports />} />
           <Route path="/reports/delivery" element={<DeliveryReports />} />
-          <Route path="/delivery/verification" element={<DocumentVerification />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/notifications/push" element={<PushNotifications />} />
           <Route path="/notifications/promotional" element={<PromotionalNotifications />} />
-          <Route path="/orders" element={<OrderStatus />} />
+          <Route path="/products/categories" element={<Categories />} />
+          <Route path="/products/list" element={<Products />} />
           <Route path="/logistics" element={<ColdChain />} />
           <Route path="/analytics" element={<MarketMetrics />} />
           <Route path="/team" element={<OperatorRoles />} />
-          <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/products/categories" element={<Categories />} />
-          <Route path="/products/list" element={<Products />} />
           <Route path="/settings/general" element={<PlatformConfiguration />} />
           <Route path="/settings/payments" element={<PaymentCommissions />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
   );
