@@ -26,13 +26,14 @@ export default function Login() {
       const response = await adminLogin({ email, password });
 
       if (response?.success && response?.data) {
+        localStorage.setItem('token', response.data.accessToken);
         localStorage.setItem('accessToken', response.data.accessToken);
         localStorage.setItem('refreshToken', response.data.refreshToken);
         
         setIsSuccess(true);
         setTimeout(() => {
           navigate('/dashboard');
-        }, 2400);
+        }, 1500);
       }
     } catch (error) {
       setErrorMessage(error?.message || 'Invalid email or password');
