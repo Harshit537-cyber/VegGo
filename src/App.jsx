@@ -36,6 +36,7 @@ import VendorReports from "./pages/VendorReports";
 import DeliveryReports from "./pages/DeliveryReports";
 import PlatformConfiguration from "./pages/PlatformConfiguration";
 import PaymentCommissions from "./pages/PaymentCommissions";
+import VendorPayouts from "./pages/VendorPayouts";
 
 export default function App() {
   return (
@@ -49,6 +50,11 @@ export default function App() {
           <Route path="/dashboard/revenue" element={<RevenueOverview />} />
           <Route path="/dashboard/orders" element={<OrderStatistics />} />
           <Route path="/dashboard/vendors" element={<VendorStatistics />} />
+
+          <Route path="/payouts/vendors" element={<VendorPayouts />} />
+          <Route path="/payouts/delivery" element={<VendorPayouts />} />
+          <Route path="/payouts/refunds" element={<VendorPayouts />} />
+
           <Route path="/customers/view" element={<ViewCustomers />} />
           <Route path="/customers/moderation" element={<CustomerModeration />} />
           <Route path="/vendors/approval" element={<ShopApproval />} />

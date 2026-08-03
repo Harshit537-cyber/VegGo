@@ -11,6 +11,7 @@ import {
   BarChart3,
   Bell,
   Settings,
+  Wallet,
   ChevronDown,
   ChevronUp,
   LogOut,
@@ -34,6 +35,16 @@ function Sidebar({ currentTab, setCurrentTab }) {
         { id: 'revenue-overview', label: 'Revenue Overview', path: '/dashboard/revenue' },
         { id: 'order-statistics', label: 'Order Statistics', path: '/dashboard/orders' },
         { id: 'vendor-statistics', label: 'Vendor Statistics', path: '/dashboard/vendors' }
+      ]
+    },
+    {
+      id: 'payouts',
+      label: 'Payouts & Settlements',
+      icon: Wallet,
+      subItems: [
+        { id: 'vendor-payouts', label: 'Vendor Payouts', path: '/payouts/vendors' },
+        { id: 'delivery-payouts', label: 'Rider Settlements', path: '/payouts/delivery' },
+        { id: 'customer-refunds', label: 'Customer Refunds', path: '/payouts/refunds' }
       ]
     },
     {
