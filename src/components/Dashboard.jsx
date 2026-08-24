@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
-import { getAdminDashboard } from '../Api//authService/authService';
+import { getAdminDashboard } from '../Api/dashboardService/dashboardService';
 import { 
   Calendar, 
   TrendingUp, 
