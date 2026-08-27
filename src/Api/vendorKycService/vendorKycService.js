@@ -31,8 +31,11 @@ export const rejectVendorKyc = async (shopId, reason) => {
     null,
     {
       params: {
-        reason
-      }
+        reason:
+          typeof reason === 'string'
+            ? reason
+            : reason?.reason || '',
+      },
     }
   );
 
