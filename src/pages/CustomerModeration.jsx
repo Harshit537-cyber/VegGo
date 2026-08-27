@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '../components/Sidebar';
 import ConfirmModal from '../Common/ConfirmModal';
 
@@ -20,6 +20,15 @@ import {
   ShieldCheck,
   Users,
   Crown,
+  Sparkles,
+  Zap,
+  AlertCircle,
+  ChevronRight,
+  ShieldAlert,
+  ArrowUpRight,
+  ArrowDownRight,
+  CheckCircle2,
+  Clock,
 } from 'lucide-react';
 
 function AnimatedValue({ value }) {
@@ -53,15 +62,9 @@ function AnimatedValue({ value }) {
     let animationFrame;
 
     const animate = (time) => {
-      const progress = Math.min(
-        (time - startTime) / duration,
-        1
-      );
-
+      const progress = Math.min((time - startTime) / duration, 1);
       const ease =
-        progress === 1
-          ? 1
-          : 1 - Math.pow(2, -10 * progress);
+        progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
 
       const current = targetNumber * ease;
 
@@ -120,13 +123,8 @@ export default function CustomerModeration() {
         getModerationCustomers(),
       ]);
 
-      setCustomerStats(
-        customerStatsResponse?.data ?? null
-      );
-
-      setModerationStats(
-        moderationStatsResponse?.data ?? null
-      );
+      setCustomerStats(customerStatsResponse?.data ?? null);
+      setModerationStats(moderationStatsResponse?.data ?? null);
 
       const moderationData =
         moderationCustomersResponse?.data;
@@ -135,17 +133,11 @@ export default function CustomerModeration() {
 
       if (Array.isArray(moderationData)) {
         customerList = moderationData;
-      } else if (
-        Array.isArray(moderationData?.content)
-      ) {
+      } else if (Array.isArray(moderationData?.content)) {
         customerList = moderationData.content;
-      } else if (
-        Array.isArray(moderationData?.customers)
-      ) {
+      } else if (Array.isArray(moderationData?.customers)) {
         customerList = moderationData.customers;
-      } else if (
-        Array.isArray(moderationData?.data)
-      ) {
+      } else if (Array.isArray(moderationData?.data)) {
         customerList = moderationData.data;
       }
 
@@ -197,10 +189,52 @@ export default function CustomerModeration() {
     return customer?.status || 'Active';
   };
 
+  const getCustomerName = (account) => {
+    return (
+      account?.name ??
+      account?.fullName ??
+      account?.customerName ??
+      account?.user?.name ??
+      'Unknown Customer'
+    );
+  };
+
+  const getCustomerEmail = (account) => {
+    return (
+      account?.email ??
+      account?.user?.email ??
+      ''
+    );
+  };
+
+  const getFlags = (account) => {
+    return (
+      account?.flags ??
+      account?.flagCount ??
+      account?.flagsRaised ??
+      0
+    );
+  };
+
+  const getReason = (account) => {
+    return (
+      account?.reason ??
+      account?.primaryInfraction ??
+      'None reported'
+    );
+  };
+
   const initiateToggleStatus = (account) => {
     setModalConfig({
       isOpen: true,
       account,
+    });
+  };
+
+  const closeModal = () => {
+    setModalConfig({
+      isOpen: false,
+      account: null,
     });
   };
 
@@ -213,12 +247,7 @@ export default function CustomerModeration() {
 
     if (!customerId) {
       setErrorMessage('Customer ID not found');
-
-      setModalConfig({
-        isOpen: false,
-        account: null,
-      });
-
+      closeModal();
       return;
     }
 
@@ -240,16 +269,12 @@ export default function CustomerModeration() {
               isBlocked ? 'unblock' : 'block'
             } customer`
         );
-
         return;
       }
 
       await fetchModerationData();
 
-      setModalConfig({
-        isOpen: false,
-        account: null,
-      });
+      closeModal();
     } catch (error) {
       console.error(
         'Failed to update customer status:',
@@ -272,19 +297,10 @@ export default function CustomerModeration() {
     const query = searchQuery.toLowerCase();
 
     return (
-      String(
-        account?.name ??
-          account?.fullName ??
-          account?.customerName ??
-          ''
-      )
+      getCustomerName(account)
         .toLowerCase()
         .includes(query) ||
-      String(
-        account?.email ??
-          account?.user?.email ??
-          ''
-      )
+      getCustomerEmail(account)
         .toLowerCase()
         .includes(query)
     );
@@ -317,328 +333,609 @@ export default function CustomerModeration() {
     {
       label: 'Total Customers',
       value: `${totalCustomers} Accounts`,
-      bg: 'bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-transparent',
-      border: 'border-emerald-500/20',
-      iconBg: 'bg-emerald-500/15 text-emerald-700',
+      change: 'Live',
+      up: true,
+      accentColor: 'bg-emerald-600',
+      iconBg:
+        'bg-emerald-50 text-emerald-700 border-emerald-200',
+      tagColor:
+        'text-emerald-700 bg-emerald-50 border-emerald-200',
       icon: Users,
     },
     {
       label: 'Active This Month',
       value: `${activeThisMonth} Active`,
-      bg: 'bg-gradient-to-br from-teal-500/10 via-teal-400/5 to-transparent',
-      border: 'border-teal-500/20',
-      iconBg: 'bg-teal-500/15 text-teal-700',
+      change: 'Current',
+      up: true,
+      accentColor: 'bg-teal-600',
+      iconBg:
+        'bg-teal-50 text-teal-700 border-teal-200',
+      tagColor:
+        'text-teal-700 bg-teal-50 border-teal-200',
       icon: UserCheck,
     },
     {
       label: 'Premium Subscribers',
       value: `${premiumSubscribers} Premium`,
-      bg: 'bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent',
-      border: 'border-amber-500/20',
-      iconBg: 'bg-amber-500/15 text-amber-700',
+      change: 'Members',
+      up: true,
+      accentColor: 'bg-emerald-500',
+      iconBg:
+        'bg-emerald-50 text-emerald-700 border-emerald-200',
+      tagColor:
+        'text-emerald-700 bg-emerald-50 border-emerald-200',
       icon: Crown,
     },
     {
       label: 'Suspended Accounts',
       value: `${suspendedAccounts} Blocked`,
-      bg: 'bg-gradient-to-br from-rose-500/10 via-rose-400/5 to-transparent',
-      border: 'border-rose-500/20',
-      iconBg: 'bg-rose-500/15 text-rose-700',
+      change: 'Review',
+      up: false,
+      accentColor: 'bg-green-700',
+      iconBg:
+        'bg-green-50 text-green-700 border-green-200',
+      tagColor:
+        'text-rose-700 bg-rose-50 border-rose-200',
       icon: UserX,
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-emerald-50/10 to-teal-50/20 flex font-sans antialiased text-slate-800">
+    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
       <Sidebar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
       />
 
-      <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto max-h-screen">
-        <header className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 p-6 md:p-8 rounded-3xl bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white shadow-lg overflow-hidden border border-emerald-700/30">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:16px_24px] pointer-events-none" />
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
 
-          <div className="space-y-4 z-10 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[11px] uppercase font-bold tracking-widest text-emerald-100 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/15">
-                Security & Policy Enforcement
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.5,
+            ease: 'easeOut',
+          }}
+          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
+        >
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse duration-1000" />
+
+          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="space-y-2.5 z-10">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm backdrop-blur-md">
+                <ShieldAlert
+                  size={12}
+                  className="text-emerald-400"
+                />
+                Security & Policy Controls
               </span>
-
-              <div className="flex items-center gap-3 bg-rose-950/60 backdrop-blur-md border border-rose-500/30 px-3.5 py-1.5 rounded-full text-rose-300 max-w-[190px] overflow-hidden">
-                <span className="relative flex h-3.5 w-3.5 flex-shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 border border-white/20" />
-                </span>
-
-                <div className="overflow-hidden whitespace-nowrap text-[11px] font-black uppercase tracking-widest text-white w-full">
-                  <marquee scrollamount="3.5">
-                    LIVE ADMIN VEG GO
-                  </marquee>
-                </div>
-              </div>
             </div>
 
-            <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
-              Moderation Center
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
+              Customer Moderation
+              <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </h1>
+
+            <p className="text-xs sm:text-sm text-emerald-200/70 font-medium max-w-xl">
+              Monitor customer access, review reported accounts,
+              and manage account restrictions from one place.
+            </p>
           </div>
 
-          <div className="flex items-center gap-3 z-10">
-            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 shadow-sm text-sm font-bold text-emerald-50">
+          <div className="flex items-center gap-3 self-start lg:self-center z-10">
+            <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
               <Calendar
-                size={16}
-                className="text-emerald-300"
+                size={14}
+                className="text-emerald-400"
               />
 
               <span>
-                {new Date().toLocaleDateString(
-                  'en-US',
-                  {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  }
-                )}
+                {new Date().toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
               </span>
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl hover:bg-white/20 transition-all duration-300 active:scale-95 shadow-sm text-white disabled:opacity-50"
+              className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner group/btn disabled:opacity-50"
+              title="Refresh Data"
             >
               <RefreshCw
-                size={16}
-                className={
+                size={15}
+                className={`text-emerald-300 transition-transform duration-700 ${
                   isRefreshing
-                    ? 'animate-spin text-emerald-300'
-                    : 'text-emerald-300'
-                }
+                    ? 'animate-spin scale-110'
+                    : 'group-hover/btn:rotate-45'
+                }`}
               />
-            </button>
+            </motion.button>
           </div>
-        </header>
+        </motion.header>
 
-        {errorMessage && (
-          <div className="mb-6 px-5 py-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-semibold">
-            {errorMessage}
-          </div>
-        )}
+        <AnimatePresence>
+          {errorMessage && (
+            <motion.div
+              initial={{
+                opacity: 0,
+                y: -10,
+              }}
+              animate={{
+                opacity: 1,
+                y: 0,
+              }}
+              exit={{
+                opacity: 0,
+                y: -10,
+              }}
+              className="px-5 py-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold flex items-center gap-3 shadow-sm"
+            >
+              <AlertCircle
+                size={18}
+                className="text-rose-600 flex-shrink-0"
+              />
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {moderationCards.map((stat, index) => {
-            const Icon = stat.icon;
+              <span>{errorMessage}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          {moderationCards.map((stat, idx) => {
+            const IconComponent = stat.icon;
 
             return (
-              <div
-                key={index}
-                className={`${stat.bg} ${stat.border} p-6 rounded-3xl border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-between group relative overflow-hidden`}
+              <motion.div
+                key={idx}
+                initial={{
+                  opacity: 0,
+                  y: 20,
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                }}
+                transition={{
+                  duration: 0.4,
+                  delay: idx * 0.1,
+                }}
+                whileHover={{
+                  y: -6,
+                  transition: {
+                    duration: 0.2,
+                  },
+                }}
+                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group cursor-pointer"
               >
-                <div>
-                  <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">
-                    {stat.label}
-                  </p>
+                <div
+                  className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor} transition-all duration-300 group-hover:h-2`}
+                />
 
-                  <h3 className="text-2xl font-black text-slate-900 mt-2">
+                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none group-hover:scale-125" />
+
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors duration-200">
+                      {stat.label}
+                    </span>
+
+                    <motion.div
+                      whileHover={{
+                        rotate: 12,
+                        scale: 1.1,
+                      }}
+                      className={`${stat.iconBg} p-2.5 rounded-2xl transition-all border shadow-sm`}
+                    >
+                      <IconComponent size={18} />
+                    </motion.div>
+                  </div>
+
+                  <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono group-hover:text-emerald-800 transition-colors duration-200">
                     {loading ? (
                       <span className="text-slate-300 animate-pulse">
                         ...
                       </span>
                     ) : (
-                      <AnimatedValue
-                        value={stat.value}
-                      />
+                      <AnimatedValue value={stat.value} />
                     )}
                   </h3>
                 </div>
 
-                <div
-                  className={`${stat.iconBg} p-4 rounded-2xl border border-white/10 shadow-sm`}
-                >
-                  <Icon size={22} />
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between relative z-10">
+                  <span
+                    className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-transform duration-300 group-hover:scale-105 ${stat.tagColor}`}
+                  >
+                    {stat.up ? (
+                      <ArrowUpRight
+                        size={13}
+                        className="text-emerald-600"
+                      />
+                    ) : (
+                      <ArrowDownRight
+                        size={13}
+                        className="text-rose-600"
+                      />
+                    )}
+
+                    {stat.change}
+                  </span>
+
+                  <span className="text-[11px] text-black font-semibold">
+                    Security Metric
+                  </span>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </section>
 
-        <section className="bg-white rounded-3xl border border-emerald-100/50 shadow-sm p-6 md:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <h2 className="text-xl font-extrabold text-slate-900">
-              User Moderation Ledger
-            </h2>
+        <section className="w-full">
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              duration: 0.5,
+              delay: 0.3,
+            }}
+            className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6 flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                    <ShieldAlert size={18} />
+                  </div>
 
-            <div className="relative w-full sm:w-80">
-              <Search
-                className="absolute left-3.5 top-3.5 text-slate-400"
-                size={16}
-              />
+                  <div>
+                    <h2 className="text-lg font-semibold text-black tracking-tight">
+                      Customer Access Records
+                    </h2>
 
-              <input
-                type="text"
-                placeholder="Search accounts..."
-                value={searchQuery}
-                onChange={(e) =>
-                  setSearchQuery(e.target.value)
-                }
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-xs font-semibold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-slate-700"
-              />
-            </div>
-          </div>
+                    <p className="text-xs font-semibold text-black">
+                      Review flagged accounts and manage access status
+                    </p>
+                  </div>
+                </div>
 
-          {loading ? (
-            <div className="py-16 text-center text-sm font-semibold text-slate-400">
-              Loading moderation customers...
-            </div>
-          ) : filteredAccounts.length === 0 ? (
-            <div className="py-16 text-center text-sm font-semibold text-slate-400">
-              No moderation customers found
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-100 text-[11px] uppercase font-bold tracking-widest text-slate-400">
-                    <th className="pb-4">
-                      Customer Details
-                    </th>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 sm:w-64">
+                    <Search
+                      className="absolute left-3 top-2.5 text-slate-400"
+                      size={15}
+                    />
 
-                    <th className="pb-4">
-                      Flags Raised
-                    </th>
+                    <input
+                      type="text"
+                      placeholder="Search customers..."
+                      value={searchQuery}
+                      onChange={(e) =>
+                        setSearchQuery(e.target.value)
+                      }
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
 
-                    <th className="pb-4">
-                      Primary Infraction
-                    </th>
+              {loading ? (
+                <div className="py-16 text-center text-xs font-semibold text-slate-400">
+                  Loading moderation records...
+                </div>
+              ) : filteredAccounts.length === 0 ? (
+                <div className="py-16 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                    <Users size={20} />
+                  </div>
 
-                    <th className="pb-4">
-                      Account State
-                    </th>
+                  <p className="text-xs font-semibold text-slate-400">
+                    No customer records matching your search
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
+                          <th className="py-3.5 px-4 rounded-l-xl">
+                            Customer Details
+                          </th>
 
-                    <th className="pb-4 text-right">
-                      Moderation Actions
-                    </th>
-                  </tr>
-                </thead>
+                          <th className="py-3.5 px-4">
+                            Flags Raised
+                          </th>
 
-                <tbody className="divide-y divide-slate-100/60">
-                  {filteredAccounts.map(
-                    (account, index) => {
-                      const name =
-                        account?.name ??
-                        account?.fullName ??
-                        account?.customerName ??
-                        account?.user?.name ??
-                        'Unknown Customer';
+                          <th className="py-3.5 px-4">
+                            Primary Infraction
+                          </th>
 
-                      const email =
-                        account?.email ??
-                        account?.user?.email ??
-                        '';
+                          <th className="py-3.5 px-4 text-center">
+                            Current Status
+                          </th>
 
-                      const flags =
-                        account?.flags ??
-                        account?.flagCount ??
-                        account?.flagsRaised ??
-                        account?.moderationFlags ??
-                        0;
-
-                      const reason =
-                        account?.reason ??
-                        account?.primaryInfraction ??
-                        account?.infraction ??
-                        account?.moderationReason ??
-                        'None';
-
-                      const status =
-                        getStatus(account);
-
-                      return (
-                        <tr
-                          key={
-                            getCustomerId(account) ||
-                            index
-                          }
-                          className="text-sm font-semibold text-slate-600 hover:bg-emerald-50/20 transition-colors"
-                        >
-                          <td className="py-4">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-slate-900">
-                                {name}
-                              </span>
-
-                              {email && (
-                                <span className="text-xs text-slate-400 font-normal">
-                                  {email}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="py-4">
-                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold border bg-slate-50 text-slate-600 border-slate-100">
-                              {flags} Flags
-                            </span>
-                          </td>
-
-                          <td className="py-4 text-slate-500 font-medium">
-                            {reason}
-                          </td>
-
-                          <td className="py-4">
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border ${
-                                status === 'Active'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                  : 'bg-rose-50 text-rose-700 border-rose-100'
-                              }`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  status === 'Active'
-                                    ? 'bg-emerald-500'
-                                    : 'bg-rose-500'
-                                }`}
-                              />
-
-                              {status}
-                            </span>
-                          </td>
-
-                          <td className="py-4 text-right">
-                            <button
-                              onClick={() =>
-                                initiateToggleStatus(
-                                  account
-                                )
-                              }
-                              disabled={isRefreshing}
-                              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-[11px] font-bold transition-all border disabled:opacity-50 ${
-                                status === 'Active'
-                                  ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
-                                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-                              }`}
-                            >
-                              {status === 'Active' ? (
-                                <UserX size={14} />
-                              ) : (
-                                <ShieldCheck size={14} />
-                              )}
-
-                              {status === 'Active'
-                                ? 'Block Account'
-                                : 'Restore Access'}
-                            </button>
-                          </td>
+                          <th className="py-3.5 px-4 text-right rounded-r-xl">
+                            Actions
+                          </th>
                         </tr>
-                      );
-                    }
-                  )}
-                </tbody>
-              </table>
+                      </thead>
+
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredAccounts.map(
+                          (account, index) => {
+                            const name =
+                              getCustomerName(account);
+
+                            const email =
+                              getCustomerEmail(account);
+
+                            const flags =
+                              getFlags(account);
+
+                            const reason =
+                              getReason(account);
+
+                            const status =
+                              getStatus(account);
+
+                            return (
+                              <motion.tr
+                                key={
+                                  getCustomerId(account) ||
+                                  index
+                                }
+                                initial={{
+                                  opacity: 0,
+                                  y: 10,
+                                }}
+                                animate={{
+                                  opacity: 1,
+                                  y: 0,
+                                }}
+                                transition={{
+                                  duration: 0.3,
+                                  delay:
+                                    0.05 +
+                                    index * 0.03,
+                                }}
+                                className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group"
+                              >
+                                <td className="py-3.5 px-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-emerald-700 text-xs uppercase">
+                                      {name.charAt(0)}
+                                    </div>
+
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="font-semibold text-black group-hover:text-emerald-700 transition-colors duration-200 truncate max-w-[220px]">
+                                        {name}
+                                      </span>
+
+                                      {email && (
+                                        <span className="text-[10px] text-slate-500 font-normal truncate max-w-[220px]">
+                                          {email}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border bg-slate-50 text-slate-700 border-slate-200">
+                                    <ShieldAlert
+                                      size={11}
+                                      className="text-amber-600"
+                                    />
+                                    {flags} Flags
+                                  </span>
+                                </td>
+
+                                <td className="py-3.5 px-4 text-slate-500 font-medium max-w-[220px]">
+                                  <span className="block truncate">
+                                    {reason}
+                                  </span>
+                                </td>
+
+                                <td className="py-3.5 px-4 text-center">
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border transition-all duration-300 group-hover:scale-105 ${
+                                      status === 'Active'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                                        : 'bg-rose-50 text-rose-700 border-rose-200/80'
+                                    }`}
+                                  >
+                                    {status === 'Active' ? (
+                                      <CheckCircle2
+                                        size={11}
+                                        className="text-emerald-600"
+                                      />
+                                    ) : (
+                                      <Clock
+                                        size={11}
+                                        className="text-rose-600"
+                                      />
+                                    )}
+
+                                    {status}
+                                  </span>
+                                </td>
+
+                                <td className="py-3.5 px-4 text-right">
+                                  <button
+                                    onClick={() =>
+                                      initiateToggleStatus(
+                                        account
+                                      )
+                                    }
+                                    disabled={
+                                      isRefreshing
+                                    }
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border disabled:opacity-50 ${
+                                      status === 'Active'
+                                        ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                                    }`}
+                                  >
+                                    {status === 'Active' ? (
+                                      <UserX size={14} />
+                                    ) : (
+                                      <ShieldCheck
+                                        size={14}
+                                      />
+                                    )}
+
+                                    {status === 'Active'
+                                      ? 'Block Account'
+                                      : 'Restore Access'}
+                                  </button>
+                                </td>
+                              </motion.tr>
+                            );
+                          }
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="md:hidden space-y-3">
+                    {filteredAccounts.map(
+                      (account, index) => {
+                        const name =
+                          getCustomerName(account);
+
+                        const email =
+                          getCustomerEmail(account);
+
+                        const flags =
+                          getFlags(account);
+
+                        const reason =
+                          getReason(account);
+
+                        const status =
+                          getStatus(account);
+
+                        return (
+                          <motion.div
+                            key={
+                              getCustomerId(account) ||
+                              index
+                            }
+                            initial={{
+                              opacity: 0,
+                              y: 10,
+                            }}
+                            animate={{
+                              opacity: 1,
+                              y: 0,
+                            }}
+                            whileHover={{
+                              scale: 1.01,
+                            }}
+                            className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3 group"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-9 h-9 shrink-0 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-emerald-700 text-xs uppercase">
+                                  {name.charAt(0)}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <h4 className="font-semibold text-sm text-black group-hover:text-emerald-700 transition-colors truncate">
+                                    {name}
+                                  </h4>
+
+                                  {email && (
+                                    <p className="text-xs text-slate-500 truncate">
+                                      {email}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <span
+                                className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                  status === 'Active'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                                }`}
+                              >
+                                {status}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200/60">
+                              <div>
+                                <span className="text-[10px] uppercase font-semibold text-black block mb-1">
+                                  Flags Raised
+                                </span>
+
+                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700">
+                                  <ShieldAlert
+                                    size={12}
+                                    className="text-amber-600"
+                                  />
+                                  {flags} Flags
+                                </span>
+                              </div>
+
+                              <div className="min-w-0">
+                                <span className="text-[10px] uppercase font-semibold text-black block mb-1">
+                                  Infraction
+                                </span>
+
+                                <span className="font-semibold text-slate-600 text-xs truncate block">
+                                  {reason}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="pt-1">
+                              <button
+                                onClick={() =>
+                                  initiateToggleStatus(
+                                    account
+                                  )
+                                }
+                                disabled={isRefreshing}
+                                className={`w-full justify-center inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border disabled:opacity-50 ${
+                                  status === 'Active'
+                                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                                }`}
+                              >
+                                {status === 'Active' ? (
+                                  <UserX size={14} />
+                                ) : (
+                                  <ShieldCheck size={14} />
+                                )}
+
+                                {status === 'Active'
+                                  ? 'Block Account'
+                                  : 'Restore Access'}
+                              </button>
+                            </div>
+                          </motion.div>
+                        );
+                      }
+                    )}
+                  </div>
+                </>
+              )}
             </div>
-          )}
+          </motion.div>
         </section>
       </main>
 
@@ -647,48 +944,33 @@ export default function CustomerModeration() {
           modalConfig.account && (
             <ConfirmModal
               isOpen={modalConfig.isOpen}
-              onClose={() =>
-                setModalConfig({
-                  isOpen: false,
-                  account: null,
-                })
-              }
+              onClose={closeModal}
               onConfirm={handleConfirmAction}
               type={
-                getStatus(
-                  modalConfig.account
-                ) === 'Active'
+                getStatus(modalConfig.account) ===
+                'Active'
                   ? 'danger'
                   : 'success'
               }
               title={
-                getStatus(
-                  modalConfig.account
-                ) === 'Active'
+                getStatus(modalConfig.account) ===
+                'Active'
                   ? 'Restrict Account Access'
                   : 'Restore Account Access'
               }
               message={
-                getStatus(
-                  modalConfig.account
-                ) === 'Active'
-                  ? `Are you sure you want to block access for ${
-                      modalConfig.account?.name ||
-                      modalConfig.account?.fullName ||
-                      modalConfig.account?.customerName ||
-                      'this customer'
-                    }?`
-                  : `Are you sure you want to restore access for ${
-                      modalConfig.account?.name ||
-                      modalConfig.account?.fullName ||
-                      modalConfig.account?.customerName ||
-                      'this customer'
-                    }?`
+                getStatus(modalConfig.account) ===
+                'Active'
+                  ? `Are you sure you want to block access for ${getCustomerName(
+                      modalConfig.account
+                    )}?`
+                  : `Are you sure you want to restore access for ${getCustomerName(
+                      modalConfig.account
+                    )}?`
               }
               confirmText={
-                getStatus(
-                  modalConfig.account
-                ) === 'Active'
+                getStatus(modalConfig.account) ===
+                'Active'
                   ? 'Yes, Block Account'
                   : 'Yes, Restore Access'
               }

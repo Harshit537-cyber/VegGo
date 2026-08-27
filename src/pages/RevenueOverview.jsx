@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
   RefreshCw, 
@@ -14,7 +15,10 @@ import {
   DollarSign,
   Briefcase,
   Layers,
-  Award
+  Award,
+  ArrowRight,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 
 function AnimatedValue({ value }) {
@@ -34,7 +38,7 @@ function AnimatedValue({ value }) {
     const isDecimal = rawNumberStr.includes('.');
     const hasComma = match[1].includes(',');
 
-    const duration = 1200;
+    const duration = 1000;
     const startTime = performance.now();
     let animationFrameId;
 
@@ -85,10 +89,9 @@ export default function RevenueOverview() {
       value: '₹1,48,290.45', 
       change: '+18.4%', 
       up: true,
-      cardBg: 'bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-transparent',
-      cardBorder: 'border-emerald-500/20',
-      iconBg: 'bg-emerald-500/15 text-emerald-700',
-      tagColor: 'text-emerald-800 bg-emerald-50 border-emerald-100/50',
+      accentColor: 'bg-emerald-600',
+      iconBg: 'bg-emerald-50 text-emerald-700',
+      tagColor: 'text-emerald-700 bg-emerald-50/80 border-emerald-200/80',
       icon: DollarSign
     },
     { 
@@ -96,10 +99,9 @@ export default function RevenueOverview() {
       value: '₹422.50', 
       change: '+3.1%', 
       up: true,
-      cardBg: 'bg-gradient-to-br from-teal-500/10 via-teal-400/5 to-transparent',
-      cardBorder: 'border-teal-500/20',
-      iconBg: 'bg-teal-500/15 text-teal-700',
-      tagColor: 'text-teal-800 bg-teal-50 border-teal-100/50',
+      accentColor: 'bg-teal-600',
+      iconBg: 'bg-teal-50 text-teal-700',
+      tagColor: 'text-teal-700 bg-teal-50/80 border-teal-200/80',
       icon: Award
     },
     { 
@@ -107,10 +109,9 @@ export default function RevenueOverview() {
       value: '₹22,243.80', 
       change: '+12.7%', 
       up: true,
-      cardBg: 'bg-gradient-to-br from-lime-500/10 via-lime-400/5 to-transparent',
-      cardBorder: 'border-lime-500/20',
-      iconBg: 'bg-lime-500/15 text-lime-700',
-      tagColor: 'text-lime-800 bg-lime-50 border-lime-100/50',
+      accentColor: 'bg-emerald-500',
+      iconBg: 'bg-emerald-50 text-emerald-700',
+      tagColor: 'text-emerald-700 bg-emerald-50/80 border-emerald-200/80',
       icon: Briefcase
     },
     { 
@@ -118,19 +119,18 @@ export default function RevenueOverview() {
       value: '₹8,140.20', 
       change: '-1.2%', 
       up: false,
-      cardBg: 'bg-gradient-to-br from-green-600/10 via-green-500/5 to-transparent',
-      cardBorder: 'border-green-600/20',
-      iconBg: 'bg-green-600/15 text-green-700',
-      tagColor: 'text-green-800 bg-green-50 border-green-100/50',
+      accentColor: 'bg-green-700',
+      iconBg: 'bg-green-50 text-green-700',
+      tagColor: 'text-rose-700 bg-rose-50/80 border-rose-200/80',
       icon: Layers
     }
   ];
 
   const revenueStreams = [
-    { source: 'Direct B2C Orders', amount: '₹94,500.00', share: '63.7%', status: 'Active', trendUp: true },
-    { source: 'Wholesale Group Buys', amount: '₹31,240.45', share: '21.1%', status: 'Growing', trendUp: true },
-    { source: 'Vendor Subscription plans', amount: '₹14,410.00', share: '9.7%', status: 'Stable', trendUp: false },
-    { source: 'Delivery Surcharge', amount: '₹8,140.00', share: '5.5%', status: 'Declined', trendUp: false }
+    { source: 'Direct B2C Orders', amount: '₹94,500.00', share: '63.7%', status: 'Active', trendUp: true, percentage: 63.7 },
+    { source: 'Wholesale Group Buys', amount: '₹31,240.45', share: '21.1%', status: 'Growing', trendUp: true, percentage: 21.1 },
+    { source: 'Vendor Subscription plans', amount: '₹14,410.00', share: '9.7%', status: 'Stable', trendUp: false, percentage: 9.7 },
+    { source: 'Delivery Surcharge', amount: '₹8,140.00', share: '5.5%', status: 'Declined', trendUp: false, percentage: 5.5 }
   ];
 
   const recentPayouts = [
@@ -151,160 +151,294 @@ export default function RevenueOverview() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-emerald-50/10 to-teal-50/20 flex font-sans antialiased text-slate-800">
+    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
       <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
 
-      <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto max-h-screen">
-        <header className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 p-6 md:p-8 rounded-3xl bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-850 text-white shadow-lg overflow-hidden border border-emerald-700/30">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:16px_24px] pointer-events-none" />
-          <div className="absolute top-0 right-1/4 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="space-y-4 z-10 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[11px] uppercase font-bold tracking-widest text-emerald-100 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/15">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
+        
+        {/* Animated Header */}
+        <motion.header 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
+        >
+          {/* Subtle Dynamic Ambient Lighting */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse duration-1000" />
+          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="space-y-2.5 z-10">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm backdrop-blur-md">
+                <Zap size={12} className="text-emerald-400 animate-bounce" />
                 Financial Performance Dashboard
               </span>
               
-              <div className="flex items-center gap-3 bg-rose-950/60 backdrop-blur-md border border-rose-500/30 px-3.5 py-1.5 rounded-full text-rose-300 shadow-[0_0_20px_rgba(244,63,94,0.2)] max-w-[190px] overflow-hidden">
-                <span className="relative flex h-3.5 w-3.5 flex-shrink-0">
+              <div className="flex items-center gap-2 bg-rose-950/80 border border-rose-900/80 px-3 py-1 rounded-full text-rose-300 shadow-sm">
+                <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] border border-white/20"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                 </span>
-                <div className="overflow-hidden whitespace-nowrap text-[11px] font-black uppercase tracking-widest text-white w-full">
-                  <marquee scrollamount="3.5" className="leading-none">LIVE ADMIN VEG GO</marquee>
-                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-white">LIVE ADMIN VEG GO</span>
               </div>
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
+
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
               Revenue Overview
+              <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </h1>
           </div>
           
-          <div className="flex items-center gap-3 z-10">
-            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 shadow-sm text-sm font-bold text-emerald-50">
-              <Calendar size={16} className="text-emerald-300" />
+          <div className="flex items-center gap-3 self-start lg:self-center z-10">
+            <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
+              <Calendar size={14} className="text-emerald-400" />
               <span>Oct 12, 2026</span>
             </div>
-            <button 
+            
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handleRefresh}
-              className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl hover:bg-white/20 transition-all duration-300 active:scale-95 shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 group"
+              className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner group/btn"
+              title="Refresh Data"
             >
-              <RefreshCw size={16} className={`text-emerald-300 transition-transform duration-700 ${isRefreshing ? 'rotate-180' : 'group-hover:rotate-45'}`} />
-            </button>
+              <RefreshCw size={15} className={`text-emerald-300 transition-transform duration-700 ${isRefreshing ? 'rotate-180 scale-110' : 'group-hover/btn:rotate-45'}`} />
+            </motion.button>
           </div>
-        </header>
+        </motion.header>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Stats Grid with Staggered Entrance & Interactive Hover */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {revenueStats.map((stat, idx) => {
             const IconComponent = stat.icon;
             return (
-              <div 
-                key={idx} 
-                className={`${stat.cardBg} ${stat.cardBorder} p-6 rounded-3xl border shadow-sm hover:shadow-xl hover:shadow-emerald-950/[0.02] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden`}
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: idx * 0.1 }}
+                whileHover={{ y: -6, transition: { duration: 0.2 } }}
+                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group cursor-pointer"
               >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8 transition-transform duration-500 group-hover:scale-125 pointer-events-none" />
+                <div className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor} transition-all duration-300 group-hover:h-2`} />
+                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none group-hover:scale-125" />
                 
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest group-hover:text-slate-700 transition-colors">
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors duration-200">
                       {stat.label}
                     </span>
-                    <div className={`${stat.iconBg} p-2.5 rounded-2xl transition-colors duration-300`}>
+                    <motion.div 
+                      whileHover={{ rotate: 12, scale: 1.1 }}
+                      className={`${stat.iconBg} p-2.5 rounded-2xl transition-all shadow-xs`}
+                    >
                       <IconComponent size={18} />
-                    </div>
+                    </motion.div>
                   </div>
-                  <h3 className="text-3xl md:text-4xl font-black text-slate-900 mt-4 tracking-tight">
+                  
+                  <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono group-hover:text-emerald-800 transition-colors duration-200">
                     <AnimatedValue value={stat.value} key={refreshKey} />
                   </h3>
                 </div>
                 
-                <div className="mt-6 pt-4 border-t border-slate-100/50 flex items-center justify-between">
-                  <span className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${stat.tagColor}`}>
-                    {stat.up ? <ArrowUpRight size={14} className="text-emerald-600" /> : <ArrowDownRight size={14} className="text-rose-600" />}
+                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between relative z-10">
+                  <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-transform duration-300 group-hover:scale-105 ${stat.tagColor}`}>
+                    {stat.up ? (
+                      <ArrowUpRight size={13} className="text-emerald-600 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    ) : (
+                      <ArrowDownRight size={13} className="text-rose-600 transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" />
+                    )}
                     {stat.change}
                   </span>
-                  <span className="text-xs text-slate-400 font-bold">Monthly Period</span>
+                  <span className="text-[11px] text-black font-semibold">Monthly Period</span>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1 bg-white rounded-3xl border border-emerald-100/50 shadow-sm p-6 md:p-8 flex flex-col justify-between">
+        {/* Dynamic Breakdown & Settlement Tables */}
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+          
+          {/* Revenue Breakdown */}
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="lg:col-span-1 bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6 flex flex-col justify-between"
+          >
             <div>
-              <div className="flex items-center gap-2 mb-6">
-                <Percent size={20} className="text-emerald-600" />
-                <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Revenue Breakdown</h2>
+              <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
+                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                  <Percent size={18} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-black tracking-tight">Revenue Breakdown</h2>
+                  <p className="text-xs font-semibold text-black">Stream contribution analysis</p>
+                </div>
               </div>
               
               <div className="space-y-4">
                 {revenueStreams.map((stream, idx) => (
-                  <div key={idx} className="p-4 rounded-2xl border border-slate-100 hover:bg-emerald-50/25 transition-colors duration-300">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-800">{stream.source}</span>
-                      <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full">{stream.share}</span>
+                  <motion.div 
+                    key={idx}
+                    whileHover={{ scale: 1.02, x: 2 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className="p-4 rounded-2xl border border-slate-200/70 bg-slate-50/50 hover:bg-white hover:border-emerald-200 hover:shadow-md transition-all group cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-black group-hover:text-emerald-700 transition-colors duration-200">{stream.source}</span>
+                      <span className="text-[10px] font-semibold bg-white border border-slate-200 text-black px-2.5 py-0.5 rounded-full shadow-2xs">
+                        {stream.share}
+                      </span>
                     </div>
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="font-mono text-base font-black text-slate-900">{stream.amount}</span>
-                      <span className={`flex items-center gap-1 text-[11px] font-bold ${stream.trendUp ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        {stream.trendUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+
+                    {/* Animated Progress Bar */}
+                    <div className="w-full bg-slate-200/70 rounded-full h-1.5 mb-3 overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${stream.percentage}%` }}
+                        transition={{ duration: 1.2, delay: 0.2 + idx * 0.1, ease: 'easeOut' }}
+                        className={`h-full rounded-full ${stream.trendUp ? 'bg-emerald-600' : 'bg-slate-400'}`}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-base font-semibold text-black">{stream.amount}</span>
+                      <span className={`flex items-center gap-1 text-[11px] font-semibold ${stream.trendUp ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        {stream.trendUp ? <TrendingUp size={13} className="animate-pulse" /> : <TrendingDown size={13} />}
                         {stream.status}
                       </span>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="lg:col-span-2 bg-white rounded-3xl border border-emerald-100/50 shadow-sm p-6 md:p-8 flex flex-col justify-between">
+          {/* Table Container */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6 flex flex-col justify-between"
+          >
             <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-2">
-                  <Package size={20} className="text-emerald-600" />
-                  <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Recent Vendor Settlements</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                    <Package size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-black tracking-tight">Recent Vendor Settlements</h2>
+                    <p className="text-xs font-semibold text-black">Latest payout transactions</p>
+                  </div>
                 </div>
-                <span className="text-sm font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer transition-colors">Export Transactions</span>
+                
+                <motion.button 
+                  whileHover={{ x: 3 }}
+                  whileTap={{ scale: 0.96 }}
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/70 border border-emerald-200/80 px-3.5 py-2 rounded-xl transition-all self-start sm:self-auto group"
+                >
+                  <span>Export Transactions</span>
+                  <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
+                </motion.button>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* Desktop Dynamic Table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[11px] uppercase font-bold tracking-widest text-slate-400">
-                      <th className="pb-4">Transaction ID</th>
-                      <th className="pb-4">Vendor Partner</th>
-                      <th className="pb-4">Gross Vol</th>
-                      <th className="pb-4 text-center">Fee Rate</th>
-                      <th className="pb-4">Net Revenue</th>
-                      <th className="pb-4 text-right">Settlement</th>
+                    <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
+                      <th className="py-3.5 px-3 rounded-l-xl">Transaction ID</th>
+                      <th className="py-3.5 px-3">Vendor Partner</th>
+                      <th className="py-3.5 px-3">Gross Vol</th>
+                      <th className="py-3.5 px-3 text-center">Fee Rate</th>
+                      <th className="py-3.5 px-3">Net Revenue</th>
+                      <th className="py-3.5 px-3 text-right rounded-r-xl">Settlement</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100/60">
+                  <tbody className="divide-y divide-slate-100">
                     {recentPayouts.map((payout, idx) => (
-                      <tr key={idx} className="text-sm font-semibold text-slate-600 hover:bg-emerald-50/20 transition-colors">
-                        <td className="py-4 font-mono text-slate-400 font-bold">{payout.id}</td>
-                        <td className="py-4 font-bold text-slate-900">{payout.vendor}</td>
-                        <td className="py-4 font-mono text-slate-800">{payout.amount}</td>
-                        <td className="py-4 font-mono text-center">{payout.commission}</td>
-                        <td className="py-4 font-mono text-emerald-700 font-bold">{payout.netRevenue}</td>
-                        <td className="py-4 text-right">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border ${
+                      <motion.tr 
+                        key={idx}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.4 + idx * 0.05 }}
+                        className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group cursor-pointer"
+                      >
+                        <td className="py-3.5 px-3 font-mono text-black font-semibold group-hover:text-emerald-700 transition-colors">{payout.id}</td>
+                        <td className="py-3.5 px-3 font-semibold text-black group-hover:translate-x-1 group-hover:text-emerald-700 transition-all duration-200">{payout.vendor}</td>
+                        <td className="py-3.5 px-3 font-mono text-black">{payout.amount}</td>
+                        <td className="py-3.5 px-3 font-mono text-center text-black">{payout.commission}</td>
+                        <td className="py-3.5 px-3 font-mono text-emerald-700 font-semibold">{payout.netRevenue}</td>
+                        <td className="py-3.5 px-3 text-right">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold border transition-all duration-300 group-hover:scale-105 ${
                             payout.status === 'Completed'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                              : 'bg-amber-50 text-amber-700 border-amber-100'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 shadow-2xs'
+                              : 'bg-amber-50 text-amber-700 border-amber-200/80 shadow-2xs'
                           }`}>
-                            {payout.status === 'Completed' ? <CheckCircle2 size={14} className="text-emerald-600" /> : <Clock size={14} className="text-amber-600" />}
+                            {payout.status === 'Completed' ? (
+                              <CheckCircle2 size={12} className="text-emerald-600" />
+                            ) : (
+                              <Clock size={12} className="text-amber-600 animate-spin" style={{ animationDuration: '4s' }} />
+                            )}
                             {payout.status}
                           </span>
                         </td>
-                      </tr>
+                      </motion.tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Card List View */}
+              <div className="md:hidden space-y-3">
+                {recentPayouts.map((payout, idx) => (
+                  <motion.div 
+                    key={idx}
+                    whileHover={{ scale: 1.01 }}
+                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3 group cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs text-black font-semibold">{payout.id}</span>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                        payout.status === 'Completed'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
+                        {payout.status === 'Completed' ? (
+                          <CheckCircle2 size={11} className="text-emerald-600" />
+                        ) : (
+                          <Clock size={11} className="text-amber-600 animate-spin" style={{ animationDuration: '4s' }} />
+                        )}
+                        {payout.status}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-sm text-black group-hover:text-emerald-700 transition-colors duration-200">{payout.vendor}</h4>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 text-xs">
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-black block">Gross Vol</span>
+                        <span className="font-mono font-semibold text-black">{payout.amount}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-black block">Fee Rate</span>
+                        <span className="font-mono font-semibold text-black">{payout.commission}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-black block">Net Rev</span>
+                        <span className="font-mono font-semibold text-emerald-700">{payout.netRevenue}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </div>
-          </div>
+          </motion.div>
         </section>
       </main>
     </div>
