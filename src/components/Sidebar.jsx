@@ -377,36 +377,13 @@ function Sidebar({ currentTab, setCurrentTab }) {
           </nav>
         </div>
 
-        <div className="relative z-10 space-y-4 shrink-0 pl-6 pr-4 pb-4">
-
-          <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-2xl border border-white/5 shadow-inner">
-
-            <div className="flex items-center gap-3">
-
-              <div className="w-9 h-9 rounded-xl bg-emerald-800 border border-emerald-500/40 flex items-center justify-center text-white font-extrabold text-sm shadow-md">
-                JD
-              </div>
-
-              <div>
-                <p className="text-xs font-bold text-white">
-                  John Doe
-                </p>
-
-                <p className="text-[9px] text-emerald-400 uppercase tracking-widest font-black">
-                  Admin
-                </p>
-              </div>
-
-            </div>
-
-          </div>
+     <div className="relative z-10 space-y-4 shrink-0 pl-6 pr-6 pb-9">
 
           <button
             onClick={handleLogoutClick}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-sm font-bold text-rose-300/80 hover:text-white hover:bg-rose-500/10 transition-all duration-300"
-          >
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-sm font-bold text-black bg-gray-300 hover:text-white hover:bg-gray-500 transition-all duration-300">
             <LogOut size={18} />
-            Disconnect
+            Logout
           </button>
 
         </div>
