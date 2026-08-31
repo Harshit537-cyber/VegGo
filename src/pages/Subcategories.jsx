@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,7 +12,7 @@ import {
 } from '../Api/catalogService/subcategoryService';
 
 import {
-  Calendar,
+  CalendarDays,
   RefreshCw,
   Search,
   Filter,
@@ -24,12 +24,16 @@ import {
   Tag,
   FolderTree,
   CheckCircle2,
-  Clock,
+  Clock3,
   Layers3,
-  Zap,
-  Sparkles,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Sparkles,
+  ChevronDown,
+  Hash,
+  LayoutGrid,
+  Activity,
+  SlidersHorizontal
 } from 'lucide-react';
 
 /* =========================================================
@@ -47,7 +51,7 @@ function AnimatedValue({ value }) {
       return;
     }
 
-    const duration = 900;
+    const duration = 700;
     const startTime = performance.now();
     let animationFrameId;
 
@@ -175,8 +179,7 @@ export default function Subcategories() {
         setSubcategories([]);
 
         setErrorMessage(
-          response?.message ||
-            'Failed to fetch subcategories'
+          response?.message || 'Failed to fetch subcategories'
         );
       }
     } catch (error) {
@@ -221,8 +224,7 @@ export default function Subcategories() {
   const openEditPanel = async (subcategory) => {
     clearMessages();
 
-    const subcategoryId =
-      getSubcategoryId(subcategory);
+    const subcategoryId = getSubcategoryId(subcategory);
 
     if (!subcategoryId) {
       setErrorMessage('Subcategory ID not found');
@@ -232,15 +234,13 @@ export default function Subcategories() {
     try {
       setSaving(true);
 
-      const response =
-        await getSubcategoryById(subcategoryId);
+      const response = await getSubcategoryById(subcategoryId);
 
       if (!response?.success) {
         setErrorMessage(
           response?.message ||
             'Failed to fetch subcategory details'
         );
-
         return;
       }
 
@@ -288,16 +288,12 @@ export default function Subcategories() {
     const categoryId = formData.categoryId.trim();
 
     if (!name) {
-      setErrorMessage(
-        'Subcategory name is required'
-      );
+      setErrorMessage('Subcategory name is required');
       return;
     }
 
     if (!categoryId) {
-      setErrorMessage(
-        'Category ID is required'
-      );
+      setErrorMessage('Category ID is required');
       return;
     }
 
@@ -323,10 +319,8 @@ export default function Subcategories() {
 
       if (!response?.success) {
         setErrorMessage(
-          response?.message ||
-            'Failed to save subcategory'
+          response?.message || 'Failed to save subcategory'
         );
-
         return;
       }
 
@@ -363,13 +357,10 @@ export default function Subcategories() {
   const handleToggleStatus = async (subcategory) => {
     clearMessages();
 
-    const subcategoryId =
-      getSubcategoryId(subcategory);
+    const subcategoryId = getSubcategoryId(subcategory);
 
     if (!subcategoryId) {
-      setErrorMessage(
-        'Subcategory ID not found'
-      );
+      setErrorMessage('Subcategory ID not found');
       return;
     }
 
@@ -377,23 +368,17 @@ export default function Subcategories() {
       setIsRefreshing(true);
 
       const isActive =
-        getSubcategoryStatus(subcategory) ===
-        'Active';
+        getSubcategoryStatus(subcategory) === 'Active';
 
       const response = isActive
-        ? await deactivateSubcategory(
-            subcategoryId
-          )
-        : await activateSubcategory(
-            subcategoryId
-          );
+        ? await deactivateSubcategory(subcategoryId)
+        : await activateSubcategory(subcategoryId);
 
       if (!response?.success) {
         setErrorMessage(
           response?.message ||
             'Failed to update subcategory status'
         );
-
         return;
       }
 
@@ -416,30 +401,19 @@ export default function Subcategories() {
   };
 
   /* =========================================================
-     Filters
+     Filter
   ========================================================= */
 
-  const filteredSubcategories =
-    subcategories.filter((subcategory) => {
-      const name =
-        getSubcategoryName(
-          subcategory
-        ).toLowerCase();
+  const filteredSubcategories = useMemo(() => {
+    return subcategories.filter((subcategory) => {
+      const name = getSubcategoryName(subcategory).toLowerCase();
+      const category = getCategoryName(subcategory).toLowerCase();
 
-      const category =
-        getCategoryName(
-          subcategory
-        ).toLowerCase();
+      const id = String(
+        getSubcategoryId(subcategory) || ''
+      ).toLowerCase();
 
-      const id =
-        String(
-          getSubcategoryId(
-            subcategory
-          ) || ''
-        ).toLowerCase();
-
-      const query =
-        searchQuery.toLowerCase();
+      const query = searchQuery.toLowerCase();
 
       const matchesSearch =
         name.includes(query) ||
@@ -448,484 +422,540 @@ export default function Subcategories() {
 
       const matchesStatus =
         statusFilter === 'All' ||
-        getSubcategoryStatus(
-          subcategory
-        ) === statusFilter;
+        getSubcategoryStatus(subcategory) === statusFilter;
 
-      return (
-        matchesSearch &&
-        matchesStatus
-      );
+      return matchesSearch && matchesStatus;
     });
-
-  const activeCount =
-    subcategories.filter(
-      (subcategory) =>
-        getSubcategoryStatus(
-          subcategory
-        ) === 'Active'
-    ).length;
-
-  const inactiveCount =
-    subcategories.length -
-    activeCount;
-
-  const totalCategories =
-    new Set(
-      subcategories
-        .map((item) =>
-          getCategoryId(item)
-        )
-        .filter(Boolean)
-    ).size;
+  }, [subcategories, searchQuery, statusFilter]);
 
   /* =========================================================
      Stats
   ========================================================= */
 
+  const activeCount = subcategories.filter(
+    (subcategory) =>
+      getSubcategoryStatus(subcategory) === 'Active'
+  ).length;
+
+  const inactiveCount =
+    subcategories.length - activeCount;
+
+  const totalCategories = new Set(
+    subcategories
+      .map((item) => getCategoryId(item))
+      .filter(Boolean)
+  ).size;
+
+  const activePercentage =
+    subcategories.length > 0
+      ? Math.round(
+          (activeCount / subcategories.length) * 100
+        )
+      : 0;
+
   const stats = [
     {
       label: 'Total Subcategories',
       value: subcategories.length,
-      change: 'Catalog',
-      up: true,
-      accent: 'bg-emerald-600',
-      iconBg:
-        'bg-emerald-50 text-emerald-700',
-      icon: Layers3
+      description: 'All catalog entries',
+      icon: Layers3,
+      iconBg: 'bg-sky-50',
+      iconColor: 'text-sky-600',
+      accent: 'bg-sky-500'
     },
     {
-      label: 'Active Subcategories',
+      label: 'Active',
       value: activeCount,
-      change: 'Live',
-      up: true,
-      accent: 'bg-teal-600',
-      iconBg:
-        'bg-teal-50 text-teal-700',
-      icon: CheckCircle2
+      description: `${activePercentage}% currently live`,
+      icon: CheckCircle2,
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+      accent: 'bg-emerald-500'
     },
     {
-      label: 'Inactive Subcategories',
+      label: 'Inactive',
       value: inactiveCount,
-      change: 'Paused',
-      up: false,
-      accent: 'bg-amber-500',
-      iconBg:
-        'bg-amber-50 text-amber-700',
-      icon: Clock
+      description: 'Currently paused',
+      icon: Clock3,
+      iconBg: 'bg-amber-50',
+      iconColor: 'text-amber-600',
+      accent: 'bg-amber-500'
     },
     {
       label: 'Linked Categories',
       value: totalCategories,
-      change: 'Connected',
-      up: true,
-      accent: 'bg-emerald-500',
-      iconBg:
-        'bg-emerald-50 text-emerald-700',
-      icon: FolderTree
+      description: 'Connected parent categories',
+      icon: FolderTree,
+      iconBg: 'bg-violet-50',
+      iconColor: 'text-violet-600',
+      accent: 'bg-violet-500'
     }
   ];
+
+  /* =========================================================
+     Close Modal
+  ========================================================= */
+
+  const closePanel = () => {
+    if (saving) return;
+
+    setIsPanelOpen(false);
+    setEditingSubcategory(null);
+
+    setFormData({
+      categoryId: '',
+      name: ''
+    });
+  };
 
   /* =========================================================
      JSX
   ========================================================= */
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-[#f5f7fa] flex flex-col md:flex-row font-sans text-slate-800">
+
+      {/* Sidebar */}
 
       <Sidebar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
       />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
+      {/* Main */}
 
-        {/* =====================================================
-            HEADER
-        ===================================================== */}
+      <main className="flex-1 min-w-0 overflow-y-auto max-h-screen">
 
-        <motion.header
-          initial={{
-            opacity: 0,
-            y: -20
-          }}
-          animate={{
-            opacity: 1,
-            y: 0
-          }}
-          transition={{
-            duration: 0.5,
-            ease: 'easeOut'
-          }}
-          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
-        >
+        <div className="p-4 sm:p-6 lg:p-8">
 
-          {/* Ambient Lights */}
+          {/* =================================================
+              PAGE HEADER
+          ================================================= */}
 
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
+          <motion.div
+            initial={{ opacity: 0, y: -15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45 }}
+            className="relative overflow-hidden rounded-[26px] bg-white border border-slate-200 shadow-sm mb-6"
+          >
 
-          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+            {/* Decorative */}
 
-          <div className="space-y-2.5 z-10">
+            <div className="absolute -right-16 -top-20 w-64 h-64 rounded-full bg-emerald-100/50 blur-3xl" />
 
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="absolute -left-16 -bottom-24 w-60 h-60 rounded-full bg-sky-100/40 blur-3xl" />
 
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm backdrop-blur-md">
+            <div className="relative p-6 sm:p-7 lg:p-8">
 
-                <Zap
-                  size={12}
-                  className="text-emerald-400 animate-bounce"
-                />
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
 
-                Taxonomy Catalog
-              </span>
+                {/* Heading */}
 
-              <div className="flex items-center gap-2 bg-rose-950/80 border border-rose-900/80 px-3 py-1 rounded-full text-rose-300 shadow-sm">
+                <div>
 
-                <span className="relative flex h-2 w-2">
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
 
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
 
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+                      <Sparkles size={12} />
 
-                </span>
+                      Catalog
 
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-white">
-                  LIVE ADMIN VEG GO
-                </span>
-
-              </div>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
-
-              Subcategory Directory
-
-              <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            </h1>
-
-            <p className="text-xs sm:text-sm text-emerald-200 font-medium">
-              Organize and manage product subcategories across your catalog.
-            </p>
-
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 self-start lg:self-center z-10">
-
-            <motion.button
-              whileHover={{
-                scale: 1.03
-              }}
-              whileTap={{
-                scale: 0.97
-              }}
-              onClick={openAddPanel}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl text-xs font-bold shadow-lg shadow-emerald-950/30 transition-all"
-            >
-              <Plus size={15} />
-
-              New Subcategory
-            </motion.button>
-
-            <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
-
-              <Calendar
-                size={14}
-                className="text-emerald-400"
-              />
-
-              <span>
-                {new Date().toLocaleDateString(
-                  'en-US',
-                  {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  }
-                )}
-              </span>
-
-            </div>
-
-            <motion.button
-              whileHover={{
-                scale: 1.05
-              }}
-              whileTap={{
-                scale: 0.95
-              }}
-              onClick={fetchSubcategories}
-              disabled={isRefreshing}
-              className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
-              title="Refresh Data"
-            >
-
-              <RefreshCw
-                size={15}
-                className={
-                  isRefreshing
-                    ? 'animate-spin text-emerald-300'
-                    : 'text-emerald-300'
-                }
-              />
-
-            </motion.button>
-
-          </div>
-
-        </motion.header>
-
-        {/* =====================================================
-            ALERTS
-        ===================================================== */}
-
-        <AnimatePresence>
-
-          {(errorMessage ||
-            successMessage) && (
-
-            <motion.div
-              initial={{
-                opacity: 0,
-                y: -10
-              }}
-              animate={{
-                opacity: 1,
-                y: 0
-              }}
-              exit={{
-                opacity: 0,
-                y: -10
-              }}
-              className={`px-5 py-4 rounded-2xl border text-xs font-semibold ${
-                errorMessage
-                  ? 'bg-rose-50 border-rose-200 text-rose-700'
-                  : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-              }`}
-            >
-              {errorMessage ||
-                successMessage}
-            </motion.div>
-
-          )}
-
-        </AnimatePresence>
-
-        {/* =====================================================
-            STATS
-        ===================================================== */}
-
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-
-          {stats.map((stat, index) => {
-
-            const IconComponent =
-              stat.icon;
-
-            return (
-
-              <motion.div
-                key={stat.label}
-                initial={{
-                  opacity: 0,
-                  y: 20
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0
-                }}
-                transition={{
-                  duration: 0.4,
-                  delay: index * 0.1
-                }}
-                whileHover={{
-                  y: -6,
-                  transition: {
-                    duration: 0.2
-                  }
-                }}
-                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group"
-              >
-
-                <div
-                  className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accent} transition-all duration-300 group-hover:h-2`}
-                />
-
-                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none group-hover:scale-125" />
-
-                <div className="relative z-10">
-
-                  <div className="flex items-center justify-between mb-4">
-
-                    <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors">
-                      {stat.label}
                     </span>
 
-                    <motion.div
-                      whileHover={{
-                        rotate: 12,
-                        scale: 1.1
-                      }}
-                      className={`${stat.iconBg} p-2.5 rounded-2xl transition-all shadow-sm`}
-                    >
-                      <IconComponent size={18} />
-                    </motion.div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+
+                      <span className="relative flex h-2 w-2">
+
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+
+                      </span>
+
+                      Live Data
+
+                    </span>
 
                   </div>
 
-                  <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono group-hover:text-emerald-800 transition-colors">
+                  <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-extrabold tracking-tight text-slate-950">
 
-                    {loading ? (
-                      '...'
-                    ) : (
-                      <AnimatedValue
-                        value={stat.value}
-                      />
-                    )}
+                    Subcategory Management
 
-                  </h3>
+                  </h1>
+
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+
+                    Create, organize and control product
+                    subcategories while keeping your catalog
+                    structure clean and consistent.
+
+                  </p>
 
                 </div>
 
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between relative z-10">
+                {/* Header Actions */}
 
-                  <span
-                    className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                      stat.up
-                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                        : 'text-amber-700 bg-amber-50 border-amber-200'
-                    }`}
+                <div className="flex flex-wrap items-center gap-2">
+
+                  <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+
+                    <CalendarDays
+                      size={15}
+                      className="text-emerald-600"
+                    />
+
+                    <span className="text-xs font-bold text-slate-600">
+
+                      {new Date().toLocaleDateString(
+                        'en-US',
+                        {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        }
+                      )}
+
+                    </span>
+
+                  </div>
+
+                  <motion.button
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={fetchSubcategories}
+                    disabled={isRefreshing}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50"
                   >
 
-                    {stat.up ? (
-                      <ArrowUpRight size={13} />
+                    <RefreshCw
+                      size={14}
+                      className={
+                        isRefreshing
+                          ? 'animate-spin'
+                          : ''
+                      }
+                    />
+
+                    Refresh
+
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={openAddPanel}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700"
+                  >
+
+                    <Plus size={15} />
+
+                    Add Subcategory
+
+                  </motion.button>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </motion.div>
+
+          {/* =================================================
+              ALERTS
+          ================================================= */}
+
+          <AnimatePresence mode="wait">
+
+            {(errorMessage || successMessage) && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, y: -8 }}
+                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -8 }}
+                className="mb-6 overflow-hidden"
+              >
+
+                <div
+                  className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 ${
+                    errorMessage
+                      ? 'border-rose-200 bg-rose-50 text-rose-700'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+
+                  <div className="flex items-center gap-2.5">
+
+                    {errorMessage ? (
+                      <X size={16} />
                     ) : (
-                      <ArrowDownRight size={13} />
+                      <CheckCircle2 size={16} />
                     )}
 
-                    {stat.change}
+                    <span className="text-xs font-bold">
+                      {errorMessage || successMessage}
+                    </span>
 
-                  </span>
+                  </div>
 
-                  <span className="text-[10px] text-black font-semibold uppercase tracking-wider">
-                    Current
-                  </span>
+                  <button
+                    onClick={clearMessages}
+                    className="rounded-lg p-1.5 hover:bg-black/5"
+                  >
+
+                    <X size={14} />
+
+                  </button>
 
                 </div>
 
               </motion.div>
-            );
-          })}
+            )}
 
-        </section>
+          </AnimatePresence>
 
-        {/* =====================================================
-            TABLE
-        ===================================================== */}
+          {/* =================================================
+              STAT CARDS
+          ================================================= */}
 
-        <section className="w-full">
+          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
 
-          <motion.div
+            {stats.map((stat, index) => {
+              const Icon = stat.icon;
+
+              return (
+                <motion.div
+                  key={stat.label}
+                  initial={{
+                    opacity: 0,
+                    y: 15
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: 0
+                  }}
+                  transition={{
+                    delay: index * 0.07,
+                    duration: 0.4
+                  }}
+                  whileHover={{
+                    y: -3
+                  }}
+                  className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+                >
+
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1 ${stat.accent}`}
+                  />
+
+                  <div className="p-5">
+
+                    <div className="flex items-start justify-between">
+
+                      <div>
+
+                        <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
+                          {stat.label}
+                        </p>
+
+                        <h3 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950">
+
+                          {loading ? (
+                            <span className="text-slate-300">
+                              ...
+                            </span>
+                          ) : (
+                            <AnimatedValue
+                              value={stat.value}
+                            />
+                          )}
+
+                        </h3>
+
+                      </div>
+
+                      <div
+                        className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.iconBg} ${stat.iconColor}`}
+                      >
+
+                        <Icon size={19} />
+
+                      </div>
+
+                    </div>
+
+                    <div className="mt-4 flex items-center gap-1.5 border-t border-slate-100 pt-3">
+
+                      {index === 2 ? (
+                        <ArrowDownRight
+                          size={13}
+                          className="text-amber-500"
+                        />
+                      ) : (
+                        <ArrowUpRight
+                          size={13}
+                          className="text-emerald-500"
+                        />
+                      )}
+
+                      <span className="text-[10px] font-bold text-slate-500">
+                        {stat.description}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                </motion.div>
+              );
+            })}
+
+          </section>
+
+          {/* =================================================
+              MAIN RECORD CARD
+          ================================================= */}
+
+          <motion.section
             initial={{
               opacity: 0,
-              y: 20
+              y: 15
             }}
             animate={{
               opacity: 1,
               y: 0
             }}
             transition={{
-              duration: 0.5,
-              delay: 0.3
+              duration: 0.45,
+              delay: 0.25
             }}
-            className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
+            className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm"
           >
 
-            {/* Table Header */}
+            {/* Card Header */}
 
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
+            <div className="border-b border-slate-100 p-5 sm:p-6">
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
 
-                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                <div className="flex items-center gap-3">
 
-                  <Tag size={18} />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
 
-                </div>
+                    <LayoutGrid size={19} />
 
-                <div>
+                  </div>
 
-                  <h2 className="text-lg font-semibold text-black tracking-tight">
-                    Subcategory Records
-                  </h2>
+                  <div>
 
-                  <p className="text-xs font-semibold text-black">
-                    Manage your product taxonomy structure
-                  </p>
+                    <div className="flex items-center gap-2">
 
-                </div>
+                      <h2 className="text-base font-extrabold text-slate-950 sm:text-lg">
+                        Subcategory Records
+                      </h2>
 
-              </div>
+                      <span className="rounded-md bg-slate-100 px-2 py-1 text-[9px] font-bold text-slate-500">
+                        {filteredSubcategories.length}
+                      </span>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    </div>
 
-                {/* Search */}
+                    <p className="mt-0.5 text-xs font-medium text-slate-400">
+                      Manage your product taxonomy
+                    </p>
 
-                <div className="relative sm:w-64">
-
-                  <Search
-                    className="absolute left-3 top-2.5 text-slate-400"
-                    size={15}
-                  />
-
-                  <input
-                    type="text"
-                    placeholder="Search subcategories..."
-                    value={searchQuery}
-                    onChange={(e) =>
-                      setSearchQuery(
-                        e.target.value
-                      )
-                    }
-                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
-                  />
+                  </div>
 
                 </div>
 
-                {/* Filter */}
+                {/* Filters */}
 
-                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-1">
+                <div className="flex flex-col sm:flex-row gap-2">
 
-                  <Filter
-                    size={14}
-                    className="text-slate-400 ml-1"
-                  />
+                  {/* Search */}
 
-                  {[
-                    'All',
-                    'Active',
-                    'Inactive'
-                  ].map((status) => (
+                  <div className="relative sm:w-72">
 
-                    <button
-                      key={status}
-                      onClick={() =>
-                        setStatusFilter(
-                          status
-                        )
+                    <Search
+                      size={15}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="Search name, category or ID..."
+                      value={searchQuery}
+                      onChange={(e) =>
+                        setSearchQuery(e.target.value)
                       }
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                        statusFilter ===
-                        status
-                          ? 'bg-emerald-600 text-white shadow-sm'
-                          : 'text-slate-500 hover:bg-white hover:text-emerald-700'
-                      }`}
-                    >
-                      {status}
-                    </button>
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
+                    />
 
-                  ))}
+                  </div>
+
+                  {/* Status */}
+
+                  <div className="relative">
+
+                    <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50">
+
+                      <Filter
+                        size={14}
+                        className="ml-3 text-slate-400"
+                      />
+
+                      <select
+                        value={statusFilter}
+                        onChange={(e) =>
+                          setStatusFilter(
+                            e.target.value
+                          )
+                        }
+                        className="appearance-none bg-transparent py-2.5 pl-2 pr-9 text-xs font-bold text-slate-600 outline-none cursor-pointer"
+                      >
+
+                        <option value="All">
+                          All Status
+                        </option>
+
+                        <option value="Active">
+                          Active
+                        </option>
+
+                        <option value="Inactive">
+                          Inactive
+                        </option>
+
+                      </select>
+
+                      <ChevronDown
+                        size={13}
+                        className="pointer-events-none absolute right-3 text-slate-400"
+                      />
+
+                    </div>
+
+                  </div>
+
+                  {/* Filter button */}
+
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setStatusFilter('All');
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
+                    title="Clear filters"
+                  >
+
+                    <SlidersHorizontal size={14} />
+
+                    <span className="sm:hidden">
+                      Clear
+                    </span>
+
+                  </button>
 
                 </div>
 
@@ -934,34 +964,34 @@ export default function Subcategories() {
             </div>
 
             {/* =================================================
-                Desktop Table
+                DESKTOP TABLE
             ================================================= */}
 
             <div className="hidden md:block overflow-x-auto">
 
-              <table className="w-full text-left border-collapse">
+              <table className="w-full">
 
                 <thead>
 
-                  <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
+                  <tr className="border-b border-slate-200 bg-slate-50/80">
 
-                    <th className="py-3.5 px-4 rounded-l-xl">
+                    <th className="px-6 py-4 text-left text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                       Subcategory
                     </th>
 
-                    <th className="py-3.5 px-4">
-                      Category
+                    <th className="px-5 py-4 text-left text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+                      Parent Category
                     </th>
 
-                    <th className="py-3.5 px-4">
-                      Subcategory ID
+                    <th className="px-5 py-4 text-left text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
+                      Identifier
                     </th>
 
-                    <th className="py-3.5 px-4 text-center">
+                    <th className="px-5 py-4 text-center text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                       Status
                     </th>
 
-                    <th className="py-3.5 px-4 text-right rounded-r-xl">
+                    <th className="px-6 py-4 text-right text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                       Actions
                     </th>
 
@@ -977,19 +1007,23 @@ export default function Subcategories() {
 
                       <td
                         colSpan="5"
-                        className="py-14 text-center"
+                        className="py-20"
                       >
 
-                        <div className="flex flex-col items-center gap-3">
+                        <div className="flex flex-col items-center">
 
-                          <RefreshCw
-                            size={24}
-                            className="text-emerald-500 animate-spin"
-                          />
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50">
 
-                          <span className="text-xs font-semibold text-slate-400">
+                            <RefreshCw
+                              size={21}
+                              className="animate-spin text-emerald-600"
+                            />
+
+                          </div>
+
+                          <p className="mt-3 text-xs font-bold text-slate-400">
                             Loading subcategories...
-                          </span>
+                          </p>
 
                         </div>
 
@@ -997,14 +1031,10 @@ export default function Subcategories() {
 
                     </tr>
 
-                  ) : filteredSubcategories.length >
-                    0 ? (
+                  ) : filteredSubcategories.length > 0 ? (
 
                     filteredSubcategories.map(
-                      (
-                        subcategory,
-                        index
-                      ) => {
+                      (subcategory, index) => {
 
                         const id =
                           getSubcategoryId(
@@ -1017,57 +1047,56 @@ export default function Subcategories() {
                           );
 
                         return (
-
                           <motion.tr
-                            key={
-                              id ||
-                              index
-                            }
+                            key={id || index}
                             initial={{
-                              opacity: 0,
-                              y: 10
+                              opacity: 0
                             }}
                             animate={{
-                              opacity: 1,
-                              y: 0
+                              opacity: 1
                             }}
                             transition={{
-                              duration: 0.3,
                               delay:
-                                index *
-                                0.04
+                                index * 0.025
                             }}
-                            className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group"
+                            className="group transition-colors hover:bg-emerald-50/25"
                           >
 
-                            {/* Name */}
+                            {/* Subcategory */}
 
-                            <td className="py-4 px-4">
+                            <td className="px-6 py-4">
 
                               <div className="flex items-center gap-3">
 
-                                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-100 bg-emerald-50 text-emerald-600 transition group-hover:bg-emerald-100">
 
-                                  <Tag
-                                    size={
-                                      17
-                                    }
-                                  />
+                                  <Tag size={16} />
 
                                 </div>
 
-                                <div className="flex flex-col">
+                                <div className="min-w-0">
 
-                                  <span className="font-semibold text-black group-hover:text-emerald-700 transition-colors">
+                                  <p className="truncate text-xs font-extrabold text-slate-800 group-hover:text-emerald-700">
+
                                     {getSubcategoryName(
                                       subcategory
                                     ) ||
                                       'Unnamed Subcategory'}
-                                  </span>
 
-                                  <span className="text-[10px] text-slate-400">
-                                    Product Subcategory
-                                  </span>
+                                  </p>
+
+                                  <div className="mt-1 flex items-center gap-1.5">
+
+                                    <Activity
+                                      size={10}
+                                      className="text-slate-300"
+                                    />
+
+                                    <p className="text-[10px] font-medium text-slate-400">
+                                      Product Subcategory
+                                    </p>
+
+                                  </div>
 
                                 </div>
 
@@ -1077,22 +1106,21 @@ export default function Subcategories() {
 
                             {/* Category */}
 
-                            <td className="py-4 px-4">
+                            <td className="px-5 py-4">
 
-                              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
+                              <div className="inline-flex max-w-[190px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
 
                                 <FolderTree
-                                  size={
-                                    13
-                                  }
-                                  className="text-emerald-600"
+                                  size={13}
+                                  className="shrink-0 text-emerald-600"
                                 />
 
-                                <span className="text-xs font-semibold text-black">
+                                <span className="truncate text-xs font-bold text-slate-700">
+
                                   {getCategoryName(
                                     subcategory
-                                  ) ||
-                                    'N/A'}
+                                  ) || 'N/A'}
+
                                 </span>
 
                               </div>
@@ -1101,46 +1129,44 @@ export default function Subcategories() {
 
                             {/* ID */}
 
-                            <td className="py-4 px-4">
+                            <td className="px-5 py-4">
 
-                              <span className="font-mono text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-lg">
+                              <div className="inline-flex max-w-[200px] items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
 
-                                {id ||
-                                  'N/A'}
+                                <Hash
+                                  size={11}
+                                  className="shrink-0 text-slate-400"
+                                />
 
-                              </span>
+                                <span className="truncate font-mono text-[10px] font-bold text-slate-500">
+
+                                  {id || 'N/A'}
+
+                                </span>
+
+                              </div>
 
                             </td>
 
                             {/* Status */}
 
-                            <td className="py-4 px-4 text-center">
+                            <td className="px-5 py-4 text-center">
 
                               <span
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border transition-all duration-300 group-hover:scale-105 ${
-                                  status ===
-                                  'Active'
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
-                                    : 'bg-slate-100 text-slate-600 border-slate-200/80'
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-extrabold ${
+                                  status === 'Active'
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                    : 'border-slate-200 bg-slate-100 text-slate-600'
                                 }`}
                               >
 
-                                {status ===
-                                'Active' ? (
-                                  <CheckCircle2
-                                    size={
-                                      11
-                                    }
-                                    className="text-emerald-600"
-                                  />
-                                ) : (
-                                  <Clock
-                                    size={
-                                      11
-                                    }
-                                    className="text-slate-500"
-                                  />
-                                )}
+                                <span
+                                  className={`h-1.5 w-1.5 rounded-full ${
+                                    status === 'Active'
+                                      ? 'bg-emerald-500'
+                                      : 'bg-slate-400'
+                                  }`}
+                                />
 
                                 {status}
 
@@ -1150,7 +1176,7 @@ export default function Subcategories() {
 
                             {/* Actions */}
 
-                            <td className="py-4 px-4 text-right">
+                            <td className="px-6 py-4">
 
                               <div className="flex items-center justify-end gap-1">
 
@@ -1160,14 +1186,12 @@ export default function Subcategories() {
                                       subcategory
                                     )
                                   }
-                                  className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                                  title="Edit Subcategory"
+                                  className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-700"
+                                  title="Edit"
                                 >
-                                  <Edit3
-                                    size={
-                                      15
-                                    }
-                                  />
+
+                                  <Edit3 size={15} />
+
                                 </button>
 
                                 <button
@@ -1176,22 +1200,21 @@ export default function Subcategories() {
                                       subcategory
                                     )
                                   }
-                                  disabled={
-                                    isRefreshing
-                                  }
-                                  className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-40"
+                                  disabled={isRefreshing}
+                                  className={`flex h-9 w-9 items-center justify-center rounded-xl transition disabled:opacity-40 ${
+                                    status === 'Active'
+                                      ? 'text-slate-400 hover:bg-amber-50 hover:text-amber-600'
+                                      : 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'
+                                  }`}
                                   title={
-                                    status ===
-                                    'Active'
+                                    status === 'Active'
                                       ? 'Deactivate'
                                       : 'Activate'
                                   }
                                 >
-                                  <Power
-                                    size={
-                                      15
-                                    }
-                                  />
+
+                                  <Power size={15} />
+
                                 </button>
 
                               </div>
@@ -1209,28 +1232,27 @@ export default function Subcategories() {
 
                       <td
                         colSpan="5"
-                        className="py-14 text-center"
+                        className="py-20"
                       >
 
                         <div className="flex flex-col items-center">
 
-                          <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-3">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
 
                             <Tag
-                              size={
-                                24
-                              }
+                              size={24}
                               className="text-slate-300"
                             />
 
                           </div>
 
-                          <p className="text-xs font-semibold text-slate-500">
-                            No matching subcategories found.
+                          <p className="mt-4 text-xs font-extrabold text-slate-500">
+                            No matching subcategories
                           </p>
 
-                          <p className="text-[10px] text-slate-400 mt-1">
-                            Try changing your search or filter.
+                          <p className="mt-1 text-[10px] font-medium text-slate-400">
+                            Try changing your search or
+                            status filter.
                           </p>
 
                         </div>
@@ -1248,10 +1270,10 @@ export default function Subcategories() {
             </div>
 
             {/* =================================================
-                Mobile Cards
+                MOBILE CARDS
             ================================================= */}
 
-            <div className="md:hidden space-y-3">
+            <div className="md:hidden space-y-3 p-4">
 
               {loading ? (
 
@@ -1259,17 +1281,16 @@ export default function Subcategories() {
 
                   <RefreshCw
                     size={22}
-                    className="mx-auto text-emerald-500 animate-spin mb-3"
+                    className="mx-auto mb-3 animate-spin text-emerald-500"
                   />
 
-                  <p className="text-xs font-semibold text-slate-400">
+                  <p className="text-xs font-bold text-slate-400">
                     Loading subcategories...
                   </p>
 
                 </div>
 
-              ) : filteredSubcategories.length >
-                0 ? (
+              ) : filteredSubcategories.length > 0 ? (
 
                 filteredSubcategories.map(
                   (subcategory) => {
@@ -1285,46 +1306,43 @@ export default function Subcategories() {
                       );
 
                     return (
-
                       <motion.div
                         key={id}
                         initial={{
                           opacity: 0,
-                          y: 10
+                          y: 8
                         }}
                         animate={{
                           opacity: 1,
                           y: 0
                         }}
-                        className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3"
+                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                       >
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-start justify-between gap-3">
 
-                          <div className="flex items-center gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
 
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
 
-                              <Tag
-                                size={
-                                  17
-                                }
-                              />
+                              <Tag size={16} />
 
                             </div>
 
-                            <div>
+                            <div className="min-w-0">
 
-                              <h4 className="font-semibold text-sm text-black">
+                              <h4 className="truncate text-sm font-extrabold text-slate-800">
+
                                 {getSubcategoryName(
                                   subcategory
-                                ) ||
-                                  'Unnamed'}
+                                ) || 'Unnamed'}
+
                               </h4>
 
-                              <p className="text-[10px] text-slate-400">
-                                {id ||
-                                  'No ID'}
+                              <p className="mt-1 truncate font-mono text-[10px] text-slate-400">
+
+                                {id || 'No ID'}
+
                               </p>
 
                             </div>
@@ -1332,36 +1350,53 @@ export default function Subcategories() {
                           </div>
 
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                              status ===
-                              'Active'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : 'bg-slate-100 text-slate-600 border-slate-200'
+                            className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${
+                              status === 'Active'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : 'border-slate-200 bg-slate-100 text-slate-600'
                             }`}
                           >
+
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                status === 'Active'
+                                  ? 'bg-emerald-500'
+                                  : 'bg-slate-400'
+                              }`}
+                            />
+
                             {status}
+
                           </span>
 
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-200/60">
+                        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
 
-                          <div>
+                          <div className="min-w-0">
 
-                            <span className="text-[10px] uppercase font-semibold text-slate-400 block">
+                            <span className="block text-[9px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
                               Category
                             </span>
 
-                            <span className="text-xs font-semibold text-black">
-                              {getCategoryName(
-                                subcategory
-                              ) ||
-                                'N/A'}
-                            </span>
+                            <div className="mt-1 flex items-center gap-1.5">
+
+                              <FolderTree
+                                size={12}
+                                className="text-emerald-600"
+                              />
+
+                              <span className="truncate text-xs font-bold text-slate-700">
+                                {getCategoryName(
+                                  subcategory
+                                ) || 'N/A'}
+                              </span>
+
+                            </div>
 
                           </div>
 
-                          <div className="flex items-end justify-end gap-1">
+                          <div className="flex items-center gap-1">
 
                             <button
                               onClick={() =>
@@ -1369,13 +1404,11 @@ export default function Subcategories() {
                                   subcategory
                                 )
                               }
-                              className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl"
+                              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-emerald-50 hover:text-emerald-700"
                             >
-                              <Edit3
-                                size={
-                                  15
-                                }
-                              />
+
+                              <Edit3 size={15} />
+
                             </button>
 
                             <button
@@ -1384,16 +1417,12 @@ export default function Subcategories() {
                                   subcategory
                                 )
                               }
-                              disabled={
-                                isRefreshing
-                              }
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl"
+                              disabled={isRefreshing}
+                              className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-amber-50 hover:text-amber-600 disabled:opacity-40"
                             >
-                              <Power
-                                size={
-                                  15
-                                }
-                              />
+
+                              <Power size={15} />
+
                             </button>
 
                           </div>
@@ -1410,12 +1439,12 @@ export default function Subcategories() {
                 <div className="py-12 text-center">
 
                   <Tag
-                    size={28}
-                    className="mx-auto text-slate-300 mb-3"
+                    size={26}
+                    className="mx-auto mb-3 text-slate-300"
                   />
 
-                  <p className="text-xs font-semibold text-slate-500">
-                    No subcategories found.
+                  <p className="text-xs font-extrabold text-slate-500">
+                    No subcategories found
                   </p>
 
                 </div>
@@ -1424,67 +1453,72 @@ export default function Subcategories() {
 
             </div>
 
-            {/* Footer */}
+            {/* =================================================
+                FOOTER
+            ================================================= */}
 
-            <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex flex-col gap-2 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
 
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              <div className="flex items-center gap-2">
 
-                Showing{' '}
-                <span className="text-emerald-700">
-                  {filteredSubcategories.length}
-                </span>{' '}
-                of{' '}
-                <span className="text-black">
-                  {subcategories.length}
-                </span>{' '}
-                subcategories
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
 
-              </span>
+                  <Layers3 size={13} />
 
-              <span className="text-[10px] font-semibold text-slate-400">
+                </div>
+
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-slate-400">
+
+                  Showing{' '}
+
+                  <span className="text-emerald-600">
+                    {filteredSubcategories.length}
+                  </span>
+
+                  {' '}of{' '}
+
+                  <span className="text-slate-700">
+                    {subcategories.length}
+                  </span>
+
+                  {' '}records
+
+                </p>
+
+              </div>
+
+              <p className="text-[10px] font-bold text-slate-400">
                 Catalog Management
-              </span>
+              </p>
 
             </div>
 
-          </motion.div>
+          </motion.section>
 
-        </section>
+        </div>
 
       </main>
 
-      {/* =======================================================
+      {/* =====================================================
           CREATE / EDIT MODAL
-      ======================================================= */}
+      ===================================================== */}
 
       <AnimatePresence>
 
         {isPanelOpen && (
 
           <motion.div
-            initial={{
-              opacity: 0
-            }}
-            animate={{
-              opacity: 1
-            }}
-            exit={{
-              opacity: 0
-            }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm"
-            onClick={() => {
-              if (!saving) {
-                setIsPanelOpen(false);
-                setEditingSubcategory(null);
-              }
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+            onClick={closePanel}
           >
 
             <motion.div
               initial={{
                 opacity: 0,
-                scale: 0.94,
+                scale: 0.96,
                 y: 20
               }}
               animate={{
@@ -1494,39 +1528,37 @@ export default function Subcategories() {
               }}
               exit={{
                 opacity: 0,
-                scale: 0.94,
+                scale: 0.96,
                 y: 20
               }}
               transition={{
                 duration: 0.25
               }}
-              onClick={(e) =>
-                e.stopPropagation()
-              }
-              className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-2xl"
             >
 
               {/* Modal Header */}
 
-              <div className="relative p-6 bg-emerald-950 text-white overflow-hidden">
+              <div className="relative overflow-hidden bg-slate-950 px-6 py-6 text-white">
 
-                <div className="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-emerald-500/10 blur-2xl" />
+                <div className="absolute -right-10 -top-20 h-48 w-48 rounded-full bg-emerald-500/10 blur-2xl" />
 
                 <div className="relative flex items-center justify-between">
 
                   <div className="flex items-center gap-3">
 
-                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-400/20 flex items-center justify-center">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-500/10">
 
                       {editingSubcategory ? (
                         <Edit3
                           size={18}
-                          className="text-emerald-300"
+                          className="text-emerald-400"
                         />
                       ) : (
                         <Plus
                           size={18}
-                          className="text-emerald-300"
+                          className="text-emerald-400"
                         />
                       )}
 
@@ -1534,11 +1566,11 @@ export default function Subcategories() {
 
                     <div>
 
-                      <p className="text-[10px] uppercase tracking-widest font-semibold text-emerald-300">
+                      <p className="text-[9px] font-extrabold uppercase tracking-[0.18em] text-emerald-400">
                         Taxonomy
                       </p>
 
-                      <h3 className="text-lg font-semibold">
+                      <h3 className="mt-1 text-lg font-extrabold">
                         {editingSubcategory
                           ? 'Update Subcategory'
                           : 'Create Subcategory'}
@@ -1549,20 +1581,13 @@ export default function Subcategories() {
                   </div>
 
                   <button
-                    onClick={() => {
-                      if (!saving) {
-                        setIsPanelOpen(
-                          false
-                        );
-                        setEditingSubcategory(
-                          null
-                        );
-                      }
-                    }}
+                    onClick={closePanel}
                     disabled={saving}
-                    className="p-2 text-emerald-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors disabled:opacity-40"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
                   >
+
                     <X size={18} />
+
                   </button>
 
                 </div>
@@ -1573,14 +1598,39 @@ export default function Subcategories() {
 
               <form
                 onSubmit={handleSave}
-                className="p-6 space-y-5"
+                className="space-y-5 p-6"
               >
 
-                {/* Category */}
+                {/* Info */}
+
+                <div className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3.5">
+
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 shadow-sm">
+
+                    <FolderTree size={15} />
+
+                  </div>
+
+                  <div>
+
+                    <p className="text-xs font-extrabold text-emerald-800">
+                      Subcategory Details
+                    </p>
+
+                    <p className="mt-0.5 text-[10px] leading-5 font-medium text-emerald-700/70">
+                      Enter the parent category ID and
+                      subcategory name to manage the catalog.
+                    </p>
+
+                  </div>
+
+                </div>
+
+                {/* Category ID */}
 
                 <div>
 
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+                  <label className="mb-2 block text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                     Category ID
                   </label>
 
@@ -1588,27 +1638,22 @@ export default function Subcategories() {
 
                     <FolderTree
                       size={16}
-                      className="absolute left-3.5 top-3.5 text-slate-400"
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                     />
 
                     <input
                       required
                       type="text"
                       placeholder="Enter category ID"
-                      value={
-                        formData.categoryId
-                      }
+                      value={formData.categoryId}
                       onChange={(e) =>
-                        setFormData(
-                          (prev) => ({
-                            ...prev,
-                            categoryId:
-                              e.target
-                                .value
-                          })
-                        )
+                        setFormData((prev) => ({
+                          ...prev,
+                          categoryId:
+                            e.target.value
+                        }))
                       }
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
                     />
 
                   </div>
@@ -1619,7 +1664,7 @@ export default function Subcategories() {
 
                 <div>
 
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+                  <label className="mb-2 block text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-500">
                     Subcategory Name
                   </label>
 
@@ -1627,26 +1672,21 @@ export default function Subcategories() {
 
                     <Tag
                       size={16}
-                      className="absolute left-3.5 top-3.5 text-slate-400"
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                     />
 
                     <input
                       required
                       type="text"
                       placeholder="Enter subcategory name"
-                      value={
-                        formData.name
-                      }
+                      value={formData.name}
                       onChange={(e) =>
-                        setFormData(
-                          (prev) => ({
-                            ...prev,
-                            name: e.target
-                              .value
-                          })
-                        )
+                        setFormData((prev) => ({
+                          ...prev,
+                          name: e.target.value
+                        }))
                       }
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-xs font-semibold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
                     />
 
                   </div>
@@ -1655,27 +1695,20 @@ export default function Subcategories() {
 
                 {/* Buttons */}
 
-                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsPanelOpen(
-                        false
-                      );
-                      setEditingSubcategory(
-                        null
-                      );
-                    }}
+                    onClick={closePanel}
                     disabled={saving}
-                    className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
                   >
                     Cancel
                   </button>
 
                   <motion.button
                     whileHover={{
-                      scale: 1.02
+                      y: -1
                     }}
                     whileTap={{
                       scale: 0.98
@@ -1686,7 +1719,7 @@ export default function Subcategories() {
                       !formData.name.trim() ||
                       !formData.categoryId.trim()
                     }
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white rounded-xl flex items-center gap-2 text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all"
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
                   >
 
                     {saving ? (
