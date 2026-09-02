@@ -29,12 +29,9 @@ import {
   ArrowDownRight,
   Sparkles,
   Zap,
-  Eye
+  Eye,
+  ChevronDown
 } from 'lucide-react';
-
-/* =========================================================
-   ANIMATED VALUE
-========================================================= */
 
 function AnimatedValue({ value }) {
   const [displayValue, setDisplayValue] = useState('');
@@ -124,10 +121,6 @@ function AnimatedValue({ value }) {
   return <span>{displayValue}</span>;
 }
 
-/* =========================================================
-   MAIN COMPONENT
-========================================================= */
-
 export default function Categories() {
   const [currentTab, setCurrentTab] =
     useState('categories');
@@ -168,6 +161,9 @@ export default function Categories() {
   const [editingCategory, setEditingCategory] =
     useState(null);
 
+  const [isStatusOpen, setIsStatusOpen] =
+    useState(false);
+
   const [formData, setFormData] = useState({
     id: '',
     name: '',
@@ -177,10 +173,6 @@ export default function Categories() {
     imageUrl: '',
     status: 'Active'
   });
-
-  /* =========================================================
-     HELPERS
-  ========================================================= */
 
   const getCategoryId = (category) =>
     category?.id ||
@@ -234,23 +226,16 @@ export default function Categories() {
 
   const normalizeCategory = (category) => ({
     ...category,
-
     id: getCategoryId(category),
-
     name: getCategoryName(category),
-
     description:
       getCategoryDescription(category),
-
     displayOrder:
       getDisplayOrder(category),
-
     imageUrl:
       getImageUrl(category),
-
     productsCount:
       getProductsCount(category),
-
     status:
       getCategoryStatus(category)
   });
@@ -259,10 +244,6 @@ export default function Categories() {
     setErrorMessage('');
     setSuccessMessage('');
   };
-
-  /* =========================================================
-     FETCH CATEGORIES
-  ========================================================= */
 
   const fetchCategories = async () => {
     try {
@@ -336,14 +317,11 @@ export default function Categories() {
     fetchCategories();
   }, []);
 
-  /* =========================================================
-     ADD CATEGORY
-  ========================================================= */
-
   const openAddPanel = () => {
     clearMessages();
 
     setEditingCategory(null);
+    setIsStatusOpen(false);
 
     setFormData({
       id: '',
@@ -358,12 +336,9 @@ export default function Categories() {
     setIsPanelOpen(true);
   };
 
-  /* =========================================================
-     EDIT CATEGORY
-  ========================================================= */
-
   const openEditPanel = async (category) => {
     clearMessages();
+    setIsStatusOpen(false);
 
     const categoryId =
       getCategoryId(category);
@@ -449,10 +424,6 @@ export default function Categories() {
     }
   };
 
-  /* =========================================================
-     TOGGLE STATUS
-  ========================================================= */
-
   const handleToggleStatus = async (
     category
   ) => {
@@ -507,10 +478,6 @@ export default function Categories() {
       setIsRefreshing(false);
     }
   };
-
-  /* =========================================================
-     DELETE / DEACTIVATE
-  ========================================================= */
 
   const handleDelete = async (
     category
@@ -567,10 +534,6 @@ export default function Categories() {
       setIsRefreshing(false);
     }
   };
-
-  /* =========================================================
-     SAVE CATEGORY
-  ========================================================= */
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -682,6 +645,7 @@ export default function Categories() {
 
       setIsPanelOpen(false);
       setEditingCategory(null);
+      setIsStatusOpen(false);
 
       await fetchCategories();
     } catch (error) {
@@ -699,10 +663,6 @@ export default function Categories() {
       setSaving(false);
     }
   };
-
-  /* =========================================================
-     FILTER
-  ========================================================= */
 
   const filteredCategories =
     categories.filter((cat) => {
@@ -733,10 +693,6 @@ export default function Categories() {
         matchesStatus
       );
     });
-
-  /* =========================================================
-     STATS
-  ========================================================= */
 
   const activeCategories =
     categories.filter(
@@ -781,7 +737,6 @@ export default function Categories() {
       icon: FolderTree,
       suffix: ' Categories'
     },
-
     {
       label: 'Active Categories',
       value: `${activeCategories.length}`,
@@ -796,7 +751,6 @@ export default function Categories() {
       icon: CheckCircle2,
       suffix: ' Active'
     },
-
     {
       label: 'Inactive Categories',
       value: `${inactiveCategories.length}`,
@@ -811,7 +765,6 @@ export default function Categories() {
       icon: FolderTree,
       suffix: ' Inactive'
     },
-
     {
       label: 'Assigned Products',
       value: `${totalProducts}`,
@@ -828,10 +781,6 @@ export default function Categories() {
     }
   ];
 
-  /* =========================================================
-     UI
-  ========================================================= */
-
   return (
     <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
 
@@ -841,10 +790,6 @@ export default function Categories() {
       />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
-
-        {/* =====================================================
-            HEADER - SAME AS CUSTOMER DIRECTORY
-        ===================================================== */}
 
         <motion.header
           initial={{
@@ -861,7 +806,6 @@ export default function Categories() {
           }}
           className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
         >
-
           <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse duration-1000" />
 
           <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -921,11 +865,8 @@ export default function Categories() {
               onClick={openAddPanel}
               className="px-4 py-2.5 bg-emerald-500/20 border border-emerald-700 rounded-2xl hover:bg-emerald-500/30 transition-all text-xs font-semibold text-emerald-100 flex items-center gap-2"
             >
-
               <Plus size={15} />
-
               New Category
-
             </motion.button>
 
             <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
@@ -976,10 +917,6 @@ export default function Categories() {
 
         </motion.header>
 
-        {/* =====================================================
-            MESSAGES
-        ===================================================== */}
-
         <AnimatePresence>
           {(errorMessage ||
             successMessage) && (
@@ -1007,10 +944,6 @@ export default function Categories() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* =====================================================
-            STATS GRID - SAME AS CUSTOMER DIRECTORY
-        ===================================================== */}
 
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
 
@@ -1084,6 +1017,7 @@ export default function Categories() {
                               stat.value
                             }
                           />
+
                           <span className="text-base ml-1 font-sans">
                             {stat.suffix}
                           </span>
@@ -1129,10 +1063,6 @@ export default function Categories() {
 
         </section>
 
-        {/* =====================================================
-            FULL WIDTH CATEGORY TABLE
-        ===================================================== */}
-
         <section className="w-full">
 
           <motion.div
@@ -1152,8 +1082,6 @@ export default function Categories() {
           >
 
             <div>
-
-              {/* TABLE HEADER */}
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
 
@@ -1179,8 +1107,6 @@ export default function Categories() {
 
                 <div className="flex items-center gap-2 flex-wrap">
 
-                  {/* SEARCH */}
-
                   <div className="relative flex-1 sm:w-60">
 
                     <Search
@@ -1201,8 +1127,6 @@ export default function Categories() {
                     />
 
                   </div>
-
-                  {/* FILTER */}
 
                   <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-0.5">
 
@@ -1241,10 +1165,6 @@ export default function Categories() {
                 </div>
 
               </div>
-
-              {/* =================================================
-                  DESKTOP TABLE
-              ================================================= */}
 
               <div className="hidden md:block overflow-x-auto">
 
@@ -1335,8 +1255,6 @@ export default function Categories() {
                               className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group"
                             >
 
-                              {/* CATEGORY */}
-
                               <td className="py-3.5 px-4">
 
                                 <div className="flex items-center gap-3">
@@ -1371,9 +1289,7 @@ export default function Categories() {
 
                                     <FolderTree
                                       data-fallback
-                                      size={
-                                        17
-                                      }
+                                      size={17}
                                       className={
                                         imageUrl
                                           ? 'hidden text-emerald-600'
@@ -1402,8 +1318,6 @@ export default function Categories() {
 
                               </td>
 
-                              {/* DESCRIPTION */}
-
                               <td className="py-3.5 px-4">
 
                                 <span className="text-[10px] text-slate-500 font-semibold line-clamp-2 max-w-[280px]">
@@ -1415,24 +1329,18 @@ export default function Categories() {
 
                               </td>
 
-                              {/* DISPLAY ORDER */}
-
                               <td className="py-3.5 px-4 text-center font-mono text-black">
                                 {getDisplayOrder(
                                   category
                                 )}
                               </td>
 
-                              {/* PRODUCTS */}
-
                               <td className="py-3.5 px-4 text-center">
 
                                 <span className="inline-flex items-center gap-1.5 font-mono text-emerald-700 font-semibold">
 
                                   <Package
-                                    size={
-                                      13
-                                    }
+                                    size={13}
                                   />
 
                                   {getProductsCount(
@@ -1442,8 +1350,6 @@ export default function Categories() {
                                 </span>
 
                               </td>
-
-                              {/* STATUS */}
 
                               <td className="py-3.5 px-4 text-center">
 
@@ -1471,8 +1377,6 @@ export default function Categories() {
 
                               </td>
 
-                              {/* ACTIONS */}
-
                               <td className="py-3.5 px-4 text-right">
 
                                 <div className="flex items-center justify-end gap-1">
@@ -1486,11 +1390,7 @@ export default function Categories() {
                                     className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
                                     title="View Info"
                                   >
-                                    <Eye
-                                      size={
-                                        15
-                                      }
-                                    />
+                                    <Eye size={15} />
                                   </button>
 
                                   <button
@@ -1510,11 +1410,7 @@ export default function Categories() {
                                         : 'Activate'
                                     }
                                   >
-                                    <Power
-                                      size={
-                                        15
-                                      }
-                                    />
+                                    <Power size={15} />
                                   </button>
 
                                   <button
@@ -1526,11 +1422,7 @@ export default function Categories() {
                                     className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
                                     title="Edit"
                                   >
-                                    <Edit3
-                                      size={
-                                        15
-                                      }
-                                    />
+                                    <Edit3 size={15} />
                                   </button>
 
                                   <button
@@ -1547,11 +1439,7 @@ export default function Categories() {
                                     className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40"
                                     title="Deactivate"
                                   >
-                                    <Trash2
-                                      size={
-                                        15
-                                      }
-                                    />
+                                    <Trash2 size={15} />
                                   </button>
 
                                 </div>
@@ -1590,10 +1478,6 @@ export default function Categories() {
 
               </div>
 
-              {/* =================================================
-                  MOBILE CARD VIEW
-              ================================================= */}
-
               <div className="md:hidden space-y-3">
 
                 {loading ? (
@@ -1626,11 +1510,7 @@ export default function Categories() {
                             <div className="flex items-center gap-2">
 
                               <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                                <FolderTree
-                                  size={
-                                    16
-                                  }
-                                />
+                                <FolderTree size={16} />
                               </div>
 
                               <div>
@@ -1724,11 +1604,7 @@ export default function Categories() {
                               }
                               className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
                             >
-                              <Eye
-                                size={
-                                  15
-                                }
-                              />
+                              <Eye size={15} />
                             </button>
 
                             <button
@@ -1739,11 +1615,7 @@ export default function Categories() {
                               }
                               className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
                             >
-                              <Edit3
-                                size={
-                                  15
-                                }
-                              />
+                              <Edit3 size={15} />
                             </button>
 
                             <button
@@ -1754,11 +1626,7 @@ export default function Categories() {
                               }
                               className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
                             >
-                              <Power
-                                size={
-                                  15
-                                }
-                              />
+                              <Power size={15} />
                             </button>
 
                           </div>
@@ -1792,14 +1660,15 @@ export default function Categories() {
 
       </main>
 
-      {/* =====================================================
-          CATEGORY DETAIL MODAL
-      ===================================================== */}
-
       <AnimatePresence>
 
         {selectedCategory && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
+            onClick={() =>
+              setSelectedCategory(null)
+            }
+          >
 
             <motion.div
               initial={{
@@ -1817,14 +1686,15 @@ export default function Categories() {
                 scale: 0.95,
                 y: 10
               }}
+              onClick={(e) =>
+                e.stopPropagation()
+              }
               className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-100 relative"
             >
 
               <button
                 onClick={() =>
-                  setSelectedCategory(
-                    null
-                  )
+                  setSelectedCategory(null)
                 }
                 className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
               >
@@ -1834,9 +1704,7 @@ export default function Categories() {
               <div className="flex items-center gap-3.5 mb-6">
 
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
-                  <FolderTree
-                    size={21}
-                  />
+                  <FolderTree size={21} />
                 </div>
 
                 <div>
@@ -1864,9 +1732,7 @@ export default function Categories() {
                   <div className="flex items-center gap-3">
 
                     <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
-                      <Package
-                        size={16}
-                      />
+                      <Package size={16} />
                     </div>
 
                     <span className="text-xs font-semibold text-black">
@@ -1888,9 +1754,7 @@ export default function Categories() {
                   <div className="flex items-center gap-3">
 
                     <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
-                      <FolderTree
-                        size={16}
-                      />
+                      <FolderTree size={16} />
                     </div>
 
                     <span className="text-xs font-semibold text-black">
@@ -1965,14 +1829,19 @@ export default function Categories() {
 
       </AnimatePresence>
 
-      {/* =====================================================
-          CREATE / UPDATE CATEGORY MODAL
-      ===================================================== */}
-
       <AnimatePresence>
 
         {isPanelOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
+            onClick={() => {
+              if (!saving) {
+                setIsPanelOpen(false);
+                setEditingCategory(null);
+                setIsStatusOpen(false);
+              }
+            }}
+          >
 
             <motion.div
               initial={{
@@ -1990,17 +1859,21 @@ export default function Categories() {
                 scale: 0.95,
                 y: 10
               }}
-              className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto"
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+              className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto overflow-x-visible"
             >
 
               <button
+                type="button"
                 onClick={() => {
                   setIsPanelOpen(false);
-                  setEditingCategory(
-                    null
-                  );
+                  setEditingCategory(null);
+                  setIsStatusOpen(false);
                 }}
-                className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                disabled={saving}
+                className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50"
               >
                 <X size={18} />
               </button>
@@ -2008,15 +1881,13 @@ export default function Categories() {
               <div className="flex items-center gap-3.5 mb-6">
 
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
+
                   {editingCategory ? (
-                    <Edit3
-                      size={20}
-                    />
+                    <Edit3 size={20} />
                   ) : (
-                    <Plus
-                      size={20}
-                    />
+                    <Plus size={20} />
                   )}
+
                 </div>
 
                 <div>
@@ -2039,8 +1910,6 @@ export default function Categories() {
                 onSubmit={handleSave}
                 className="space-y-4"
               >
-
-                {/* NAME */}
 
                 <div>
 
@@ -2073,12 +1942,10 @@ export default function Categories() {
                         })
                       )
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all"
                   />
 
                 </div>
-
-                {/* SLUG */}
 
                 <div>
 
@@ -2102,12 +1969,10 @@ export default function Categories() {
                         })
                       )
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all"
                   />
 
                 </div>
-
-                {/* DISPLAY ORDER */}
 
                 <div>
 
@@ -2131,12 +1996,13 @@ export default function Categories() {
                         })
                       )
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    onWheel={(e) =>
+                      e.currentTarget.blur()
+                    }
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
 
                 </div>
-
-                {/* IMAGE URL */}
 
                 <div>
 
@@ -2160,49 +2026,167 @@ export default function Categories() {
                         })
                       )
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all"
                   />
 
                 </div>
 
-                {/* STATUS */}
-
-                <div>
+                <div className="relative">
 
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
                     Status
                   </label>
 
-                  <select
-                    value={
-                      formData.status
-                    }
-                    onChange={(e) =>
-                      setFormData(
-                        (prev) => ({
-                          ...prev,
-                          status:
-                            e.target
-                              .value
-                        })
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setIsStatusOpen(
+                        (prev) => !prev
                       )
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    disabled={saving}
+                    className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold text-black flex items-center justify-between transition-all ${
+                      isStatusOpen
+                        ? 'border-emerald-500 bg-white ring-2 ring-emerald-100'
+                        : 'border-slate-200 hover:border-emerald-300 hover:bg-white'
+                    } disabled:opacity-60`}
                   >
 
-                    <option value="Active">
-                      Active
-                    </option>
+                    <span className="flex items-center gap-2">
 
-                    <option value="Inactive">
-                      Inactive
-                    </option>
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          formData.status ===
+                          'Active'
+                            ? 'bg-emerald-500'
+                            : 'bg-slate-400'
+                        }`}
+                      />
 
-                  </select>
+                      <span>
+                        {formData.status}
+                      </span>
+
+                    </span>
+
+                    <ChevronDown
+                      size={15}
+                      className={`text-emerald-600 transition-transform duration-200 ${
+                        isStatusOpen
+                          ? 'rotate-180'
+                          : ''
+                      }`}
+                    />
+
+                  </button>
+
+                  <AnimatePresence>
+
+                    {isStatusOpen && (
+                      <motion.div
+                        initial={{
+                          opacity: 0,
+                          y: -5,
+                          scale: 0.98
+                        }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          scale: 1
+                        }}
+                        exit={{
+                          opacity: 0,
+                          y: -5,
+                          scale: 0.98
+                        }}
+                        transition={{
+                          duration: 0.15
+                        }}
+                        className="absolute z-[100] left-0 right-0 mt-1.5 bg-white border border-emerald-100 rounded-xl shadow-xl shadow-emerald-900/10 overflow-hidden"
+                      >
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(
+                              (prev) => ({
+                                ...prev,
+                                status:
+                                  'Active'
+                              })
+                            );
+                            setIsStatusOpen(
+                              false
+                            );
+                          }}
+                          className={`w-full px-3.5 py-2.5 flex items-center gap-2.5 text-left text-xs font-bold transition-all ${
+                            formData.status ===
+                            'Active'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'
+                          }`}
+                        >
+
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+
+                          <span className="flex-1">
+                            Active
+                          </span>
+
+                          {formData.status ===
+                            'Active' && (
+                            <CheckCircle2
+                              size={14}
+                              className="text-emerald-600"
+                            />
+                          )}
+
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(
+                              (prev) => ({
+                                ...prev,
+                                status:
+                                  'Inactive'
+                              })
+                            );
+                            setIsStatusOpen(
+                              false
+                            );
+                          }}
+                          className={`w-full px-3.5 py-2.5 flex items-center gap-2.5 text-left text-xs font-bold transition-all ${
+                            formData.status ===
+                            'Inactive'
+                              ? 'bg-slate-100 text-slate-700'
+                              : 'text-slate-700 hover:bg-slate-50 hover:text-slate-800'
+                          }`}
+                        >
+
+                          <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+
+                          <span className="flex-1">
+                            Inactive
+                          </span>
+
+                          {formData.status ===
+                            'Inactive' && (
+                            <CheckCircle2
+                              size={14}
+                              className="text-slate-500"
+                            />
+                          )}
+
+                        </button>
+
+                      </motion.div>
+                    )}
+
+                  </AnimatePresence>
 
                 </div>
-
-                {/* DESCRIPTION */}
 
                 <div>
 
@@ -2226,12 +2210,10 @@ export default function Categories() {
                         })
                       )
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all resize-none"
                   />
 
                 </div>
-
-                {/* BUTTONS */}
 
                 <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
 
@@ -2243,6 +2225,9 @@ export default function Categories() {
                       );
                       setEditingCategory(
                         null
+                      );
+                      setIsStatusOpen(
+                        false
                       );
                     }}
                     disabled={saving}
@@ -2266,9 +2251,7 @@ export default function Categories() {
                         className="animate-spin"
                       />
                     ) : (
-                      <Save
-                        size={14}
-                      />
+                      <Save size={14} />
                     )}
 
                     {saving

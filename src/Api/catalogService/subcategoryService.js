@@ -1,12 +1,10 @@
 import apiClient from '../Interceptor/axiosInstance';
 
-export const getSubcategories = async (categoryId) => {
+export const getSubcategories = async (params = {}) => {
   const response = await apiClient.get(
     '/api/admin/catalog/subcategories',
     {
-      params: {
-        categoryId,
-      },
+      params,
     }
   );
 

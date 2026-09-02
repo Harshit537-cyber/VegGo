@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import { getAdminDashboard } from '../Api/dashboardService/dashboardService';
-import { 
-  Calendar, 
-  TrendingUp, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  RefreshCw, 
-  Layers, 
-  CheckCircle2, 
-  AlertCircle, 
-  Thermometer, 
+import {
+  Calendar,
+  TrendingUp,
+  ArrowUpRight,
+  RefreshCw,
+  Layers,
+  CheckCircle2,
+  AlertCircle,
+  Thermometer,
   ShieldCheck,
   Activity,
   Package,
   Users,
-  Server
+  Server,
+  Zap,
+  ArrowRight
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 function AnimatedValue({ value }) {
   const [displayValue, setDisplayValue] = useState('');
@@ -28,6 +30,7 @@ function AnimatedValue({ value }) {
     }
 
     const match = String(value).match(/([\d,.]+)\s*(.*)/);
+
     if (!match) {
       setDisplayValue(String(value));
       return;
@@ -39,17 +42,20 @@ function AnimatedValue({ value }) {
     const isDecimal = rawNumberStr.includes('.');
     const hasComma = match[1].includes(',');
 
-    const duration = 1200;
+    const duration = 1000;
     const startTime = performance.now();
     let animationFrameId;
 
     const updateCount = (timestamp) => {
       const elapsed = timestamp - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      const easeProgress =
+        progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+
       const currentVal = easeProgress * targetNum;
 
       let formatted;
+
       if (isDecimal) {
         formatted = currentVal.toFixed(1);
       } else {
@@ -62,7 +68,9 @@ function AnimatedValue({ value }) {
         formatted = parts.join('.');
       }
 
-      setDisplayValue(`${formatted}${suffix ? ' ' + suffix : ''}`);
+      setDisplayValue(
+        `${formatted}${suffix ? ` ${suffix}` : ''}`
+      );
 
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(updateCount);
@@ -79,6 +87,14 @@ function AnimatedValue({ value }) {
   return <span>{displayValue}</span>;
 }
 
+const formatDisplayText = (value) => {
+  if (!value) return value;
+
+  return String(value)
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 export default function Dashboard() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -87,9 +103,11 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     setIsRefreshing(true);
+
     try {
       const response = await getAdminDashboard();
-      if (response && response.success) {
+
+      if (response?.success) {
         setDashboardData(response.data);
       }
     } catch (error) {
@@ -104,256 +122,556 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
-  const handleRefresh = () => {
-    fetchDashboardData();
-  };
-
   const stats = [
-    { 
-      label: 'Total Customers', 
-      value: dashboardData?.totalCustomers ? String(dashboardData.totalCustomers) : '0', 
-      change: '+100%', 
-      up: true, 
+    {
+      label: 'Total Customers',
+      value: dashboardData?.totalCustomers
+        ? String(dashboardData.totalCustomers)
+        : '0',
+      change: '+100%',
       desc: 'Active registered clients',
       icon: Users,
-      color: 'emerald'
+      accent: 'bg-emerald-600',
+      iconBg: 'bg-emerald-50 text-emerald-700'
     },
-    { 
-      label: 'Total Users', 
-      value: dashboardData?.totalUsers ? String(dashboardData.totalUsers) : '0', 
-      change: '+100%', 
-      up: true, 
+    {
+      label: 'Total Users',
+      value: dashboardData?.totalUsers
+        ? String(dashboardData.totalUsers)
+        : '0',
+      change: '+100%',
       desc: 'System users',
       icon: Activity,
-      color: 'teal'
+      accent: 'bg-teal-600',
+      iconBg: 'bg-teal-50 text-teal-700'
     },
-    { 
-      label: 'System Status', 
-      value: dashboardData?.systemStatus ? dashboardData.systemStatus.toUpperCase() : 'UNKNOWN', 
-      change: '100%', 
-      up: true, 
+    {
+      label: 'System Status',
+      value: dashboardData?.systemStatus
+        ? formatDisplayText(dashboardData.systemStatus)
+        : 'Unknown',
+      change: '100%',
       desc: 'All services running',
       icon: ShieldCheck,
-      color: 'emerald'
+      accent: 'bg-emerald-500',
+      iconBg: 'bg-emerald-50 text-emerald-700'
     },
-    { 
-      label: 'Environment', 
-      value: dashboardData?.environment ? dashboardData.environment.toUpperCase() : 'N/A', 
-      change: 'Active', 
-      up: true, 
+    {
+      label: 'Environment',
+      value: dashboardData?.environment
+        ? formatDisplayText(dashboardData.environment)
+        : 'N/A',
+      change: 'Active',
       desc: 'Current deployment env',
       icon: Server,
-      color: 'green'
+      accent: 'bg-green-700',
+      iconBg: 'bg-green-50 text-green-700'
     }
   ];
 
   const recentOrders = [
-    { id: '#VGF-2918', client: 'Green Grocers Inc.', produce: 'Fresh Spinach', quantity: '1,200 kg', status: 'Shipped', temp: '4.1°C' },
-    { id: '#VGF-2917', client: 'Organic Harvest Co.', produce: 'Broccoli Heads', quantity: '850 kg', status: 'Processing', temp: '4.4°C' },
-    { id: '#VGF-2916', client: 'Super Foods Depot', produce: 'Sweet Potatoes', quantity: '3,400 kg', status: 'Shipped', temp: '6.0°C' },
-    { id: '#VGF-2915', client: 'Healthy Living Market', produce: 'Avocados', quantity: '500 kg', status: 'Delayed', temp: '8.2°C' },
-    { id: '#VGF-2914', client: 'Nature Express Hub', produce: 'Red Tomatoes', quantity: '2,100 kg', status: 'Shipped', temp: '5.1°C' }
+    {
+      id: '#VGF-2918',
+      client: 'Green Grocers Inc.',
+      produce: 'Fresh Spinach',
+      quantity: '1,200 kg',
+      status: 'Shipped',
+      temp: '4.1°C'
+    },
+    {
+      id: '#VGF-2917',
+      client: 'Organic Harvest Co.',
+      produce: 'Broccoli Heads',
+      quantity: '850 kg',
+      status: 'Processing',
+      temp: '4.4°C'
+    },
+    {
+      id: '#VGF-2916',
+      client: 'Super Foods Depot',
+      produce: 'Sweet Potatoes',
+      quantity: '3,400 kg',
+      status: 'Shipped',
+      temp: '6.0°C'
+    },
+    {
+      id: '#VGF-2915',
+      client: 'Healthy Living Market',
+      produce: 'Avocados',
+      quantity: '500 kg',
+      status: 'Delayed',
+      temp: '8.2°C'
+    },
+    {
+      id: '#VGF-2914',
+      client: 'Nature Express Hub',
+      produce: 'Red Tomatoes',
+      quantity: '2,100 kg',
+      status: 'Shipped',
+      temp: '5.1°C'
+    }
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-emerald-50/10 to-teal-50/20 flex font-sans antialiased text-slate-800">
-      <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+  const getStatusStyle = (status) => {
+    if (status === 'Shipped') {
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    }
 
-      <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto max-h-screen">
-        <header className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 p-6 md:p-8 rounded-3xl bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-850 text-white shadow-lg overflow-hidden border border-emerald-700/30">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:16px_24px] pointer-events-none" />
-          <div className="absolute top-0 right-1/4 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="space-y-4 z-10 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-emerald-100 bg-white/10 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/15">
-                Operations Center
-              </span>
-              
-              <div className="flex items-center gap-3 bg-rose-950/60 backdrop-blur-md border border-rose-500/30 px-3.5 py-1.5 rounded-full text-rose-300 shadow-[0_0_20px_rgba(244,63,94,0.2)] max-w-[190px] overflow-hidden">
-                <span className="relative flex h-3.5 w-3.5 flex-shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] border border-white/20"></span>
-                </span>
-                <div className="overflow-hidden whitespace-nowrap text-[10px] font-black uppercase tracking-widest text-white w-full">
-                  <marquee scrollamount="3.5" className="leading-none">LIVE ADMIN VEG GO</marquee>
+    if (status === 'Processing') {
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    }
+
+    return 'bg-rose-50 text-rose-700 border-rose-200';
+  };
+
+  const getStatusIcon = (status) => {
+    if (status === 'Shipped') {
+      return <CheckCircle2 size={12} />;
+    }
+
+    if (status === 'Processing') {
+      return <Layers size={12} />;
+    }
+
+    return <AlertCircle size={12} />;
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+      <Sidebar
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+      />
+
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen">
+        <div className="space-y-6 sm:space-y-7">
+          <motion.header
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="relative overflow-hidden rounded-3xl bg-emerald-950 text-white p-5 sm:p-6 lg:p-7 shadow-xl shadow-emerald-950/15 border border-emerald-900"
+          >
+            <div className="absolute -top-32 -right-20 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl" />
+            <div className="absolute -bottom-32 left-1/3 w-72 h-72 rounded-full bg-teal-500/10 blur-3xl" />
+
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-900 border border-emerald-800 text-emerald-300 text-[10px] font-bold tracking-widest">
+                    <Zap size={11} />
+                    Operations Center
+                  </span>
+
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-950 border border-rose-900 text-white text-[10px] font-bold tracking-widest">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-rose-400 animate-ping opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
+                    </span>
+                    Live Admin Veg Go
+                  </span>
+                </div>
+
+                <div>
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
+                    Real-time Platform Metrics
+                  </h1>
+
+                  <p className="mt-1.5 text-xs sm:text-sm text-emerald-100/55">
+                    Monitor customers, users and system operations from one place.
+                  </p>
                 </div>
               </div>
-            </div>
-            <h1 className="text-2xl font-black tracking-tight text-white md:text-3xl">
-              Real-time Platform Metrics
-            </h1>
-          </div>
-          
-          <div className="flex items-center gap-3 z-10">
-            <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl px-4 py-2.5 flex items-center gap-2.5 shadow-sm text-xs font-semibold text-emerald-50">
-              <Calendar size={14} className="text-emerald-300" />
-              <span>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-            </div>
-            <button 
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="p-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl hover:bg-white/20 transition-all duration-300 active:scale-95 shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-400 group disabled:opacity-50"
-            >
-              <RefreshCw size={14} className={`text-emerald-300 transition-transform duration-700 ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-45'}`} />
-            </button>
-          </div>
-        </header>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, idx) => {
-            const IconComponent = stat.icon;
-            return (
-              <div 
-                key={idx} 
-                className="bg-white p-6 rounded-3xl border border-emerald-100/50 shadow-sm hover:shadow-xl hover:shadow-emerald-950/[0.02] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-8 -mt-8 transition-transform duration-500 group-hover:scale-125" />
-                
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider group-hover:text-emerald-800 transition-colors">
-                      {stat.label}
-                    </span>
-                    <div className="p-2.5 bg-emerald-50/80 rounded-2xl text-emerald-700 group-hover:bg-emerald-100/50 transition-colors">
-                      <IconComponent size={16} />
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2 bg-emerald-900/70 border border-emerald-800 rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-emerald-100">
+                  <Calendar size={14} className="text-emerald-400" />
+                  <span>
+                    {new Date().toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={fetchDashboardData}
+                  disabled={isRefreshing}
+                  className="p-2.5 rounded-2xl bg-emerald-900/70 border border-emerald-800 hover:bg-emerald-800 transition-all disabled:opacity-50"
+                >
+                  <RefreshCw
+                    size={15}
+                    className={`text-emerald-300 ${
+                      isRefreshing ? 'animate-spin' : ''
+                    }`}
+                  />
+                </motion.button>
+              </div>
+            </div>
+          </motion.header>
+
+          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+            {stats.map((stat, index) => {
+              const Icon = stat.icon;
+
+              return (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.4,
+                    delay: index * 0.08
+                  }}
+                  whileHover={{ y: -5 }}
+                  className="relative overflow-hidden bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all duration-300 p-5 sm:p-6 group"
+                >
+                  <div
+                    className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accent}`}
+                  />
+
+                  <div className="absolute -right-8 -bottom-8 w-28 h-28 rounded-full bg-emerald-50 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-500" />
+
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 tracking-wider">
+                        {stat.label}
+                      </span>
+
+                      <div className={`p-2.5 rounded-2xl ${stat.iconBg}`}>
+                        <Icon size={18} />
+                      </div>
+                    </div>
+
+                    <h3 className="mt-5 text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
+                      {loading ? (
+                        <span className="text-slate-300 animate-pulse">
+                          ...
+                        </span>
+                      ) : (
+                        <AnimatedValue value={stat.value} />
+                      )}
+                    </h3>
+
+                    <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-[11px] font-bold">
+                        <ArrowUpRight size={12} />
+                        {stat.change}
+                      </span>
+
+                      <span className="text-[10px] sm:text-[11px] text-slate-400 font-semibold text-right">
+                        {stat.desc}
+                      </span>
                     </div>
                   </div>
-                  <h3 className="text-3xl font-black text-slate-900 mt-4 tracking-tight">
-                    {loading ? (
-                      <span className="text-slate-300 animate-pulse">...</span>
-                    ) : (
-                      <AnimatedValue value={stat.value} key={stat.value} />
-                    )}
-                  </h3>
-                </div>
-                
-                <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
-                  <span className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                    stat.up ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
-                  }`}>
-                    {stat.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                    {stat.change}
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-medium">{stat.desc}</span>
-                </div>
-              </div>
-            );
-          })}
-        </section>
+                </motion.div>
+              );
+            })}
+          </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 bg-white rounded-3xl border border-emerald-100/50 shadow-sm p-6 md:p-8 flex flex-col justify-between">
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                  <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                    <Package size={18} className="text-emerald-600" />
-                    Recent Supply Line Dispatches
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Live status of active thermal transit lanes</p>
+          <section className="grid grid-cols-1 xl:grid-cols-3 gap-5 sm:gap-6">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="xl:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-6"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-700">
+                    <Package size={18} />
+                  </div>
+
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">
+                      Recent Supply Dispatches
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Latest active thermal transit lanes
+                    </p>
+                  </div>
                 </div>
-                <button className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 transition-colors bg-emerald-50 hover:bg-emerald-100/60 px-4 py-2 rounded-xl self-start sm:self-auto">
+
+                <button className="inline-flex items-center gap-2 self-start sm:self-auto px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-emerald-700 text-xs font-semibold transition-all">
                   Export Ledger
+                  <ArrowRight size={13} />
                 </button>
               </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                      <th className="pb-4">Reference</th>
-                      <th className="pb-4">Contract Name</th>
-                      <th className="pb-4">Produce</th>
-                      <th className="pb-4 text-center">Batch Temp</th>
-                      <th className="pb-4 text-right">Status</th>
+                    <tr className="border-b border-slate-100 text-[10px] tracking-wider text-slate-400 font-bold">
+                      <th className="py-4 pr-4">Reference</th>
+                      <th className="py-4 px-4">Client</th>
+                      <th className="py-4 px-4">Produce</th>
+                      <th className="py-4 px-4 text-center">Quantity</th>
+                      <th className="py-4 px-4 text-center">Temperature</th>
+                      <th className="py-4 pl-4 text-right">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100/60">
-                    {recentOrders.map((order) => (
-                      <tr key={order.id} className="text-xs font-semibold text-slate-600 hover:bg-emerald-50/20 transition-colors">
-                        <td className="py-4 font-bold text-slate-900">{order.id}</td>
-                        <td className="py-4 text-slate-700">{order.client}</td>
-                        <td className="py-4">{order.produce}</td>
-                        <td className="py-4 text-center">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-50 text-[11px] font-mono font-bold text-slate-600 border border-slate-100">
-                            <Thermometer size={12} className="text-emerald-500" />
+
+                  <tbody className="divide-y divide-slate-100">
+                    {recentOrders.map((order, index) => (
+                      <motion.tr
+                        key={order.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{
+                          delay: index * 0.06
+                        }}
+                        className="text-xs font-medium text-slate-600 hover:bg-emerald-50/40 transition-colors"
+                      >
+                        <td className="py-4 pr-4 font-mono font-bold text-slate-900">
+                          {order.id}
+                        </td>
+
+                        <td className="py-4 px-4 font-semibold text-slate-700">
+                          {order.client}
+                        </td>
+
+                        <td className="py-4 px-4">
+                          {order.produce}
+                        </td>
+
+                        <td className="py-4 px-4 text-center font-mono">
+                          {order.quantity}
+                        </td>
+
+                        <td className="py-4 px-4 text-center">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-[10px] font-bold font-mono text-slate-600">
+                            <Thermometer
+                              size={12}
+                              className="text-emerald-500"
+                            />
                             {order.temp}
                           </span>
                         </td>
-                        <td className="py-4 text-right">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                            order.status === 'Shipped' ? 'bg-emerald-50/60 text-emerald-700 border-emerald-100' :
-                            order.status === 'Processing' ? 'bg-amber-50/60 text-amber-700 border-amber-100' :
-                            'bg-rose-50 text-rose-700 border-rose-100'
-                          }`}>
-                            {order.status === 'Shipped' && <CheckCircle2 size={12} className="text-emerald-600" />}
-                            {order.status === 'Processing' && <Layers size={12} className="text-amber-600" />}
-                            {order.status === 'Delayed' && <AlertCircle size={12} className="text-rose-600" />}
+
+                        <td className="py-4 pl-4 text-right">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold ${getStatusStyle(
+                              order.status
+                            )}`}
+                          >
+                            {getStatusIcon(order.status)}
                             {order.status}
                           </span>
                         </td>
-                      </tr>
+                      </motion.tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-3xl border border-emerald-100/50 shadow-sm p-6 md:p-8 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-6">
+              <div className="md:hidden mt-5 space-y-3">
+                {recentOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-mono text-xs font-bold text-slate-900">
+                        {order.id}
+                      </span>
+
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-bold ${getStatusStyle(
+                          order.status
+                        )}`}
+                      >
+                        {getStatusIcon(order.status)}
+                        {order.status}
+                      </span>
+                    </div>
+
+                    <div className="mt-3">
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        {order.client}
+                      </h3>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {order.produce}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-slate-200">
+                      <div>
+                        <p className="text-[9px] tracking-wider font-bold text-slate-400">
+                          Quantity
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-slate-700">
+                          {order.quantity}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[9px] tracking-wider font-bold text-slate-400">
+                          Temperature
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-emerald-700">
+                          {order.temp}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-6 flex flex-col"
+            >
+              <div className="flex items-center justify-between pb-5 border-b border-slate-100">
                 <div>
-                  <h2 className="text-lg font-extrabold text-slate-900">Thermal Health</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Consistency metrics across operations</p>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Thermal Health
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Cold-chain consistency
+                  </p>
                 </div>
-                <div className="p-2.5 bg-emerald-50 rounded-2xl text-emerald-600">
+
+                <div className="p-2.5 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600">
                   <ShieldCheck size={18} />
                 </div>
               </div>
 
-              <div className="relative aspect-[4/3] w-full bg-gradient-to-tr from-emerald-900 via-emerald-800 to-teal-950 rounded-2xl flex flex-col items-center justify-center p-6 border border-emerald-800/20 overflow-hidden group shadow-md">
-                <div className="absolute inset-0 bg-radial-gradient from-emerald-500/20 to-transparent opacity-60 pointer-events-none" />
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:14px_24px]" />
-                
-                <div className="z-10 flex flex-col items-center">
-                  <div className="p-4 bg-emerald-500/10 rounded-full border border-emerald-500/20 mb-3 group-hover:scale-110 transition-transform duration-500">
-                    <TrendingUp size={28} className="text-emerald-400" />
-                  </div>
-                  <p className="text-xs font-bold text-slate-100 tracking-wide uppercase">Operational Consistency</p>
-                  <p className="text-[11px] text-emerald-200/70 mt-2 text-center max-w-[180px] leading-relaxed">
-                    All active nodes are functioning inside targeted temperature bounds.
+              <div className="mt-5 relative min-h-[260px] rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-950 flex items-center justify-center p-6">
+                <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-emerald-400/10 blur-3xl" />
+                <div className="absolute -bottom-20 -left-20 w-52 h-52 rounded-full bg-teal-400/10 blur-3xl" />
+
+                <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:20px_20px]" />
+
+                <div className="relative z-10 text-center">
+                  <motion.div
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: 'easeInOut'
+                    }}
+                    className="mx-auto w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-400/20 flex items-center justify-center"
+                  >
+                    <TrendingUp
+                      size={30}
+                      className="text-emerald-400"
+                    />
+                  </motion.div>
+
+                  <p className="mt-5 text-[11px] tracking-widest font-bold text-emerald-200">
+                    Operational Consistency
                   </p>
-                </div>
-                
-                <div className="absolute inset-x-0 bottom-0 bg-emerald-950/80 backdrop-blur-sm border-t border-emerald-800/30 p-2.5 text-center">
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">99.8% Reliability Rating</span>
+
+                  <p className="mt-2 text-xs text-emerald-100/55 leading-5 max-w-[220px] mx-auto">
+                    All active nodes are operating inside targeted temperature bounds.
+                  </p>
+
+                  <div className="mt-5 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-400/10 border border-emerald-400/20">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[10px] font-bold text-emerald-300">
+                      99.8% Reliability
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-6 space-y-3">
-                <div className="flex justify-between items-center text-xs font-bold text-slate-500">
-                  <span>Standard Deviations</span>
-                  <span className="text-slate-900">0.12 °C Max</span>
+              <div className="mt-5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-500">
+                    Standard Deviations
+                  </span>
+
+                  <span className="font-bold text-slate-900">
+                    0.12 °C Max
+                  </span>
                 </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full w-[95%] rounded-full transition-all duration-1000" />
+
+                <div className="mt-3 w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: '95%' }}
+                    transition={{
+                      duration: 1.2,
+                      ease: 'easeOut'
+                    }}
+                    className="h-full rounded-full bg-emerald-500"
+                  />
                 </div>
               </div>
-            </div>
-            
-            <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-bold text-slate-600">Cold Storage Nodes</span>
+
+              <div className="mt-auto pt-5 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-semibold text-slate-600">
+                    Cold Storage Nodes
+                  </span>
+                </div>
+
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-lg">
+                  4 / 4 Active
+                </span>
               </div>
-              <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg">
-                4 / 4 Active
-              </span>
+            </motion.div>
+          </section>
+
+          <motion.section
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+          >
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
+                <Users size={17} />
+              </div>
+
+              <div>
+                <p className="text-[10px] tracking-wider font-bold text-slate-400">
+                  Customer Network
+                </p>
+                <p className="text-sm font-bold text-slate-900 mt-0.5">
+                  Growing
+                </p>
+              </div>
             </div>
-          </div>
-        </section>
+
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600">
+                <Activity size={17} />
+              </div>
+
+              <div>
+                <p className="text-[10px] tracking-wider font-bold text-slate-400">
+                  Platform Activity
+                </p>
+                <p className="text-sm font-bold text-slate-900 mt-0.5">
+                  Operational
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-4 flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-green-50 text-green-600">
+                <Server size={17} />
+              </div>
+
+              <div>
+                <p className="text-[10px] tracking-wider font-bold text-slate-400">
+                  Infrastructure
+                </p>
+                <p className="text-sm font-bold text-slate-900 mt-0.5">
+                  Healthy
+                </p>
+              </div>
+            </div>
+          </motion.section>
+        </div>
       </main>
     </div>
   );

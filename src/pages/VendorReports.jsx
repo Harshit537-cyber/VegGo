@@ -1,85 +1,116 @@
-
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+
+import {
+  getCategories,
+  createCategory,
+  getCategoryById,
+  updateCategory,
+  deactivateCategory,
+  activateCategory
+} from '../Api/catalogService/categoryService';
 
 import {
   Calendar,
   RefreshCw,
-  FileSpreadsheet,
-  Store,
-  TrendingUp,
-  Star,
-  Percent,
-  ShieldCheck,
-  ChevronDown,
-  Layers,
+  Search,
+  Filter,
+  Plus,
+  Edit3,
+  Trash2,
+  FolderTree,
+  Power,
+  X,
+  Save,
+  CheckCircle2,
+  Package,
   ArrowUpRight,
   ArrowDownRight,
   Sparkles,
-  Activity,
-  BarChart3,
-  CircleDollarSign
+  Zap,
+  Eye
 } from 'lucide-react';
+
+/* =========================================================
+   ANIMATED VALUE
+========================================================= */
 
 function AnimatedValue({ value }) {
   const [displayValue, setDisplayValue] = useState('');
 
   useEffect(() => {
-    const match = value.match(/([₹\d,.]+)\s*(.*)/);
+    const stringValue = String(value ?? '');
+
+    const match = stringValue.match(/([\d,.]+)\s*(.*)/);
 
     if (!match) {
-      setDisplayValue(value);
+      setDisplayValue(stringValue);
       return;
     }
 
-    const isRupee = value.startsWith('₹');
-    const rawNumberStr = match[1].replace(/[₹,]/g, '');
+    const rawNumberStr = match[1].replace(/,/g, '');
     const targetNum = parseFloat(rawNumberStr);
     const suffix = match[2] || '';
+
+    if (isNaN(targetNum)) {
+      setDisplayValue(stringValue);
+      return;
+    }
+
     const isDecimal = rawNumberStr.includes('.');
     const hasComma = match[1].includes(',');
 
-    const duration = 1200;
+    const duration = 1000;
     const startTime = performance.now();
+
     let animationFrameId;
 
     const updateCount = (timestamp) => {
       const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+
+      const progress = Math.min(
+        elapsed / duration,
+        1
+      );
 
       const easeProgress =
         progress === 1
           ? 1
           : 1 - Math.pow(2, -10 * progress);
 
-      const currentVal = easeProgress * targetNum;
+      const currentVal =
+        easeProgress * targetNum;
 
       let formatted;
 
       if (isDecimal) {
         formatted = currentVal.toFixed(2);
       } else {
-        formatted = Math.floor(currentVal).toString();
+        formatted =
+          Math.floor(currentVal).toString();
       }
 
       if (hasComma) {
         const parts = formatted.split('.');
-        parts[0] = parseInt(parts[0], 10).toLocaleString('en-IN');
+
+        parts[0] = parseInt(
+          parts[0],
+          10
+        ).toLocaleString('en-IN');
+
         formatted = parts.join('.');
       }
 
       setDisplayValue(
-        `${isRupee ? '₹' : ''}${formatted}${
-          suffix ? ' ' + suffix : ''
-        }`
+        `${formatted}${suffix ? ` ${suffix}` : ''}`
       );
 
       if (progress < 1) {
         animationFrameId =
           requestAnimationFrame(updateCount);
       } else {
-        setDisplayValue(value);
+        setDisplayValue(stringValue);
       }
     };
 
@@ -93,131 +124,713 @@ function AnimatedValue({ value }) {
   return <span>{displayValue}</span>;
 }
 
-export default function VendorReports() {
+/* =========================================================
+   MAIN COMPONENT
+========================================================= */
+
+export default function Categories() {
   const [currentTab, setCurrentTab] =
-    useState('vendor-reports');
+    useState('categories');
+
+  const [searchQuery, setSearchQuery] =
+    useState('');
+
+  const [statusFilter, setStatusFilter] =
+    useState('All');
+
+  const [categories, setCategories] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
 
   const [isRefreshing, setIsRefreshing] =
+    useState(false);
+
+  const [saving, setSaving] =
     useState(false);
 
   const [refreshKey, setRefreshKey] =
     useState(0);
 
-  const [selectedRange, setSelectedRange] =
-    useState('Quarter 3, 2026');
+  const [errorMessage, setErrorMessage] =
+    useState('');
 
-  const vendorStats = [
-    {
-      label: 'Settled Vendor Volume',
-      value: '₹14,24,800.00',
-      change: '+16.5%',
-      up: true,
-      accent: 'bg-emerald-600',
-      iconBg: 'bg-emerald-50 text-emerald-700',
-      tag: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-      icon: TrendingUp
-    },
-    {
-      label: 'Fulfillment Rate',
-      value: '98.4%',
-      change: '+0.8%',
-      up: true,
-      accent: 'bg-teal-600',
-      iconBg: 'bg-teal-50 text-teal-700',
-      tag: 'text-teal-700 bg-teal-50 border-teal-200',
-      icon: ShieldCheck
-    },
-    {
-      label: 'Avg Commission Fee',
-      value: '11.4%',
-      change: '+1.2%',
-      up: true,
-      accent: 'bg-amber-600',
-      iconBg: 'bg-amber-50 text-amber-700',
-      tag: 'text-amber-700 bg-amber-50 border-amber-200',
-      icon: Percent
-    },
-    {
-      label: 'Onboarding SLA',
-      value: '1.8 Days',
-      change: '-0.3%',
-      up: false,
-      accent: 'bg-rose-600',
-      iconBg: 'bg-rose-50 text-rose-700',
-      tag: 'text-rose-700 bg-rose-50 border-rose-200',
-      icon: Store
+  const [successMessage, setSuccessMessage] =
+    useState('');
+
+  const [selectedCategory, setSelectedCategory] =
+    useState(null);
+
+  const [isPanelOpen, setIsPanelOpen] =
+    useState(false);
+
+  const [editingCategory, setEditingCategory] =
+    useState(null);
+
+  const [formData, setFormData] = useState({
+    id: '',
+    name: '',
+    slug: '',
+    description: '',
+    displayOrder: 1,
+    imageUrl: '',
+    status: 'Active'
+  });
+
+  /* =========================================================
+     HELPERS
+  ========================================================= */
+
+  const getCategoryId = (category) =>
+    category?.id ||
+    category?._id ||
+    category?.categoryId;
+
+  const getCategoryName = (category) =>
+    category?.name ||
+    category?.categoryName ||
+    '';
+
+  const getCategoryDescription = (category) =>
+    category?.description || '';
+
+  const getCategoryStatus = (category) => {
+    if (
+      category?.active === true ||
+      category?.status === 'Active' ||
+      category?.status === 'active' ||
+      category?.isActive === true
+    ) {
+      return 'Active';
     }
-  ];
 
-  const vendorPerformanceReport = [
-    {
-      name: 'Organic Valley Farms',
-      productCount: '82 SKUs',
-      GTV: '₹6,40,900.00',
-      returnRate: '0.4%',
-      rating: '4.9',
-      payoutStatus: 'Cleared'
-    },
-    {
-      name: 'Greenhouse Co-op',
-      productCount: '41 SKUs',
-      GTV: '₹3,20,500.00',
-      returnRate: '1.2%',
-      rating: '4.8',
-      payoutStatus: 'Cleared'
-    },
-    {
-      name: 'Sunshine Orchards',
-      productCount: '65 SKUs',
-      GTV: '₹2,84,100.00',
-      returnRate: '0.8%',
-      rating: '4.7',
-      payoutStatus: 'Pending'
-    },
-    {
-      name: 'Purely Plants Co.',
-      productCount: '28 SKUs',
-      GTV: '₹1,12,300.00',
-      returnRate: '1.5%',
-      rating: '4.9',
-      payoutStatus: 'Cleared'
-    },
-    {
-      name: 'Evergreen Hydroponics',
-      productCount: '19 SKUs',
-      GTV: '₹67,000.00',
-      returnRate: '4.2%',
-      rating: '4.4',
-      payoutStatus: 'On Hold'
+    if (
+      category?.active === false ||
+      category?.status === 'Inactive' ||
+      category?.status === 'inactive' ||
+      category?.isActive === false
+    ) {
+      return 'Inactive';
     }
-  ];
 
-  const satisfactionBreakdown = [
-    {
-      label: 'High Rating (4.5 - 5.0)',
-      percentage: 82,
-      color: 'bg-emerald-500'
-    },
-    {
-      label: 'Moderate Rating (3.5 - 4.4)',
-      percentage: 14,
-      color: 'bg-amber-500'
-    },
-    {
-      label: 'Low Rating (< 3.5)',
-      percentage: 4,
-      color: 'bg-rose-500'
-    }
-  ];
-
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setRefreshKey((prev) => prev + 1);
-
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
+    return 'Active';
   };
+
+  const getDisplayOrder = (category) =>
+    category?.displayOrder ?? 0;
+
+  const getImageUrl = (category) =>
+    category?.imageUrl ||
+    category?.image ||
+    '';
+
+  const getProductsCount = (category) =>
+    category?.productsCount ??
+    category?.productCount ??
+    (Array.isArray(category?.products)
+      ? category.products.length
+      : 0);
+
+  const normalizeCategory = (category) => ({
+    ...category,
+
+    id: getCategoryId(category),
+
+    name: getCategoryName(category),
+
+    description:
+      getCategoryDescription(category),
+
+    displayOrder:
+      getDisplayOrder(category),
+
+    imageUrl:
+      getImageUrl(category),
+
+    productsCount:
+      getProductsCount(category),
+
+    status:
+      getCategoryStatus(category)
+  });
+
+  const clearMessages = () => {
+    setErrorMessage('');
+    setSuccessMessage('');
+  };
+
+  /* =========================================================
+     FETCH CATEGORIES
+  ========================================================= */
+
+  const fetchCategories = async () => {
+    try {
+      setIsRefreshing(true);
+      setErrorMessage('');
+
+      const response =
+        await getCategories(false);
+
+      console.log(
+        'Categories API Response:',
+        response
+      );
+
+      if (response?.success) {
+        let data = [];
+
+        if (Array.isArray(response?.data)) {
+          data = response.data;
+        } else if (
+          Array.isArray(
+            response?.data?.content
+          )
+        ) {
+          data =
+            response.data.content;
+        } else if (
+          Array.isArray(
+            response?.data?.categories
+          )
+        ) {
+          data =
+            response.data.categories;
+        }
+
+        setCategories(
+          data.map(normalizeCategory)
+        );
+
+        setRefreshKey(
+          (prev) => prev + 1
+        );
+      } else {
+        setCategories([]);
+
+        setErrorMessage(
+          response?.message ||
+            'Failed to fetch categories'
+        );
+      }
+    } catch (error) {
+      console.error(
+        'Categories API Error:',
+        error
+      );
+
+      setCategories([]);
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to fetch categories'
+      );
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  /* =========================================================
+     ADD CATEGORY
+  ========================================================= */
+
+  const openAddPanel = () => {
+    clearMessages();
+
+    setEditingCategory(null);
+
+    setFormData({
+      id: '',
+      name: '',
+      slug: '',
+      description: '',
+      displayOrder: 1,
+      imageUrl: '',
+      status: 'Active'
+    });
+
+    setIsPanelOpen(true);
+  };
+
+  /* =========================================================
+     EDIT CATEGORY
+  ========================================================= */
+
+  const openEditPanel = async (category) => {
+    clearMessages();
+
+    const categoryId =
+      getCategoryId(category);
+
+    if (!categoryId) {
+      setErrorMessage(
+        'Category ID not found'
+      );
+      return;
+    }
+
+    try {
+      setEditingCategory(categoryId);
+      setIsPanelOpen(true);
+
+      const response =
+        await getCategoryById(categoryId);
+
+      console.log(
+        'Category Details API Response:',
+        response
+      );
+
+      if (!response?.success) {
+        setErrorMessage(
+          response?.message ||
+            'Failed to fetch category details'
+        );
+        return;
+      }
+
+      const categoryData =
+        response?.data?.category ||
+        response?.data ||
+        category;
+
+      setFormData({
+        id:
+          getCategoryId(
+            categoryData
+          ),
+
+        name:
+          getCategoryName(
+            categoryData
+          ),
+
+        slug:
+          categoryData?.slug ||
+          '',
+
+        description:
+          getCategoryDescription(
+            categoryData
+          ),
+
+        displayOrder:
+          getDisplayOrder(
+            categoryData
+          ),
+
+        imageUrl:
+          getImageUrl(
+            categoryData
+          ),
+
+        status:
+          getCategoryStatus(
+            categoryData
+          )
+      });
+    } catch (error) {
+      console.error(
+        'Category Details Error:',
+        error
+      );
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to fetch category details'
+      );
+    }
+  };
+
+  /* =========================================================
+     TOGGLE STATUS
+  ========================================================= */
+
+  const handleToggleStatus = async (
+    category
+  ) => {
+    clearMessages();
+
+    const categoryId =
+      getCategoryId(category);
+
+    if (!categoryId) {
+      setErrorMessage(
+        'Category ID not found'
+      );
+      return;
+    }
+
+    try {
+      setIsRefreshing(true);
+
+      const isActive =
+        getCategoryStatus(category) ===
+        'Active';
+
+      const response = isActive
+        ? await deactivateCategory(
+            categoryId
+          )
+        : await activateCategory(
+            categoryId
+          );
+
+      if (response?.success) {
+        setSuccessMessage(
+          isActive
+            ? 'Category deactivated successfully'
+            : 'Category activated successfully'
+        );
+
+        await fetchCategories();
+      } else {
+        setErrorMessage(
+          response?.message ||
+            'Failed to update category status'
+        );
+      }
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to update category status'
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  /* =========================================================
+     DELETE / DEACTIVATE
+  ========================================================= */
+
+  const handleDelete = async (
+    category
+  ) => {
+    clearMessages();
+
+    const categoryId =
+      getCategoryId(category);
+
+    if (!categoryId) {
+      setErrorMessage(
+        'Category ID not found'
+      );
+      return;
+    }
+
+    if (
+      getCategoryStatus(category) ===
+      'Inactive'
+    ) {
+      setErrorMessage(
+        'Category is already inactive'
+      );
+      return;
+    }
+
+    try {
+      setIsRefreshing(true);
+
+      const response =
+        await deactivateCategory(
+          categoryId
+        );
+
+      if (response?.success) {
+        setSuccessMessage(
+          'Category deactivated successfully'
+        );
+
+        await fetchCategories();
+      } else {
+        setErrorMessage(
+          response?.message ||
+            'Failed to deactivate category'
+        );
+      }
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to deactivate category'
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  /* =========================================================
+     SAVE CATEGORY
+  ========================================================= */
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+
+    clearMessages();
+    setSaving(true);
+
+    try {
+      const payload = {
+        name:
+          formData.name.trim(),
+
+        description:
+          formData.description.trim(),
+
+        displayOrder:
+          Number(
+            formData.displayOrder
+          ) || 1
+      };
+
+      if (
+        formData.slug.trim()
+      ) {
+        payload.slug =
+          formData.slug.trim();
+      }
+
+      if (
+        formData.imageUrl.trim()
+      ) {
+        payload.imageUrl =
+          formData.imageUrl.trim();
+      }
+
+      let response;
+
+      if (editingCategory) {
+        response =
+          await updateCategory(
+            editingCategory,
+            payload
+          );
+      } else {
+        response =
+          await createCategory(
+            payload
+          );
+      }
+
+      console.log(
+        'Save Category Response:',
+        response
+      );
+
+      if (!response?.success) {
+        setErrorMessage(
+          response?.message ||
+            'Failed to save category'
+        );
+        return;
+      }
+
+      if (editingCategory) {
+        const existingCategory =
+          categories.find(
+            (category) =>
+              String(
+                getCategoryId(
+                  category
+                )
+              ) ===
+              String(
+                editingCategory
+              )
+          );
+
+        const oldStatus =
+          getCategoryStatus(
+            existingCategory
+          );
+
+        const newStatus =
+          formData.status;
+
+        if (
+          oldStatus !== newStatus
+        ) {
+          if (
+            newStatus ===
+            'Active'
+          ) {
+            await activateCategory(
+              editingCategory
+            );
+          } else {
+            await deactivateCategory(
+              editingCategory
+            );
+          }
+        }
+      }
+
+      setSuccessMessage(
+        editingCategory
+          ? 'Category updated successfully'
+          : 'Category created successfully'
+      );
+
+      setIsPanelOpen(false);
+      setEditingCategory(null);
+
+      await fetchCategories();
+    } catch (error) {
+      console.error(
+        'Save Category Error:',
+        error
+      );
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to save category'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* =========================================================
+     FILTER
+  ========================================================= */
+
+  const filteredCategories =
+    categories.filter((cat) => {
+      const name =
+        getCategoryName(
+          cat
+        ).toLowerCase();
+
+      const description =
+        getCategoryDescription(
+          cat
+        ).toLowerCase();
+
+      const query =
+        searchQuery.toLowerCase();
+
+      const matchesSearch =
+        name.includes(query) ||
+        description.includes(query);
+
+      const matchesStatus =
+        statusFilter === 'All' ||
+        getCategoryStatus(cat) ===
+          statusFilter;
+
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
+    });
+
+  /* =========================================================
+     STATS
+  ========================================================= */
+
+  const activeCategories =
+    categories.filter(
+      (category) =>
+        getCategoryStatus(
+          category
+        ) === 'Active'
+    );
+
+  const inactiveCategories =
+    categories.filter(
+      (category) =>
+        getCategoryStatus(
+          category
+        ) === 'Inactive'
+    );
+
+  const totalProducts =
+    categories.reduce(
+      (acc, category) =>
+        acc +
+        Number(
+          getProductsCount(
+            category
+          ) || 0
+        ),
+      0
+    );
+
+  const categoryStats = [
+    {
+      label: 'Total Categories',
+      value: `${categories.length}`,
+      change: '+12.4%',
+      up: true,
+      accentColor:
+        'bg-emerald-600',
+      iconBg:
+        'bg-emerald-50 text-emerald-700',
+      tagColor:
+        'text-emerald-700 bg-emerald-50/80 border-emerald-200/80',
+      icon: FolderTree,
+      suffix: ' Categories'
+    },
+
+    {
+      label: 'Active Categories',
+      value: `${activeCategories.length}`,
+      change: '+8.2%',
+      up: true,
+      accentColor:
+        'bg-teal-600',
+      iconBg:
+        'bg-teal-50 text-teal-700',
+      tagColor:
+        'text-teal-700 bg-teal-50/80 border-teal-200/80',
+      icon: CheckCircle2,
+      suffix: ' Active'
+    },
+
+    {
+      label: 'Inactive Categories',
+      value: `${inactiveCategories.length}`,
+      change: '-4.1%',
+      up: false,
+      accentColor:
+        'bg-emerald-500',
+      iconBg:
+        'bg-emerald-50 text-emerald-700',
+      tagColor:
+        'text-rose-700 bg-rose-50/80 border-rose-200/80',
+      icon: FolderTree,
+      suffix: ' Inactive'
+    },
+
+    {
+      label: 'Assigned Products',
+      value: `${totalProducts}`,
+      change: '+15.5%',
+      up: true,
+      accentColor:
+        'bg-green-700',
+      iconBg:
+        'bg-green-50 text-green-700',
+      tagColor:
+        'text-emerald-700 bg-emerald-50/80 border-emerald-200/80',
+      icon: Package,
+      suffix: ' Products'
+    }
+  ];
+
+  /* =========================================================
+     UI
+  ========================================================= */
 
   return (
     <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
@@ -229,7 +842,9 @@ export default function VendorReports() {
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
 
-        {/* ================= HEADER ================= */}
+        {/* =====================================================
+            HEADER - SAME AS CUSTOMER DIRECTORY
+        ===================================================== */}
 
         <motion.header
           initial={{
@@ -244,27 +859,12 @@ export default function VendorReports() {
             duration: 0.5,
             ease: 'easeOut'
           }}
-          className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-5 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 overflow-hidden group"
+          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
         >
 
-          {/* Background Effects */}
-
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse duration-1000" />
 
           <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="absolute inset-0 opacity-[0.025] pointer-events-none">
-            <div
-              className="w-full h-full"
-              style={{
-                backgroundImage:
-                  'linear-gradient(to right,#ffffff 1px,transparent 1px),linear-gradient(to bottom,#ffffff 1px,transparent 1px)',
-                backgroundSize: '24px 24px'
-              }}
-            />
-          </div>
-
-          {/* Header Left */}
 
           <div className="space-y-2.5 z-10">
 
@@ -272,9 +872,12 @@ export default function VendorReports() {
 
               <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm backdrop-blur-md">
 
-                <BarChart3 size={12} />
+                <Zap
+                  size={12}
+                  className="text-emerald-400 animate-bounce"
+                />
 
-                Vendor Analytics Engine
+                Category Management Directory
 
               </span>
 
@@ -298,40 +901,34 @@ export default function VendorReports() {
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
 
-              Vendor Performance Reports
+              Category Directory
 
-              <Activity
-                className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-              />
+              <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             </h1>
 
-            <p className="text-xs sm:text-sm text-emerald-200/80 max-w-2xl font-medium">
-              Monitor vendor settlements, fulfillment performance,
-              commissions, ratings, onboarding efficiency and payout health.
-            </p>
-
           </div>
 
-          {/* Header Right */}
+          <div className="flex items-center gap-3 self-start lg:self-center z-10">
 
-          <div className="flex flex-wrap items-center gap-3 self-start lg:self-center z-10">
-
-            <button
-              type="button"
-              className="px-4 sm:px-5 py-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl flex items-center gap-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-800 transition-all shadow-inner"
+            <motion.button
+              whileHover={{
+                scale: 1.05
+              }}
+              whileTap={{
+                scale: 0.95
+              }}
+              onClick={openAddPanel}
+              className="px-4 py-2.5 bg-emerald-500/20 border border-emerald-700 rounded-2xl hover:bg-emerald-500/30 transition-all text-xs font-semibold text-emerald-100 flex items-center gap-2"
             >
 
-              <FileSpreadsheet
-                size={15}
-                className="text-emerald-400"
-              />
+              <Plus size={15} />
 
-              Export Statement
+              New Category
 
-            </button>
+            </motion.button>
 
-            <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2.5 flex items-center gap-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
+            <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
 
               <Calendar
                 size={14}
@@ -358,10 +955,10 @@ export default function VendorReports() {
               whileTap={{
                 scale: 0.95
               }}
-              type="button"
-              onClick={handleRefresh}
-              className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white shadow-inner"
-              title="Refresh"
+              onClick={fetchCategories}
+              disabled={isRefreshing}
+              className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner group/btn disabled:opacity-50"
+              title="Refresh Data"
             >
 
               <RefreshCw
@@ -369,7 +966,7 @@ export default function VendorReports() {
                 className={`text-emerald-300 transition-transform duration-700 ${
                   isRefreshing
                     ? 'rotate-180'
-                    : ''
+                    : 'group-hover/btn:rotate-45'
                 }`}
               />
 
@@ -379,103 +976,166 @@ export default function VendorReports() {
 
         </motion.header>
 
-        {/* ================= STAT CARDS ================= */}
+        {/* =====================================================
+            MESSAGES
+        ===================================================== */}
+
+        <AnimatePresence>
+          {(errorMessage ||
+            successMessage) && (
+            <motion.div
+              initial={{
+                opacity: 0,
+                y: -10
+              }}
+              animate={{
+                opacity: 1,
+                y: 0
+              }}
+              exit={{
+                opacity: 0,
+                y: -10
+              }}
+              className={`px-5 py-3.5 rounded-2xl border text-xs font-semibold ${
+                errorMessage
+                  ? 'bg-rose-50 border-rose-200 text-rose-700'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              }`}
+            >
+              {errorMessage ||
+                successMessage}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* =====================================================
+            STATS GRID - SAME AS CUSTOMER DIRECTORY
+        ===================================================== */}
 
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
 
-          {vendorStats.map((stat, index) => {
+          {categoryStats.map(
+            (stat, idx) => {
+              const IconComponent =
+                stat.icon;
 
-            const IconComponent = stat.icon;
-
-            return (
-              <motion.div
-                key={stat.label}
-                initial={{
-                  opacity: 0,
-                  y: 20
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0
-                }}
-                transition={{
-                  duration: 0.4,
-                  delay: index * 0.1
-                }}
-                whileHover={{
-                  y: -6
-                }}
-                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden group"
-              >
-
-                {/* Top Accent */}
-
-                <div
-                  className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accent} group-hover:h-2 transition-all`}
-                />
-
-                <div className="flex items-center justify-between mb-5">
-
-                  <span className="text-[11px] font-semibold text-black uppercase tracking-wider">
-
-                    {stat.label}
-
-                  </span>
+              return (
+                <motion.div
+                  key={`${idx}-${refreshKey}`}
+                  initial={{
+                    opacity: 0,
+                    y: 20
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: 0
+                  }}
+                  transition={{
+                    duration: 0.4,
+                    delay: idx * 0.1
+                  }}
+                  whileHover={{
+                    y: -6,
+                    transition: {
+                      duration: 0.2
+                    }
+                  }}
+                  className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group cursor-pointer"
+                >
 
                   <div
-                    className={`p-2.5 rounded-2xl ${stat.iconBg}`}
-                  >
+                    className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor} transition-all duration-300 group-hover:h-2`}
+                  />
 
-                    <IconComponent size={18} />
+                  <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none group-hover:scale-125" />
+
+                  <div className="relative z-10">
+
+                    <div className="flex items-center justify-between mb-4">
+
+                      <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors duration-200">
+                        {stat.label}
+                      </span>
+
+                      <motion.div
+                        whileHover={{
+                          rotate: 12,
+                          scale: 1.1
+                        }}
+                        className={`${stat.iconBg} p-2.5 rounded-2xl transition-all shadow-xs`}
+                      >
+                        <IconComponent
+                          size={18}
+                        />
+                      </motion.div>
+
+                    </div>
+
+                    <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono group-hover:text-emerald-800 transition-colors duration-200">
+
+                      {loading ? (
+                        <span className="text-slate-300">
+                          ...
+                        </span>
+                      ) : (
+                        <>
+                          <AnimatedValue
+                            value={
+                              stat.value
+                            }
+                          />
+                          <span className="text-base ml-1 font-sans">
+                            {stat.suffix}
+                          </span>
+                        </>
+                      )}
+
+                    </h3>
 
                   </div>
 
-                </div>
+                  <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between relative z-10">
 
-                <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono">
+                    <span
+                      className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-transform duration-300 group-hover:scale-105 ${stat.tagColor}`}
+                    >
 
-                  <AnimatedValue
-                    value={stat.value}
-                    key={refreshKey}
-                  />
+                      {stat.up ? (
+                        <ArrowUpRight
+                          size={13}
+                          className="text-emerald-600 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                        />
+                      ) : (
+                        <ArrowDownRight
+                          size={13}
+                          className="text-rose-600 transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5"
+                        />
+                      )}
 
-                </h3>
+                      {stat.change}
 
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between">
+                    </span>
 
-                  <span
-                    className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${stat.tag}`}
-                  >
+                    <span className="text-[11px] text-black font-semibold">
+                      Monthly Period
+                    </span>
 
-                    {stat.up ? (
-                      <ArrowUpRight size={13} />
-                    ) : (
-                      <ArrowDownRight size={13} />
-                    )}
+                  </div>
 
-                    {stat.change}
-
-                  </span>
-
-                  <span className="text-[10px] text-black font-semibold">
-                    Quarterly Period
-                  </span>
-
-                </div>
-
-              </motion.div>
-            );
-          })}
+                </motion.div>
+              );
+            }
+          )}
 
         </section>
 
-        {/* ================= MAIN CONTENT ================= */}
+        {/* =====================================================
+            FULL WIDTH CATEGORY TABLE
+        ===================================================== */}
 
-        <section className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8">
+        <section className="w-full">
 
-          {/* ================= VENDOR MATRIX ================= */}
-
-          <motion.section
+          <motion.div
             initial={{
               opacity: 0,
               y: 20
@@ -486,520 +1146,1150 @@ export default function VendorReports() {
             }}
             transition={{
               duration: 0.5,
-              delay: 0.4
+              delay: 0.3
             }}
-            className="xl:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
+            className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
           >
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+            <div>
 
-              <div className="flex items-center gap-3">
+              {/* TABLE HEADER */}
 
-                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
 
-                  <Layers size={18} />
+                <div className="flex items-center gap-3">
+
+                  <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                    <FolderTree size={18} />
+                  </div>
+
+                  <div>
+
+                    <h2 className="text-lg font-semibold text-black tracking-tight">
+                      Category Records
+                    </h2>
+
+                    <p className="text-xs font-semibold text-black">
+                      Product category management directory
+                    </p>
+
+                  </div>
 
                 </div>
 
-                <div>
+                <div className="flex items-center gap-2 flex-wrap">
 
-                  <h2 className="text-lg sm:text-xl font-semibold text-black tracking-tight">
-                    Active Vendor Metrics Matrix
-                  </h2>
+                  {/* SEARCH */}
 
-                  <p className="text-[10px] sm:text-xs font-semibold text-black">
-                    Vendor settlement and performance tracking
-                  </p>
+                  <div className="relative flex-1 sm:w-60">
+
+                    <Search
+                      className="absolute left-3 top-2.5 text-slate-400"
+                      size={15}
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="Search categories..."
+                      value={searchQuery}
+                      onChange={(e) =>
+                        setSearchQuery(
+                          e.target.value
+                        )
+                      }
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
+                    />
+
+                  </div>
+
+                  {/* FILTER */}
+
+                  <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-0.5">
+
+                    <Filter
+                      size={13}
+                      className="text-slate-400 ml-2"
+                    />
+
+                    {[
+                      'All',
+                      'Active',
+                      'Inactive'
+                    ].map(
+                      (status) => (
+                        <button
+                          key={status}
+                          onClick={() =>
+                            setStatusFilter(
+                              status
+                            )
+                          }
+                          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+                            statusFilter ===
+                            status
+                              ? 'bg-white text-emerald-700 shadow-sm'
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          {status}
+                        </button>
+                      )
+                    )}
+
+                  </div>
 
                 </div>
 
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* =================================================
+                  DESKTOP TABLE
+              ================================================= */}
 
-                <select
-                  value={selectedRange}
-                  onChange={(e) =>
-                    setSelectedRange(e.target.value)
-                  }
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                >
+              <div className="hidden md:block overflow-x-auto">
 
-                  <option>Quarter 3, 2026</option>
-                  <option>Quarter 2, 2026</option>
-                  <option>Quarter 1, 2026</option>
-                  <option>This Year</option>
+                <table className="w-full text-left border-collapse">
 
-                </select>
+                  <thead>
 
-                <div className="hidden sm:flex items-center justify-center w-9 h-9 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
+                    <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
 
-                  <ChevronDown size={15} />
+                      <th className="py-3.5 px-4 rounded-l-xl">
+                        Category
+                      </th>
 
-                </div>
+                      <th className="py-3.5 px-4">
+                        Description
+                      </th>
+
+                      <th className="py-3.5 px-4 text-center">
+                        Display Order
+                      </th>
+
+                      <th className="py-3.5 px-4 text-center">
+                        Products
+                      </th>
+
+                      <th className="py-3.5 px-4 text-center">
+                        Status
+                      </th>
+
+                      <th className="py-3.5 px-4 text-right rounded-r-xl">
+                        Actions
+                      </th>
+
+                    </tr>
+
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100">
+
+                    {loading ? (
+                      <tr>
+
+                        <td
+                          colSpan="6"
+                          className="py-12 text-center text-xs font-semibold text-slate-400"
+                        >
+                          Loading categories...
+                        </td>
+
+                      </tr>
+                    ) : filteredCategories.length >
+                      0 ? (
+                      filteredCategories.map(
+                        (category, idx) => {
+
+                          const categoryId =
+                            getCategoryId(
+                              category
+                            );
+
+                          const status =
+                            getCategoryStatus(
+                              category
+                            );
+
+                          const imageUrl =
+                            getImageUrl(
+                              category
+                            );
+
+                          return (
+                            <motion.tr
+                              key={categoryId}
+                              initial={{
+                                opacity: 0,
+                                y: 10
+                              }}
+                              animate={{
+                                opacity: 1,
+                                y: 0
+                              }}
+                              transition={{
+                                duration: 0.3,
+                                delay:
+                                  0.3 +
+                                  idx * 0.05
+                              }}
+                              className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group"
+                            >
+
+                              {/* CATEGORY */}
+
+                              <td className="py-3.5 px-4">
+
+                                <div className="flex items-center gap-3">
+
+                                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 overflow-hidden flex items-center justify-center shrink-0 group-hover:border-emerald-300 transition-colors">
+
+                                    {imageUrl ? (
+                                      <img
+                                        src={
+                                          imageUrl
+                                        }
+                                        alt={getCategoryName(
+                                          category
+                                        )}
+                                        className="w-full h-full object-cover"
+                                        onError={(
+                                          e
+                                        ) => {
+                                          e.currentTarget.style.display =
+                                            'none';
+
+                                          e.currentTarget.parentElement
+                                            .querySelector(
+                                              '[data-fallback]'
+                                            )
+                                            ?.classList.remove(
+                                              'hidden'
+                                            );
+                                        }}
+                                      />
+                                    ) : null}
+
+                                    <FolderTree
+                                      data-fallback
+                                      size={
+                                        17
+                                      }
+                                      className={
+                                        imageUrl
+                                          ? 'hidden text-emerald-600'
+                                          : 'text-emerald-600'
+                                      }
+                                    />
+
+                                  </div>
+
+                                  <div className="flex flex-col">
+
+                                    <span className="font-semibold text-black group-hover:text-emerald-700 transition-colors">
+                                      {getCategoryName(
+                                        category
+                                      )}
+                                    </span>
+
+                                    <span className="text-[10px] text-slate-500 font-mono">
+                                      {categoryId ||
+                                        'CATEGORY'}
+                                    </span>
+
+                                  </div>
+
+                                </div>
+
+                              </td>
+
+                              {/* DESCRIPTION */}
+
+                              <td className="py-3.5 px-4">
+
+                                <span className="text-[10px] text-slate-500 font-semibold line-clamp-2 max-w-[280px]">
+                                  {getCategoryDescription(
+                                    category
+                                  ) ||
+                                    'No description available'}
+                                </span>
+
+                              </td>
+
+                              {/* DISPLAY ORDER */}
+
+                              <td className="py-3.5 px-4 text-center font-mono text-black">
+                                {getDisplayOrder(
+                                  category
+                                )}
+                              </td>
+
+                              {/* PRODUCTS */}
+
+                              <td className="py-3.5 px-4 text-center">
+
+                                <span className="inline-flex items-center gap-1.5 font-mono text-emerald-700 font-semibold">
+
+                                  <Package
+                                    size={
+                                      13
+                                    }
+                                  />
+
+                                  {getProductsCount(
+                                    category
+                                  )}
+
+                                </span>
+
+                              </td>
+
+                              {/* STATUS */}
+
+                              <td className="py-3.5 px-4 text-center">
+
+                                <span
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border transition-all duration-300 group-hover:scale-105 ${
+                                    status ===
+                                    'Active'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                                      : 'bg-slate-100 text-slate-600 border-slate-200/80'
+                                  }`}
+                                >
+
+                                  <span
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      status ===
+                                      'Active'
+                                        ? 'bg-emerald-500'
+                                        : 'bg-slate-400'
+                                    }`}
+                                  />
+
+                                  {status}
+
+                                </span>
+
+                              </td>
+
+                              {/* ACTIONS */}
+
+                              <td className="py-3.5 px-4 text-right">
+
+                                <div className="flex items-center justify-end gap-1">
+
+                                  <button
+                                    onClick={() =>
+                                      setSelectedCategory(
+                                        category
+                                      )
+                                    }
+                                    className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                                    title="View Info"
+                                  >
+                                    <Eye
+                                      size={
+                                        15
+                                      }
+                                    />
+                                  </button>
+
+                                  <button
+                                    onClick={() =>
+                                      handleToggleStatus(
+                                        category
+                                      )
+                                    }
+                                    disabled={
+                                      isRefreshing
+                                    }
+                                    className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-40"
+                                    title={
+                                      status ===
+                                      'Active'
+                                        ? 'Deactivate'
+                                        : 'Activate'
+                                    }
+                                  >
+                                    <Power
+                                      size={
+                                        15
+                                      }
+                                    />
+                                  </button>
+
+                                  <button
+                                    onClick={() =>
+                                      openEditPanel(
+                                        category
+                                      )
+                                    }
+                                    className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit3
+                                      size={
+                                        15
+                                      }
+                                    />
+                                  </button>
+
+                                  <button
+                                    onClick={() =>
+                                      handleDelete(
+                                        category
+                                      )
+                                    }
+                                    disabled={
+                                      isRefreshing ||
+                                      status ===
+                                        'Inactive'
+                                    }
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40"
+                                    title="Deactivate"
+                                  >
+                                    <Trash2
+                                      size={
+                                        15
+                                      }
+                                    />
+                                  </button>
+
+                                </div>
+
+                              </td>
+
+                            </motion.tr>
+                          );
+                        }
+                      )
+                    ) : (
+                      <tr>
+
+                        <td
+                          colSpan="6"
+                          className="py-12 text-center"
+                        >
+
+                          <FolderTree
+                            size={35}
+                            className="mx-auto text-slate-300 mb-3"
+                          />
+
+                          <p className="text-xs font-semibold text-slate-400">
+                            No matching category profiles found.
+                          </p>
+
+                        </td>
+
+                      </tr>
+                    )}
+
+                  </tbody>
+
+                </table>
 
               </div>
 
-            </div>
+              {/* =================================================
+                  MOBILE CARD VIEW
+              ================================================= */}
 
-            {/* Table */}
+              <div className="md:hidden space-y-3">
 
-            <div className="overflow-x-auto">
+                {loading ? (
+                  <div className="py-10 text-center text-xs font-semibold text-slate-400">
+                    Loading categories...
+                  </div>
+                ) : filteredCategories.length >
+                  0 ? (
+                  filteredCategories.map(
+                    (category) => {
 
-              <table className="w-full text-left border-collapse">
+                      const status =
+                        getCategoryStatus(
+                          category
+                        );
 
-                <thead>
+                      return (
+                        <motion.div
+                          key={getCategoryId(
+                            category
+                          )}
+                          whileHover={{
+                            scale: 1.01
+                          }}
+                          className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3 group"
+                        >
 
-                  <tr className="border-b border-slate-100 text-[10px] sm:text-[11px] uppercase font-bold tracking-widest text-slate-400">
+                          <div className="flex items-center justify-between">
 
-                    <th className="pb-4 pr-4 whitespace-nowrap">
-                      Shop Name
-                    </th>
+                            <div className="flex items-center gap-2">
 
-                    <th className="pb-4 pr-4 whitespace-nowrap">
-                      Product Catalog
-                    </th>
+                              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                                <FolderTree
+                                  size={
+                                    16
+                                  }
+                                />
+                              </div>
 
-                    <th className="pb-4 pr-4 whitespace-nowrap">
-                      Gross Trade Value
-                    </th>
+                              <div>
 
-                    <th className="pb-4 pr-4 whitespace-nowrap">
-                      Return Rate
-                    </th>
+                                <h4 className="font-semibold text-sm text-black group-hover:text-emerald-700 transition-colors">
+                                  {getCategoryName(
+                                    category
+                                  )}
+                                </h4>
 
-                    <th className="pb-4 pr-4 whitespace-nowrap">
-                      Rating
-                    </th>
+                                <p className="text-[10px] font-mono text-slate-400">
+                                  {getCategoryId(
+                                    category
+                                  )}
+                                </p>
 
-                    <th className="pb-4 text-right whitespace-nowrap">
-                      Settlement
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody className="divide-y divide-slate-100/70">
-
-                  {vendorPerformanceReport.map(
-                    (vendor, idx) => (
-
-                      <motion.tr
-                        key={idx}
-                        initial={{
-                          opacity: 0,
-                          x: 10
-                        }}
-                        animate={{
-                          opacity: 1,
-                          x: 0
-                        }}
-                        transition={{
-                          delay: 0.1 * idx
-                        }}
-                        className="text-sm font-semibold text-slate-600 hover:bg-emerald-50/40 transition-colors"
-                      >
-
-                        <td className="py-4 pr-4">
-
-                          <div className="flex items-center gap-3">
-
-                            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center flex-shrink-0">
-
-                              <Store size={15} />
+                              </div>
 
                             </div>
 
-                            <div className="min-w-0">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                status ===
+                                'Active'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-slate-100 text-slate-600 border-slate-200'
+                              }`}
+                            >
 
-                              <p className="font-bold text-black truncate max-w-[170px]">
-                                {vendor.name}
-                              </p>
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  status ===
+                                  'Active'
+                                    ? 'bg-emerald-500'
+                                    : 'bg-slate-400'
+                                }`}
+                              />
 
-                              <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wide">
-                                Verified Vendor
-                              </p>
+                              {status}
+
+                            </span>
+
+                          </div>
+
+                          <p className="text-xs text-slate-500">
+                            {getCategoryDescription(
+                              category
+                            ) ||
+                              'No description available'}
+                          </p>
+
+                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 text-xs">
+
+                            <div>
+
+                              <span className="text-[10px] uppercase font-semibold text-black block">
+                                Display Order
+                              </span>
+
+                              <span className="font-mono font-semibold text-black">
+                                {getDisplayOrder(
+                                  category
+                                )}
+                              </span>
+
+                            </div>
+
+                            <div>
+
+                              <span className="text-[10px] uppercase font-semibold text-black block">
+                                Products
+                              </span>
+
+                              <span className="font-mono font-semibold text-emerald-700">
+                                {getProductsCount(
+                                  category
+                                )}
+                              </span>
 
                             </div>
 
                           </div>
 
-                        </td>
+                          <div className="flex justify-end gap-1 pt-2">
 
-                        <td className="py-4 pr-4">
+                            <button
+                              onClick={() =>
+                                setSelectedCategory(
+                                  category
+                                )
+                              }
+                              className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                            >
+                              <Eye
+                                size={
+                                  15
+                                }
+                              />
+                            </button>
 
-                          <span className="font-mono text-slate-500 font-bold text-xs">
+                            <button
+                              onClick={() =>
+                                openEditPanel(
+                                  category
+                                )
+                              }
+                              className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                            >
+                              <Edit3
+                                size={
+                                  15
+                                }
+                              />
+                            </button>
 
-                            {vendor.productCount}
+                            <button
+                              onClick={() =>
+                                handleToggleStatus(
+                                  category
+                                )
+                              }
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                            >
+                              <Power
+                                size={
+                                  15
+                                }
+                              />
+                            </button>
 
-                          </span>
+                          </div>
 
-                        </td>
+                        </motion.div>
+                      );
+                    }
+                  )
+                ) : (
+                  <div className="py-10 text-center">
 
-                        <td className="py-4 pr-4">
-
-                          <span className="font-mono text-black font-extrabold text-xs">
-
-                            {vendor.GTV}
-
-                          </span>
-
-                        </td>
-
-                        <td className="py-4 pr-4">
-
-                          <span
-                            className={`font-mono font-bold text-xs ${
-                              parseFloat(vendor.returnRate) > 3
-                                ? 'text-rose-600'
-                                : 'text-emerald-700'
-                            }`}
-                          >
-
-                            {vendor.returnRate}
-
-                          </span>
-
-                        </td>
-
-                        <td className="py-4 pr-4">
-
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-100">
-
-                            <Star
-                              size={12}
-                              className="fill-amber-500 text-amber-500"
-                            />
-
-                            {vendor.rating}
-
-                          </span>
-
-                        </td>
-
-                        <td className="py-4 text-right">
-
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border ${
-                              vendor.payoutStatus === 'Cleared'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : vendor.payoutStatus === 'Pending'
-                                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                            }`}
-                          >
-
-                            {vendor.payoutStatus}
-
-                          </span>
-
-                        </td>
-
-                      </motion.tr>
-
-                    )
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-          </motion.section>
-
-          {/* ================= SATISFACTION ================= */}
-
-          <motion.section
-            initial={{
-              opacity: 0,
-              y: 20
-            }}
-            animate={{
-              opacity: 1,
-              y: 0
-            }}
-            transition={{
-              duration: 0.5,
-              delay: 0.5
-            }}
-            className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
-          >
-
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-
-              <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-
-                <Sparkles size={18} />
-
-              </div>
-
-              <div>
-
-                <h2 className="text-lg sm:text-xl font-semibold text-black tracking-tight">
-                  Satisfaction Breakdown
-                </h2>
-
-                <p className="text-[10px] sm:text-xs font-semibold text-black">
-                  Vendor quality distribution
-                </p>
-
-              </div>
-
-            </div>
-
-            {/* Overall Score */}
-
-            <div className="p-5 rounded-2xl bg-emerald-950 text-white relative overflow-hidden mb-5">
-
-              <div className="absolute -right-10 -top-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl" />
-
-              <div className="relative z-10">
-
-                <div className="flex items-center justify-between">
-
-                  <div>
-
-                    <p className="text-[10px] uppercase tracking-widest text-emerald-300 font-bold">
-                      Overall Vendor Score
-                    </p>
-
-                    <p className="text-3xl font-black mt-2">
-                      4.8
-                    </p>
-
-                  </div>
-
-                  <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-300/20 flex items-center justify-center">
-
-                    <Star
-                      size={24}
-                      className="fill-amber-400 text-amber-400"
+                    <FolderTree
+                      size={35}
+                      className="mx-auto text-slate-300 mb-3"
                     />
 
+                    <p className="text-xs font-semibold text-slate-400">
+                      No categories found.
+                    </p>
+
                   </div>
+                )}
+
+              </div>
+
+            </div>
+
+          </motion.div>
+
+        </section>
+
+      </main>
+
+      {/* =====================================================
+          CATEGORY DETAIL MODAL
+      ===================================================== */}
+
+      <AnimatePresence>
+
+        {selectedCategory && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+
+            <motion.div
+              initial={{
+                opacity: 0,
+                scale: 0.95,
+                y: 10
+              }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                y: 0
+              }}
+              exit={{
+                opacity: 0,
+                scale: 0.95,
+                y: 10
+              }}
+              className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-100 relative"
+            >
+
+              <button
+                onClick={() =>
+                  setSelectedCategory(
+                    null
+                  )
+                }
+                className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3.5 mb-6">
+
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
+                  <FolderTree
+                    size={21}
+                  />
+                </div>
+
+                <div>
+
+                  <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase">
+                    {getCategoryId(
+                      selectedCategory
+                    )}
+                  </span>
+
+                  <h3 className="text-lg font-bold text-black">
+                    {getCategoryName(
+                      selectedCategory
+                    )}
+                  </h3>
 
                 </div>
 
-                <div className="flex items-center gap-1 mt-3">
+              </div>
 
-                  {[1, 2, 3, 4, 5].map((item) => (
-                    <Star
-                      key={item}
-                      size={13}
-                      className="fill-amber-400 text-amber-400"
-                    />
-                  ))}
+              <div className="space-y-3">
 
-                  <span className="text-[10px] text-emerald-200 ml-2 font-semibold">
-                    Excellent performance
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/60 flex items-center justify-between">
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                      <Package
+                        size={16}
+                      />
+                    </div>
+
+                    <span className="text-xs font-semibold text-black">
+                      Assigned Products
+                    </span>
+
+                  </div>
+
+                  <span className="font-mono font-bold text-emerald-700 text-sm">
+                    {getProductsCount(
+                      selectedCategory
+                    )}
+                  </span>
+
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/60 flex items-center justify-between">
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                      <FolderTree
+                        size={16}
+                      />
+                    </div>
+
+                    <span className="text-xs font-semibold text-black">
+                      Display Order
+                    </span>
+
+                  </div>
+
+                  <span className="font-mono font-bold text-black text-sm">
+                    {getDisplayOrder(
+                      selectedCategory
+                    )}
                   </span>
 
                 </div>
 
               </div>
 
-            </div>
+              <div className="mt-5">
 
-            <div className="space-y-5">
+                <span className="text-[10px] font-bold text-black uppercase tracking-wider block mb-1">
+                  Description
+                </span>
 
-              {satisfactionBreakdown.map(
-                (item, idx) => (
+                <p className="text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-2xl p-4 leading-relaxed">
+                  {getCategoryDescription(
+                    selectedCategory
+                  ) ||
+                    'No description available'}
+                </p>
 
-                  <motion.div
-                    key={idx}
-                    initial={{
-                      opacity: 0,
-                      x: 10
-                    }}
-                    animate={{
-                      opacity: 1,
-                      x: 0
-                    }}
-                    transition={{
-                      delay: 0.15 * idx
-                    }}
-                    className="space-y-2"
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+
+                <span className="text-[10px] font-bold text-black uppercase tracking-wider">
+                  Status
+                </span>
+
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${
+                    getCategoryStatus(
+                      selectedCategory
+                    ) === 'Active'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                  }`}
+                >
+
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      getCategoryStatus(
+                        selectedCategory
+                      ) === 'Active'
+                        ? 'bg-emerald-500'
+                        : 'bg-slate-400'
+                    }`}
+                  />
+
+                  {getCategoryStatus(
+                    selectedCategory
+                  )}
+
+                </span>
+
+              </div>
+
+            </motion.div>
+
+          </div>
+        )}
+
+      </AnimatePresence>
+
+      {/* =====================================================
+          CREATE / UPDATE CATEGORY MODAL
+      ===================================================== */}
+
+      <AnimatePresence>
+
+        {isPanelOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+
+            <motion.div
+              initial={{
+                opacity: 0,
+                scale: 0.95,
+                y: 10
+              }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                y: 0
+              }}
+              exit={{
+                opacity: 0,
+                scale: 0.95,
+                y: 10
+              }}
+              className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto"
+            >
+
+              <button
+                onClick={() => {
+                  setIsPanelOpen(false);
+                  setEditingCategory(
+                    null
+                  );
+                }}
+                className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3.5 mb-6">
+
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
+                  {editingCategory ? (
+                    <Edit3
+                      size={20}
+                    />
+                  ) : (
+                    <Plus
+                      size={20}
+                    />
+                  )}
+                </div>
+
+                <div>
+
+                  <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase">
+                    Category Management
+                  </span>
+
+                  <h3 className="text-lg font-bold text-black">
+                    {editingCategory
+                      ? 'Update Category'
+                      : 'Create Category'}
+                  </h3>
+
+                </div>
+
+              </div>
+
+              <form
+                onSubmit={handleSave}
+                className="space-y-4"
+              >
+
+                {/* NAME */}
+
+                <div>
+
+                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                    Category Name
+                  </label>
+
+                  <input
+                    required
+                    type="text"
+                    placeholder="e.g. Vegetables"
+                    value={
+                      formData.name
+                    }
+                    onChange={(e) =>
+                      setFormData(
+                        (prev) => ({
+                          ...prev,
+                          name:
+                            e.target
+                              .value,
+                          slug:
+                            e.target.value
+                              .toLowerCase()
+                              .trim()
+                              .replace(
+                                /\s+/g,
+                                '-'
+                              )
+                        })
+                      )
+                    }
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                  />
+
+                </div>
+
+                {/* SLUG */}
+
+                <div>
+
+                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                    Slug
+                  </label>
+
+                  <input
+                    type="text"
+                    placeholder="vegetables"
+                    value={
+                      formData.slug
+                    }
+                    onChange={(e) =>
+                      setFormData(
+                        (prev) => ({
+                          ...prev,
+                          slug:
+                            e.target
+                              .value
+                        })
+                      )
+                    }
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                  />
+
+                </div>
+
+                {/* DISPLAY ORDER */}
+
+                <div>
+
+                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                    Display Order
+                  </label>
+
+                  <input
+                    type="number"
+                    min="1"
+                    value={
+                      formData.displayOrder
+                    }
+                    onChange={(e) =>
+                      setFormData(
+                        (prev) => ({
+                          ...prev,
+                          displayOrder:
+                            e.target
+                              .value
+                        })
+                      )
+                    }
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                  />
+
+                </div>
+
+                {/* IMAGE URL */}
+
+                <div>
+
+                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                    Image URL
+                  </label>
+
+                  <input
+                    type="text"
+                    placeholder="https://example.com/image.png"
+                    value={
+                      formData.imageUrl
+                    }
+                    onChange={(e) =>
+                      setFormData(
+                        (prev) => ({
+                          ...prev,
+                          imageUrl:
+                            e.target
+                              .value
+                        })
+                      )
+                    }
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                  />
+
+                </div>
+
+                {/* STATUS */}
+
+                <div>
+
+                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                    Status
+                  </label>
+
+                  <select
+                    value={
+                      formData.status
+                    }
+                    onChange={(e) =>
+                      setFormData(
+                        (prev) => ({
+                          ...prev,
+                          status:
+                            e.target
+                              .value
+                        })
+                      )
+                    }
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
                   >
 
-                    <div className="flex justify-between items-center">
+                    <option value="Active">
+                      Active
+                    </option>
 
-                      <span className="text-[11px] font-bold text-slate-600">
-                        {item.label}
-                      </span>
+                    <option value="Inactive">
+                      Inactive
+                    </option>
 
-                      <span className="text-xs font-black text-black">
-                        {item.percentage}%
-                      </span>
+                  </select>
 
-                    </div>
+                </div>
 
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                {/* DESCRIPTION */}
 
-                      <motion.div
-                        initial={{
-                          width: 0
-                        }}
-                        animate={{
-                          width: `${item.percentage}%`
-                        }}
-                        transition={{
-                          duration: 0.9,
-                          delay: 0.2 + idx * 0.1
-                        }}
-                        className={`${item.color} h-full rounded-full`}
+                <div>
+
+                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                    Description
+                  </label>
+
+                  <textarea
+                    rows="4"
+                    placeholder="Provide short category information..."
+                    value={
+                      formData.description
+                    }
+                    onChange={(e) =>
+                      setFormData(
+                        (prev) => ({
+                          ...prev,
+                          description:
+                            e.target
+                              .value
+                        })
+                      )
+                    }
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none"
+                  />
+
+                </div>
+
+                {/* BUTTONS */}
+
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPanelOpen(
+                        false
+                      );
+                      setEditingCategory(
+                        null
+                      );
+                    }}
+                    disabled={saving}
+                    className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={
+                      saving ||
+                      !formData.name.trim()
+                    }
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm transition-colors"
+                  >
+
+                    {saving ? (
+                      <RefreshCw
+                        size={14}
+                        className="animate-spin"
                       />
+                    ) : (
+                      <Save
+                        size={14}
+                      />
+                    )}
 
-                    </div>
+                    {saving
+                      ? 'Saving...'
+                      : editingCategory
+                      ? 'Update Category'
+                      : 'Create Category'}
 
-                  </motion.div>
+                  </button>
 
-                )
-              )}
+                </div>
 
-            </div>
+              </form>
 
-          </motion.section>
-
-        </section>
-
-        {/* ================= BOTTOM SUMMARY ================= */}
-
-        <motion.section
-          initial={{
-            opacity: 0,
-            y: 20
-          }}
-          animate={{
-            opacity: 1,
-            y: 0
-          }}
-          transition={{
-            duration: 0.5,
-            delay: 0.6
-          }}
-          className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-6"
-        >
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-
-            <div className="flex items-center gap-3">
-
-              <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-
-                <Activity size={18} />
-
-              </div>
-
-              <div>
-
-                <h2 className="text-lg font-semibold text-black">
-                  Vendor Operations Overview
-                </h2>
-
-                <p className="text-[10px] sm:text-xs font-semibold text-black">
-                  Current vendor ecosystem health
-                </p>
-
-              </div>
-
-            </div>
-
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-[10px] font-bold uppercase">
-
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-
-              Vendor Network Healthy
-
-            </div>
+            </motion.div>
 
           </div>
+        )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all">
-
-              <div className="flex items-center justify-between">
-
-                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                  Settlement Growth
-                </p>
-
-                <TrendingUp
-                  size={16}
-                  className="text-emerald-600"
-                />
-
-              </div>
-
-              <p className="text-xl font-semibold text-black mt-2 font-mono">
-                +16.5%
-              </p>
-
-              <p className="text-[10px] text-emerald-600 font-semibold mt-1">
-                Compared to previous period
-              </p>
-
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-teal-200 hover:bg-teal-50/30 transition-all">
-
-              <div className="flex items-center justify-between">
-
-                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                  Fulfillment Health
-                </p>
-
-                <ShieldCheck
-                  size={16}
-                  className="text-teal-600"
-                />
-
-              </div>
-
-              <p className="text-xl font-semibold text-black mt-2 font-mono">
-                98.4%
-              </p>
-
-              <p className="text-[10px] text-teal-600 font-semibold mt-1">
-                Vendor fulfillment efficiency
-              </p>
-
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:border-amber-200 hover:bg-amber-50/30 transition-all">
-
-              <div className="flex items-center justify-between">
-
-                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                  Average Rating
-                </p>
-
-                <Star
-                  size={16}
-                  className="fill-amber-400 text-amber-400"
-                />
-
-              </div>
-
-              <p className="text-xl font-semibold text-black mt-2 font-mono">
-                4.8 / 5
-              </p>
-
-              <p className="text-[10px] text-amber-600 font-semibold mt-1">
-                Excellent vendor satisfaction
-              </p>
-
-            </div>
-
-          </div>
-
-        </motion.section>
-
-      </main>
+      </AnimatePresence>
 
     </div>
   );
 }
-
