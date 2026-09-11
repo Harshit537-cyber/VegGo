@@ -1,4 +1,3 @@
-
 import React from "react";
 import {
   BrowserRouter as Router,
@@ -36,9 +35,10 @@ import OrderMonitoring from "./pages/OrderMonitoring";
 import RevenueReports from "./pages/RevenueReports";
 import VendorReports from "./pages/VendorReports";
 import DeliveryReports from "./pages/DeliveryReports";
-import PlatformConfiguration from "./pages/PlatformConfiguration";
-import PaymentCommissions from "./pages/PaymentCommissions";
+
+import Wallet from "./pages/Wallet";
 import VendorPayouts from "./pages/VendorPayouts";
+import CustomerRefunds from "./pages/CustomerRefunds";
 
 export default function App() {
   return (
@@ -47,73 +47,158 @@ export default function App() {
         <Route path="/login" element={<Login />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="/"
+            element={<Navigate to="/dashboard" replace />}
+          />
 
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/dashboard/revenue" element={<RevenueOverview />} />
-          <Route path="/dashboard/orders" element={<OrderStatistics />} />
-          <Route path="/dashboard/vendors" element={<VendorStatistics />} />
 
-          <Route path="/payouts/vendors" element={<VendorPayouts />} />
-          <Route path="/payouts/delivery" element={<VendorPayouts />} />
-          <Route path="/payouts/refunds" element={<VendorPayouts />} />
+          <Route
+            path="/dashboard/revenue"
+            element={<RevenueOverview />}
+          />
 
-          <Route path="/customers/view" element={<ViewCustomers />} />
+          <Route
+            path="/dashboard/orders"
+            element={<OrderStatistics />}
+          />
+
+          <Route
+            path="/dashboard/vendors"
+            element={<VendorStatistics />}
+          />
+
+          <Route
+            path="/payouts/wallet"
+            element={<Wallet />}
+          />
+
+          <Route
+            path="/payouts/vendors"
+            element={<VendorPayouts />}
+          />
+
+          <Route
+            path="/payouts/refunds"
+            element={<CustomerRefunds />}
+          />
+
+          <Route
+            path="/customers/view"
+            element={<ViewCustomers />}
+          />
+
           <Route
             path="/customers/moderation"
             element={<CustomerModeration />}
           />
 
-          <Route path="/vendors/approval" element={<ShopApproval />} />
-          <Route path="/vendors/suspension" element={<ShopSuspension />} />
+          <Route
+            path="/vendors/approval"
+            element={<ShopApproval />}
+          />
 
-          <Route path="/delivery/approval" element={<RiderApproval />} />
+          <Route
+            path="/vendors/suspension"
+            element={<ShopSuspension />}
+          />
+
+          <Route
+            path="/delivery/approval"
+            element={<RiderApproval />}
+          />
+
           <Route
             path="/delivery/verification"
             element={<DocumentVerification />}
           />
 
-          <Route path="/orders" element={<OrderStatus />} />
-          <Route path="/orders/live" element={<LiveOrders />} />
-          <Route path="/orders/monitoring" element={<OrderMonitoring />} />
+          <Route
+            path="/orders"
+            element={<OrderStatus />}
+          />
 
-          <Route path="/reports/revenue" element={<RevenueReports />} />
-          <Route path="/reports/vendors" element={<VendorReports />} />
-          <Route path="/reports/delivery" element={<DeliveryReports />} />
+          <Route
+            path="/orders/live"
+            element={<LiveOrders />}
+          />
 
-          <Route path="/notifications" element={<Notifications />} />
+          <Route
+            path="/orders/monitoring"
+            element={<OrderMonitoring />}
+          />
+
+          <Route
+            path="/reports/revenue"
+            element={<RevenueReports />}
+          />
+
+          <Route
+            path="/reports/vendors"
+            element={<VendorReports />}
+          />
+
+          <Route
+            path="/reports/delivery"
+            element={<DeliveryReports />}
+          />
+
+          <Route
+            path="/notifications"
+            element={<Notifications />}
+          />
+
           <Route
             path="/notifications/push"
             element={<PushNotifications />}
           />
+
           <Route
             path="/notifications/promotional"
             element={<PromotionalNotifications />}
           />
 
-          <Route path="/products/categories" element={<Categories />} />
+          <Route
+            path="/products/categories"
+            element={<Categories />}
+          />
+
           <Route
             path="/products/subcategories"
             element={<Subcategories />}
           />
-          <Route path="/products/list" element={<Products />} />
 
-          <Route path="/logistics" element={<ColdChain />} />
-          <Route path="/analytics" element={<MarketMetrics />} />
-          <Route path="/team" element={<OperatorRoles />} />
-
-          <Route path="/settings" element={<Settings />} />
           <Route
-            path="/settings/general"
-            element={<PlatformConfiguration />}
+            path="/products/list"
+            element={<Products />}
           />
+
           <Route
-            path="/settings/payments"
-            element={<PaymentCommissions />}
+            path="/logistics"
+            element={<ColdChain />}
+          />
+
+          <Route
+            path="/analytics"
+            element={<MarketMetrics />}
+          />
+
+          <Route
+            path="/team"
+            element={<OperatorRoles />}
+          />
+
+          <Route
+            path="/settings"
+            element={<Settings />}
           />
         </Route>
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="*"
+          element={<Navigate to="/dashboard" replace />}
+        />
       </Routes>
     </Router>
   );

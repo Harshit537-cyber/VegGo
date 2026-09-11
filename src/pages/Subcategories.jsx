@@ -21,7 +21,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Sparkles,
-  Zap
+  Zap,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 
 import {
@@ -32,6 +34,8 @@ import {
   deactivateSubcategory,
   activateSubcategory
 } from '../Api/catalogService/subcategoryService';
+
+const CATEGORY_ID = 'f3a88028-bd45-40a4-aef5-4846d5238ac5';
 
 function AnimatedValue({ value }) {
   const [displayValue, setDisplayValue] = useState('');
@@ -51,159 +55,37 @@ function AnimatedValue({ value }) {
     const updateCount = (timestamp) => {
       const elapsed = timestamp - startTime;
       const progress = Math.min(elapsed / duration, 1);
+
       const easeProgress =
-        progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        progress === 1
+          ? 1
+          : 1 - Math.pow(2, -10 * progress);
 
       setDisplayValue(
-        Math.floor(easeProgress * targetNum).toLocaleString('en-IN')
+        Math.floor(
+          easeProgress * targetNum
+        ).toLocaleString('en-IN')
       );
 
       if (progress < 1) {
-        animationFrameId = requestAnimationFrame(updateCount);
+        animationFrameId =
+          requestAnimationFrame(updateCount);
       } else {
-        setDisplayValue(targetNum.toLocaleString('en-IN'));
+        setDisplayValue(
+          targetNum.toLocaleString('en-IN')
+        );
       }
     };
 
-    animationFrameId = requestAnimationFrame(updateCount);
+    animationFrameId =
+      requestAnimationFrame(updateCount);
 
-    return () => cancelAnimationFrame(animationFrameId);
+    return () =>
+      cancelAnimationFrame(animationFrameId);
   }, [value]);
 
   return <span>{displayValue}</span>;
 }
-
-const getValue = (obj, keys, fallback = '') => {
-  for (const key of keys) {
-    if (obj?.[key] !== undefined && obj?.[key] !== null) {
-      return obj[key];
-    }
-  }
-
-  return fallback;
-};
-
-const normalizeStatus = (value) => {
-  if (typeof value === 'boolean') {
-    return value ? 'Active' : 'Inactive';
-  }
-
-  const status = String(value ?? '').toLowerCase().trim();
-
-  if (
-    status === 'active' ||
-    status === 'enabled' ||
-    status === 'true'
-  ) {
-    return 'Active';
-  }
-
-  if (
-    status === 'inactive' ||
-    status === 'disabled' ||
-    status === 'false'
-  ) {
-    return 'Inactive';
-  }
-
-  return 'Active';
-};
-
-const normalizeSubcategory = (item = {}) => {
-  const id = getValue(
-    item,
-    ['id', '_id', 'subcategoryId'],
-    ''
-  );
-
-  const name = getValue(
-    item,
-    ['name', 'subcategoryName', 'title', 'subCategoryName'],
-    ''
-  );
-
-  const categoryValue = getValue(
-    item,
-    [
-      'category',
-      'categoryName',
-      'parentCategory',
-      'categoryId'
-    ],
-    ''
-  );
-
-  const rawStatus = getValue(
-    item,
-    ['status', 'activeStatus', 'state', 'active'],
-    ''
-  );
-
-  const category =
-    typeof categoryValue === 'object' && categoryValue !== null
-      ? getValue(
-          categoryValue,
-          ['name', 'title', 'categoryName'],
-          ''
-        )
-      : categoryValue;
-
-  const categoryId =
-    typeof categoryValue === 'object' && categoryValue !== null
-      ? getValue(
-          categoryValue,
-          ['id', '_id', 'categoryId'],
-          ''
-        )
-      : getValue(
-          item,
-          ['categoryId', 'parentCategoryId'],
-          categoryValue
-        );
-
-  return {
-    ...item,
-    id,
-    name,
-    category,
-    categoryId,
-    status: normalizeStatus(rawStatus)
-  };
-};
-
-const extractSubcategories = (response) => {
-  if (Array.isArray(response)) {
-    return response;
-  }
-
-  const data = response?.data;
-
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  if (Array.isArray(data?.content)) {
-    return data.content;
-  }
-
-  if (Array.isArray(data?.subcategories)) {
-    return data.subcategories;
-  }
-
-  if (Array.isArray(data?.items)) {
-    return data.items;
-  }
-
-  if (Array.isArray(response?.subcategories)) {
-    return response.subcategories;
-  }
-
-  if (Array.isArray(response?.items)) {
-    return response.items;
-  }
-
-  return [];
-};
 
 const getErrorMessage = (error, fallback) => {
   return (
@@ -216,24 +98,52 @@ const getErrorMessage = (error, fallback) => {
 };
 
 export default function Subcategories() {
-  const [currentTab, setCurrentTab] = useState('subcategories');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [actionLoading, setActionLoading] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [subcategories, setSubcategories] = useState([]);
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [editingSubcategory, setEditingSubcategory] = useState(null);
+  const [currentTab, setCurrentTab] =
+    useState('subcategories');
+
+  const [searchQuery, setSearchQuery] =
+    useState('');
+
+  const [statusFilter, setStatusFilter] =
+    useState('All');
+
+  const [isRefreshing, setIsRefreshing] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [actionLoading, setActionLoading] =
+    useState(null);
+
+  const [refreshKey, setRefreshKey] =
+    useState(0);
+
+  const [errorMessage, setErrorMessage] =
+    useState('');
+
+  const [subcategories, setSubcategories] =
+    useState([]);
+
+  const [isPanelOpen, setIsPanelOpen] =
+    useState(false);
+
+  const [editingSubcategory, setEditingSubcategory] =
+    useState(null);
+
+  const [imagePreview, setImagePreview] =
+    useState('');
 
   const [formData, setFormData] = useState({
     id: '',
     name: '',
-    categoryId: '',
-    status: 'Active'
+    categoryId: CATEGORY_ID,
+    status: 'Active',
+    imageFile: null,
+    imageUrl: ''
   });
 
   const fetchSubcategories = async () => {
@@ -242,18 +152,36 @@ export default function Subcategories() {
 
     try {
       const response = await getSubcategories({
-        page: 0,
-        size: 100
+        categoryId: CATEGORY_ID
       });
 
-      const list = extractSubcategories(response).map(
-        normalizeSubcategory
+      console.log(
+        'SUBCATEGORY API RESPONSE:',
+        response
       );
 
-      setSubcategories(list);
-      setRefreshKey((prev) => prev + 1);
+      if (response?.success) {
+        const list = Array.isArray(response?.data)
+          ? response.data
+          : [];
+
+        setSubcategories(list);
+        setRefreshKey((prev) => prev + 1);
+      } else {
+        setSubcategories([]);
+
+        setErrorMessage(
+          response?.message ||
+            'Failed to load subcategories'
+        );
+      }
     } catch (error) {
-      console.error('Failed to fetch subcategories:', error);
+      console.error(
+        'Failed to fetch subcategories:',
+        error
+      );
+
+      setSubcategories([]);
 
       setErrorMessage(
         getErrorMessage(
@@ -275,30 +203,31 @@ export default function Subcategories() {
     fetchSubcategories();
   };
 
+  const resetForm = () => {
+    setFormData({
+      id: '',
+      name: '',
+      categoryId: CATEGORY_ID,
+      status: 'Active',
+      imageFile: null,
+      imageUrl: ''
+    });
+
+    setImagePreview('');
+  };
+
   const closePanel = () => {
     if (saving) return;
 
     setIsPanelOpen(false);
     setEditingSubcategory(null);
-    setFormData({
-      id: '',
-      name: '',
-      categoryId: '',
-      status: 'Active'
-    });
+    resetForm();
   };
 
   const openAddPanel = () => {
     setEditingSubcategory(null);
     setErrorMessage('');
-
-    setFormData({
-      id: '',
-      name: '',
-      categoryId: '',
-      status: 'Active'
-    });
-
+    resetForm();
     setIsPanelOpen(true);
   };
 
@@ -309,8 +238,14 @@ export default function Subcategories() {
     setErrorMessage('');
 
     try {
-      const response = await getSubcategoryById(
-        subcategory.id
+      const response =
+        await getSubcategoryById(
+          subcategory.id
+        );
+
+      console.log(
+        'SUBCATEGORY DETAILS RESPONSE:',
+        response
       );
 
       const data =
@@ -319,35 +254,33 @@ export default function Subcategories() {
         response?.subcategory ||
         response;
 
-      const normalized = normalizeSubcategory(data);
+      const existingImage =
+        data?.imageUrl ||
+        data?.image ||
+        subcategory?.imageUrl ||
+        subcategory?.image ||
+        '';
 
-      const categoryObject =
-        typeof data?.category === 'object'
-          ? data.category
-          : null;
-
-      const categoryId =
-        getValue(
-          data,
-          ['categoryId', 'parentCategoryId'],
-          ''
-        ) ||
-        getValue(
-          categoryObject,
-          ['id', '_id', 'categoryId'],
-          ''
-        ) ||
-        normalized.categoryId;
-
-      setEditingSubcategory(normalized.id);
+      setEditingSubcategory(
+        data?.id || subcategory.id
+      );
 
       setFormData({
-        id: normalized.id,
-        name: normalized.name,
-        categoryId: String(categoryId ?? ''),
-        status: normalized.status
+        id: data?.id || subcategory.id || '',
+        name: data?.name || '',
+        categoryId:
+          data?.categoryId ||
+          subcategory?.categoryId ||
+          CATEGORY_ID,
+        status:
+          data?.active === true
+            ? 'Active'
+            : 'Inactive',
+        imageFile: null,
+        imageUrl: existingImage
       });
 
+      setImagePreview(existingImage);
       setIsPanelOpen(true);
     } catch (error) {
       console.error(
@@ -366,29 +299,86 @@ export default function Subcategories() {
     }
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
 
-    const name = formData.name.trim();
-    const categoryId = formData.categoryId.trim();
+    if (!file) return;
 
-    if (!name) {
-      setErrorMessage('Subcategory name is required');
+    if (!file.type.startsWith('image/')) {
+      setErrorMessage(
+        'Please select a valid image file'
+      );
       return;
     }
 
-    if (!categoryId) {
-      setErrorMessage('Category ID is required');
+    if (file.size > 1 * 1024 * 1024) {
+      setErrorMessage(
+        'Image size must be less than 1MB'
+      );
+      return;
+    }
+
+    setErrorMessage('');
+
+    const previewUrl =
+      URL.createObjectURL(file);
+
+    if (imagePreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    setImagePreview(previewUrl);
+
+    setFormData((prev) => ({
+      ...prev,
+      imageFile: file,
+      imageUrl: previewUrl
+    }));
+  };
+
+  const removeImage = () => {
+    if (imagePreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    setImagePreview('');
+
+    setFormData((prev) => ({
+      ...prev,
+      imageFile: null,
+      imageUrl: ''
+    }));
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+
+    const name =
+      String(formData.name || '').trim();
+
+    const categoryId = CATEGORY_ID;
+
+    if (!name) {
+      setErrorMessage(
+        'Subcategory name is required'
+      );
       return;
     }
 
     setSaving(true);
     setErrorMessage('');
 
-    const payload = {
-      name,
-      categoryId
-    };
+    const payload = new FormData();
+
+    payload.append('name', name);
+    payload.append('categoryId', categoryId);
+
+    if (formData.imageFile) {
+      payload.append(
+        'image',
+        formData.imageFile
+      );
+    }
 
     try {
       if (editingSubcategory) {
@@ -402,7 +392,9 @@ export default function Subcategories() {
 
       await fetchSubcategories();
 
-      closePanel();
+      setIsPanelOpen(false);
+      setEditingSubcategory(null);
+      resetForm();
     } catch (error) {
       console.error(
         'Failed to save subcategory:',
@@ -420,26 +412,26 @@ export default function Subcategories() {
     }
   };
 
-  const handleStatusChange = async (subcategory) => {
+  const handleStatusChange = async (
+    subcategory
+  ) => {
     if (!subcategory?.id) return;
 
     setActionLoading(subcategory.id);
     setErrorMessage('');
 
     try {
-      if (subcategory.status === 'Inactive') {
-        await activateSubcategory(subcategory.id);
+      if (subcategory.active === false) {
+        await activateSubcategory(
+          subcategory.id
+        );
       } else {
-        await deactivateSubcategory(subcategory.id);
+        await deactivateSubcategory(
+          subcategory.id
+        );
       }
 
       await fetchSubcategories();
-
-      if (
-        editingSubcategory === subcategory.id
-      ) {
-        closePanel();
-      }
     } catch (error) {
       console.error(
         'Failed to change subcategory status:',
@@ -458,32 +450,38 @@ export default function Subcategories() {
   };
 
   const filteredSubcategories = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
+    const query =
+      searchQuery.toLowerCase().trim();
 
     return subcategories.filter((item) => {
       const name = String(
-        item.name || ''
+        item?.name || ''
       ).toLowerCase();
 
       const category = String(
-        item.category || ''
-      ).toLowerCase();
-
-      const id = String(
-        item.id || ''
-      ).toLowerCase();
+        item?.categoryName || ''
+      )
+        .trim()
+        .toLowerCase();
 
       const matchesSearch =
         !query ||
         name.includes(query) ||
-        category.includes(query) ||
-        id.includes(query);
+        category.includes(query);
+
+      const status =
+        item?.active === true
+          ? 'Active'
+          : 'Inactive';
 
       const matchesStatus =
         statusFilter === 'All' ||
-        item.status === statusFilter;
+        status === statusFilter;
 
-      return matchesSearch && matchesStatus;
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
     });
   }, [
     subcategories,
@@ -496,18 +494,20 @@ export default function Subcategories() {
 
   const activeSubcategories =
     subcategories.filter(
-      (item) => item.status === 'Active'
+      (item) => item?.active === true
     ).length;
 
   const inactiveSubcategories =
     subcategories.filter(
-      (item) => item.status === 'Inactive'
+      (item) => item?.active === false
     ).length;
 
   const categoryCount = new Set(
     subcategories
       .map((item) =>
-        String(item.category || '').trim()
+        String(
+          item?.categoryName || ''
+        ).trim()
       )
       .filter(Boolean)
   ).size;
@@ -519,7 +519,8 @@ export default function Subcategories() {
       change: '+12.4%',
       up: true,
       accentColor: 'bg-emerald-600',
-      iconBg: 'bg-emerald-50 text-emerald-700',
+      iconBg:
+        'bg-emerald-50 text-emerald-700',
       tagColor:
         'text-emerald-700 bg-emerald-50/80 border-emerald-200/80',
       icon: Layers3,
@@ -531,7 +532,8 @@ export default function Subcategories() {
       change: '+8.2%',
       up: true,
       accentColor: 'bg-teal-600',
-      iconBg: 'bg-teal-50 text-teal-700',
+      iconBg:
+        'bg-teal-50 text-teal-700',
       tagColor:
         'text-teal-700 bg-teal-50/80 border-teal-200/80',
       icon: CheckCircle2,
@@ -543,7 +545,8 @@ export default function Subcategories() {
       change: '+4.1%',
       up: true,
       accentColor: 'bg-emerald-500',
-      iconBg: 'bg-amber-50 text-amber-700',
+      iconBg:
+        'bg-amber-50 text-amber-700',
       tagColor:
         'text-amber-700 bg-amber-50/80 border-amber-200/80',
       icon: AlertTriangle,
@@ -555,7 +558,8 @@ export default function Subcategories() {
       change: '-2.8%',
       up: false,
       accentColor: 'bg-green-700',
-      iconBg: 'bg-rose-50 text-rose-700',
+      iconBg:
+        'bg-rose-50 text-rose-700',
       tagColor:
         'text-rose-700 bg-rose-50/80 border-rose-200/80',
       icon: XCircle,
@@ -572,8 +576,14 @@ export default function Subcategories() {
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
         <motion.header
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{
+            opacity: 0,
+            y: -20
+          }}
+          animate={{
+            opacity: 1,
+            y: 0
+          }}
           transition={{
             duration: 0.5,
             ease: 'easeOut'
@@ -608,14 +618,19 @@ export default function Subcategories() {
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
               Subcategory Catalog
+
               <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </h1>
           </div>
 
           <div className="flex items-center gap-3 self-start lg:self-center z-10">
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{
+                scale: 1.05
+              }}
+              whileTap={{
+                scale: 0.95
+              }}
               onClick={openAddPanel}
               className="px-4 py-2.5 bg-emerald-500/20 border border-emerald-700 rounded-2xl hover:bg-emerald-500/30 transition-all text-xs font-semibold text-emerald-100 flex items-center gap-2"
             >
@@ -642,8 +657,12 @@ export default function Subcategories() {
             </div>
 
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{
+                scale: 1.05
+              }}
+              whileTap={{
+                scale: 0.95
+              }}
               onClick={handleRefresh}
               disabled={isRefreshing}
               className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner group/btn disabled:opacity-50"
@@ -743,6 +762,7 @@ export default function Subcategories() {
                         <AnimatedValue
                           value={stat.value}
                         />
+
                         <span className="text-base ml-1 font-sans">
                           {stat.suffix}
                         </span>
@@ -766,6 +786,7 @@ export default function Subcategories() {
                         className="text-rose-600"
                       />
                     )}
+
                     {stat.change}
                   </span>
 
@@ -872,10 +893,6 @@ export default function Subcategories() {
                       Parent Category
                     </th>
 
-                    <th className="py-3.5 px-4">
-                      Identifier
-                    </th>
-
                     <th className="py-3.5 px-4 text-center">
                       Status
                     </th>
@@ -890,7 +907,7 @@ export default function Subcategories() {
                   {loading ? (
                     <tr>
                       <td
-                        colSpan="5"
+                        colSpan={4}
                         className="py-12 text-center"
                       >
                         <div className="flex flex-col items-center gap-3 text-slate-400">
@@ -905,13 +922,9 @@ export default function Subcategories() {
                         </div>
                       </td>
                     </tr>
-                  ) : filteredSubcategories.length >
-                    0 ? (
+                  ) : filteredSubcategories.length > 0 ? (
                     filteredSubcategories.map(
-                      (
-                        subcategory,
-                        idx
-                      ) => (
+                      (subcategory, idx) => (
                         <motion.tr
                           key={
                             subcategory.id ||
@@ -935,11 +948,25 @@ export default function Subcategories() {
                         >
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:border-emerald-300 transition-colors">
-                                <Layers3
-                                  size={17}
-                                  className="text-emerald-600"
-                                />
+                              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:border-emerald-300 transition-colors overflow-hidden">
+                                {subcategory.imageUrl ||
+                                subcategory.image ? (
+                                  <img
+                                    src={
+                                      subcategory.imageUrl ||
+                                      subcategory.image
+                                    }
+                                    alt={
+                                      subcategory.name
+                                    }
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Layers3
+                                    size={17}
+                                    className="text-emerald-600"
+                                  />
+                                )}
                               </div>
 
                               <div className="flex flex-col">
@@ -949,7 +976,10 @@ export default function Subcategories() {
                                 </span>
 
                                 <span className="text-[10px] text-slate-500">
-                                  {subcategory.category ||
+                                  {String(
+                                    subcategory.categoryName ||
+                                      ''
+                                  ).trim() ||
                                     'Subcategory'}
                                 </span>
                               </div>
@@ -958,39 +988,35 @@ export default function Subcategories() {
 
                           <td className="py-3.5 px-4">
                             <span className="text-[10px] text-slate-500 font-semibold">
-                              {subcategory.category ||
-                                '-'}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <span className="font-mono text-[10px] font-semibold text-black">
-                              {subcategory.id ||
-                                '-'}
+                              {String(
+                                subcategory.categoryName ||
+                                  ''
+                              ).trim() || '-'}
                             </span>
                           </td>
 
                           <td className="py-3.5 px-4 text-center">
                             <span
                               className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border transition-all duration-300 group-hover:scale-105 ${
-                                subcategory.status ===
-                                'Active'
+                                subcategory.active ===
+                                true
                                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
                                   : 'bg-rose-50 text-rose-700 border-rose-200/80'
                               }`}
                             >
                               <span
                                 className={`w-1.5 h-1.5 rounded-full ${
-                                  subcategory.status ===
-                                  'Active'
+                                  subcategory.active ===
+                                  true
                                     ? 'bg-emerald-500'
                                     : 'bg-rose-500'
                                 }`}
                               />
 
-                              {
-                                subcategory.status
-                              }
+                              {subcategory.active ===
+                              true
+                                ? 'Active'
+                                : 'Inactive'}
                             </span>
                           </td>
 
@@ -1033,14 +1059,14 @@ export default function Subcategories() {
                                   subcategory.id
                                 }
                                 className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
-                                  subcategory.status ===
-                                  'Inactive'
+                                  subcategory.active ===
+                                  false
                                     ? 'text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
                                     : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
                                 }`}
                                 title={
-                                  subcategory.status ===
-                                  'Inactive'
+                                  subcategory.active ===
+                                  false
                                     ? 'Activate Subcategory'
                                     : 'Deactivate Subcategory'
                                 }
@@ -1051,8 +1077,8 @@ export default function Subcategories() {
                                     size={15}
                                     className="animate-spin"
                                   />
-                                ) : subcategory.status ===
-                                  'Inactive' ? (
+                                ) : subcategory.active ===
+                                  false ? (
                                   <Power
                                     size={15}
                                   />
@@ -1070,7 +1096,7 @@ export default function Subcategories() {
                   ) : (
                     <tr>
                       <td
-                        colSpan="5"
+                        colSpan={4}
                         className="py-12 text-center"
                       >
                         <Layers3
@@ -1093,8 +1119,7 @@ export default function Subcategories() {
                 <div className="py-10 text-center text-xs font-semibold text-slate-400">
                   Loading subcategories...
                 </div>
-              ) : filteredSubcategories.length >
-                0 ? (
+              ) : filteredSubcategories.length > 0 ? (
                 filteredSubcategories.map(
                   (subcategory) => (
                     <motion.div
@@ -1106,8 +1131,24 @@ export default function Subcategories() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                            <Layers3 size={16} />
+                          <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center overflow-hidden">
+                            {subcategory.imageUrl ||
+                            subcategory.image ? (
+                              <img
+                                src={
+                                  subcategory.imageUrl ||
+                                  subcategory.image
+                                }
+                                alt={
+                                  subcategory.name
+                                }
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Layers3
+                                size={16}
+                              />
+                            )}
                           </div>
 
                           <div>
@@ -1117,7 +1158,10 @@ export default function Subcategories() {
                             </h4>
 
                             <p className="text-[10px] text-slate-400">
-                              {subcategory.category ||
+                              {String(
+                                subcategory.categoryName ||
+                                  ''
+                              ).trim() ||
                                 'Subcategory'}
                             </p>
                           </div>
@@ -1125,24 +1169,25 @@ export default function Subcategories() {
 
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                            subcategory.status ===
-                            'Active'
+                            subcategory.active ===
+                            true
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : 'bg-rose-50 text-rose-700 border-rose-200'
                           }`}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              subcategory.status ===
-                              'Active'
+                              subcategory.active ===
+                              true
                                 ? 'bg-emerald-500'
                                 : 'bg-rose-500'
                             }`}
                           />
 
-                          {
-                            subcategory.status
-                          }
+                          {subcategory.active ===
+                          true
+                            ? 'Active'
+                            : 'Inactive'}
                         </span>
                       </div>
 
@@ -1153,18 +1198,20 @@ export default function Subcategories() {
                           </span>
 
                           <span className="text-slate-500 font-semibold">
-                            {subcategory.category ||
-                              '-'}
+                            {String(
+                              subcategory.categoryName ||
+                                ''
+                            ).trim() || '-'}
                           </span>
                         </div>
 
                         <div>
                           <span className="text-[10px] uppercase font-semibold text-black block">
-                            Identifier
+                            Display Order
                           </span>
 
-                          <span className="font-mono text-[10px] font-semibold text-black break-all">
-                            {subcategory.id ||
+                          <span className="text-slate-500 font-semibold">
+                            {subcategory.displayOrder ??
                               '-'}
                           </span>
                         </div>
@@ -1175,9 +1222,10 @@ export default function Subcategories() {
                           </span>
 
                           <span className="font-semibold text-slate-500">
-                            {
-                              subcategory.status
-                            }
+                            {subcategory.active ===
+                            true
+                              ? 'Active'
+                              : 'Inactive'}
                           </span>
                         </div>
 
@@ -1229,8 +1277,8 @@ export default function Subcategories() {
                           }
                           className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-40"
                           title={
-                            subcategory.status ===
-                            'Inactive'
+                            subcategory.active ===
+                            false
                               ? 'Activate Subcategory'
                               : 'Deactivate Subcategory'
                           }
@@ -1241,11 +1289,13 @@ export default function Subcategories() {
                               size={15}
                               className="animate-spin"
                             />
-                          ) : subcategory.status ===
-                            'Inactive' ? (
+                          ) : subcategory.active ===
+                            false ? (
                             <Power size={15} />
                           ) : (
-                            <PowerOff size={15} />
+                            <PowerOff
+                              size={15}
+                            />
                           )}
                         </button>
                       </div>
@@ -1271,7 +1321,17 @@ export default function Subcategories() {
 
       <AnimatePresence>
         {isPanelOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
+            onMouseDown={(e) => {
+              if (
+                e.target ===
+                e.currentTarget
+              ) {
+                closePanel();
+              }
+            }}
+          >
             <motion.div
               initial={{
                 opacity: 0,
@@ -1289,8 +1349,12 @@ export default function Subcategories() {
                 y: 10
               }}
               className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto"
+              onMouseDown={(e) =>
+                e.stopPropagation()
+              }
             >
               <button
+                type="button"
                 onClick={closePanel}
                 disabled={saving}
                 className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-40"
@@ -1346,27 +1410,6 @@ export default function Subcategories() {
 
                 <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                    Category ID
-                  </label>
-
-                  <input
-                    required
-                    type="text"
-                    placeholder="Enter parent category ID"
-                    value={formData.categoryId}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        categoryId:
-                          e.target.value
-                      }))
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
                     Status
                   </label>
 
@@ -1388,6 +1431,76 @@ export default function Subcategories() {
                       Inactive
                     </option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                    Subcategory Image
+                  </label>
+
+                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 bg-slate-50/60">
+                    {imagePreview ? (
+                      <div className="relative">
+                        <div className="w-full h-48 rounded-xl overflow-hidden bg-white border border-slate-200">
+                          <img
+                            src={imagePreview}
+                            alt="Subcategory preview"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          disabled={saving}
+                          className="absolute top-2 right-2 p-2 bg-white text-rose-600 rounded-full shadow-md border border-slate-200 hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          <X size={15} />
+                        </button>
+
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-[10px] font-semibold text-slate-500 truncate max-w-[75%]">
+                            {formData.imageFile?.name ||
+                              'Current image'}
+                          </span>
+
+                          <label
+                            htmlFor="subcategory-image"
+                            className="cursor-pointer text-[10px] font-bold text-emerald-700 hover:text-emerald-800"
+                          >
+                            Change Image
+                          </label>
+                        </div>
+                      </div>
+                    ) : (
+                      <label
+                        htmlFor="subcategory-image"
+                        className="min-h-40 flex flex-col items-center justify-center cursor-pointer"
+                      >
+                        <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center mb-3">
+                          <ImageIcon size={24} />
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                          <Upload size={16} />
+                          Upload Image
+                        </div>
+
+                        <p className="text-[10px] font-semibold text-slate-400 mt-1">
+                          PNG, JPG, JPEG up to 1MB
+                        </p>
+                      </label>
+                    )}
+
+                    <input
+                      id="subcategory-image"
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={handleImageChange}
+                      disabled={saving}
+                      className="hidden"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">

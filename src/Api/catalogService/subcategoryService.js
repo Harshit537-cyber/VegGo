@@ -4,7 +4,7 @@ export const getSubcategories = async (params = {}) => {
   const response = await apiClient.get(
     '/api/admin/catalog/subcategories',
     {
-      params,
+      params
     }
   );
 
@@ -46,8 +46,8 @@ export const deactivateSubcategory = async (subcategoryId) => {
     null,
     {
       params: {
-        active: false,
-      },
+        active: false
+      }
     }
   );
 
@@ -60,8 +60,8 @@ export const activateSubcategory = async (subcategoryId) => {
     null,
     {
       params: {
-        active: true,
-      },
+        active: true
+      }
     }
   );
 

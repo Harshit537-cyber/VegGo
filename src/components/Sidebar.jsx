@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Leaf,
   LayoutDashboard,
@@ -16,217 +16,216 @@ import {
   ChevronUp,
   LogOut,
   Menu,
-  X
-} from 'lucide-react';
-import LogoutModal from '../Common/LogoutModal';
+  X,
+} from "lucide-react";
+import LogoutModal from "../Common/LogoutModal";
 
-function Sidebar({ currentTab, setCurrentTab }) {
+function Sidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [isOpen, setIsOpen] = useState(false);
-  const [expandedGroup, setExpandedGroup] = useState('dashboard');
+  const [expandedGroup, setExpandedGroup] = useState(null);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const menuGroups = [
     {
-      id: 'dashboard',
-      label: 'Dashboard',
+      id: "dashboard",
+      label: "Dashboard",
       icon: LayoutDashboard,
-      subItems: [
-        {
-          id: 'revenue-overview',
-          label: 'Revenue Overview',
-          path: '/dashboard/revenue'
-        },
-        {
-          id: 'order-statistics',
-          label: 'Order Statistics',
-          path: '/dashboard/orders'
-        },
-        {
-          id: 'vendor-statistics',
-          label: 'Vendor Statistics',
-          path: '/dashboard/vendors'
-        }
-      ]
+      path: "/dashboard",
+      subItems: [],
     },
     {
-      id: 'payouts',
-      label: 'Payouts & Settlements',
+      id: "payouts",
+      label: "Payouts & Settlements",
       icon: Wallet,
       subItems: [
         {
-          id: 'vendor-payouts',
-          label: 'Vendor Payouts',
-          path: '/payouts/vendors'
+          id: "wallet",
+          label: "Wallet",
+          path: "/payouts/wallet",
         },
         {
-          id: 'delivery-payouts',
-          label: 'Rider Settlements',
-          path: '/payouts/delivery'
+          id: "vendor-payouts",
+          label: "Vendor Payouts",
+          path: "/payouts/vendors",
         },
-        {
-          id: 'customer-refunds',
-          label: 'Customer Refunds',
-          path: '/payouts/refunds'
-        }
-      ]
+      ],
     },
     {
-      id: 'customers',
-      label: 'Customer Management',
+      id: "customers",
+      label: "Customer Management",
       icon: Users,
       subItems: [
         {
-          id: 'view-customers',
-          label: 'View Customers',
-          path: '/customers/view'
+          id: "view-customers",
+          label: "View Customers",
+          path: "/customers/view",
         },
         {
-          id: 'block-unblock',
-          label: 'Block / Unblock Accounts',
-          path: '/customers/moderation'
-        }
-      ]
+          id: "block-unblock",
+          label: "Block / Unblock Accounts",
+          path: "/customers/moderation",
+        },
+      ],
     },
     {
-      id: 'vendors',
-      label: 'Vendor Management',
+      id: "vendors",
+      label: "Vendor Management",
       icon: Store,
       subItems: [
         {
-          id: 'shop-approval',
-          label: 'Shop Approval',
-          path: '/vendors/approval'
+          id: "shop-approval",
+          label: "Shop Approval",
+          path: "/vendors/approval",
         },
         {
-          id: 'shop-suspension',
-          label: 'Shop Suspension',
-          path: '/vendors/suspension'
-        }
-      ]
+          id: "shop-suspension",
+          label: "Shop Suspension",
+          path: "/vendors/suspension",
+        },
+      ],
     },
     {
-      id: 'delivery',
-      label: 'Delivery Partner Management',
+      id: "delivery",
+      label: "Delivery Partner Management",
       icon: Truck,
       subItems: [
         {
-          id: 'rider-approval',
-          label: 'Rider Approval',
-          path: '/delivery/approval'
+          id: "rider-approval",
+          label: "Rider Approval",
+          path: "/delivery/approval",
         },
         {
-          id: 'document-verification',
-          label: 'Document Verification',
-          path: '/delivery/verification'
-        }
-      ]
+          id: "document-verification",
+          label: "Document Verification",
+          path: "/delivery/verification",
+        },
+      ],
     },
     {
-      id: 'products',
-      label: 'Product Management',
+      id: "products",
+      label: "Product Management",
       icon: Package,
       subItems: [
         {
-          id: 'categories',
-          label: 'Categories',
-          path: '/products/categories'
+          id: "categories",
+          label: "Categories",
+          path: "/products/categories",
         },
         {
-          id: 'subcategories',
-          label: 'Subcategories',
-          path: '/products/subcategories'
+          id: "subcategories",
+          label: "Subcategories",
+          path: "/products/subcategories",
         },
         {
-          id: 'products',
-          label: 'Products',
-          path: '/products/list'
-        }
-      ]
+          id: "products",
+          label: "Products",
+          path: "/products/list",
+        },
+      ],
     },
     {
-      id: 'orders',
-      label: 'Order Management',
+      id: "orders",
+      label: "Order Management",
       icon: ShoppingCart,
       subItems: [
         {
-          id: 'live-orders',
-          label: 'Live Orders',
-          path: '/orders/live'
+          id: "live-orders",
+          label: "Live Orders",
+          path: "/orders/live",
         },
         {
-          id: 'order-monitoring',
-          label: 'Order Monitoring',
-          path: '/orders/monitoring'
-        }
-      ]
+          id: "order-monitoring",
+          label: "Order Monitoring",
+          path: "/orders/monitoring",
+        },
+      ],
     },
     {
-      id: 'reports',
-      label: 'Reports',
+      id: "reports",
+      label: "Reports",
       icon: BarChart3,
       subItems: [
         {
-          id: 'revenue-reports',
-          label: 'Revenue Reports',
-          path: '/reports/revenue'
+          id: "revenue-reports",
+          label: "Revenue Reports",
+          path: "/reports/revenue",
         },
         {
-          id: 'vendor-reports',
-          label: 'Vendor Reports',
-          path: '/reports/vendors'
+          id: "vendor-reports",
+          label: "Vendor Reports",
+          path: "/reports/vendors",
         },
         {
-          id: 'delivery-reports',
-          label: 'Delivery Reports',
-          path: '/reports/delivery'
-        }
-      ]
+          id: "delivery-reports",
+          label: "Delivery Reports",
+          path: "/reports/delivery",
+        },
+      ],
     },
     {
-      id: 'notifications',
-      label: 'Notification Center',
+      id: "notifications",
+      label: "Notification Center",
       icon: Bell,
       subItems: [
         {
-          id: 'push-notifications',
-          label: 'Push Notifications',
-          path: '/notifications/push'
+          id: "push-notifications",
+          label: "Push Notifications",
+          path: "/notifications/push",
         },
         {
-          id: 'promotional-notifications',
-          label: 'Promotional Notifications',
-          path: '/notifications/promotional'
-        }
-      ]
+          id: "promotional-notifications",
+          label: "Promotional Notifications",
+          path: "/notifications/promotional",
+        },
+      ],
     },
     {
-      id: 'settings',
-      label: 'System Settings',
+      id: "settings",
+      label: "System Settings",
       icon: Settings,
       subItems: [
         {
-          id: 'general-settings',
-          label: 'Platform Configuration',
-          path: '/settings/general'
+          id: "platform-settings",
+          label: "Platform Settings",
+          path: "/settings",
         },
-        {
-          id: 'payment-methods',
-          label: 'Payment & Commissions',
-          path: '/settings/payments'
-        }
-      ]
-    }
+      ],
+    },
   ];
 
-  const handleGroupToggle = (groupId) => {
-    setExpandedGroup(
-      expandedGroup === groupId ? null : groupId
+  useEffect(() => {
+    const activeGroup = menuGroups.find((group) =>
+      group.subItems.some(
+        (subItem) =>
+          location.pathname === subItem.path
+      )
+    );
+
+    if (activeGroup) {
+      setExpandedGroup(activeGroup.id);
+    } else if (
+      location.pathname === "/dashboard"
+    ) {
+      setExpandedGroup(null);
+    }
+  }, [location.pathname]);
+
+  const handleGroupToggle = (group) => {
+    if (!group.subItems.length) {
+      setIsOpen(false);
+      navigate(group.path);
+      return;
+    }
+
+    setExpandedGroup((prev) =>
+      prev === group.id ? null : group.id
     );
   };
 
-  const handleSubItemClick = (subItemId, path) => {
-    setCurrentTab(subItemId);
+  const handleSubItemClick = (path) => {
     setIsOpen(false);
     navigate(path);
   };
@@ -236,8 +235,9 @@ function Sidebar({ currentTab, setCurrentTab }) {
   };
 
   const handleConfirmLogout = () => {
+    localStorage.removeItem("token");
     setIsLogoutModalOpen(false);
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
@@ -246,7 +246,11 @@ function Sidebar({ currentTab, setCurrentTab }) {
         onClick={() => setIsOpen(!isOpen)}
         className="lg:hidden fixed top-6 left-6 z-50 p-3 bg-emerald-900 text-white rounded-2xl shadow-lg border border-emerald-700/50 hover:bg-emerald-800 transition-all duration-300"
       >
-        {isOpen ? <X size={20} /> : <Menu size={20} />}
+        {isOpen ? (
+          <X size={20} />
+        ) : (
+          <Menu size={20} />
+        )}
       </button>
 
       {isOpen && (
@@ -259,14 +263,13 @@ function Sidebar({ currentTab, setCurrentTab }) {
       <aside
         className={`fixed lg:sticky top-0 left-0 z-40 w-80 h-screen p-6 flex flex-col justify-between transition-transform duration-500 ease-out lg:translate-x-0 ${
           isOpen
-            ? 'translate-x-0'
-            : '-translate-x-full'
+            ? "translate-x-0"
+            : "-translate-x-full"
         }`}
       >
         <div className="absolute inset-y-6 left-6 right-0 bg-gradient-to-b from-emerald-950 via-emerald-900 to-slate-950 rounded-[2.5rem] border border-emerald-800/40 shadow-2xl shadow-emerald-950/20 pointer-events-none" />
 
         <div className="relative z-10 flex flex-col h-[calc(100vh-160px)] space-y-7 pl-6 pr-4 pt-4">
-
           <div className="flex items-center gap-3.5 px-2 shrink-0">
             <div className="p-2.5 rounded-2xl bg-white/10 border border-white/10 shadow-inner">
               <Leaf
@@ -284,10 +287,17 @@ function Sidebar({ currentTab, setCurrentTab }) {
           </div>
 
           <nav className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-
             {menuGroups.map((group) => {
               const isExpanded =
                 expandedGroup === group.id;
+
+              const isDashboard =
+                group.id === "dashboard";
+
+              const isSelected =
+                isDashboard &&
+                location.pathname ===
+                  "/dashboard";
 
               const GroupIcon = group.icon;
 
@@ -298,69 +308,72 @@ function Sidebar({ currentTab, setCurrentTab }) {
                 >
                   <button
                     onClick={() =>
-                      handleGroupToggle(group.id)
+                      handleGroupToggle(group)
                     }
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 ${
-                      isExpanded
-                        ? 'bg-white/10 text-white shadow-inner border border-white/5'
-                        : 'text-emerald-200/60 hover:text-white hover:bg-white/5'
+                      isSelected || isExpanded
+                        ? "bg-white/10 text-white shadow-inner border border-white/5"
+                        : "text-emerald-200/60 hover:text-white hover:bg-white/5"
                     }`}
                   >
                     <div className="flex items-center gap-3.5">
                       <GroupIcon
                         size={18}
                         className={
+                          isSelected ||
                           isExpanded
-                            ? 'text-emerald-400'
-                            : 'text-emerald-300/60'
+                            ? "text-emerald-400"
+                            : "text-emerald-300/60"
                         }
                       />
 
-                      <span>{group.label}</span>
+                      <span>
+                        {group.label}
+                      </span>
                     </div>
 
-                    {isExpanded ? (
-                      <ChevronUp
-                        size={14}
-                        className="text-emerald-400"
-                      />
-                    ) : (
-                      <ChevronDown
-                        size={14}
-                        className="text-emerald-300/30"
-                      />
-                    )}
+                    {!isDashboard &&
+                      (isExpanded ? (
+                        <ChevronUp
+                          size={14}
+                          className="text-emerald-400"
+                        />
+                      ) : (
+                        <ChevronDown
+                          size={14}
+                          className="text-emerald-300/30"
+                        />
+                      ))}
                   </button>
 
                   <div
                     className={`pl-10 space-y-1 transition-all duration-300 ease-in-out overflow-hidden ${
                       isExpanded
-                        ? 'max-h-96 opacity-100 py-1'
-                        : 'max-h-0 opacity-0 pointer-events-none'
+                        ? "max-h-96 opacity-100 py-1"
+                        : "max-h-0 opacity-0 pointer-events-none"
                     }`}
                   >
                     {group.subItems.map(
                       (subItem) => {
-                        const isSelected =
-                          currentTab ===
-                          subItem.id;
+                        const isSubSelected =
+                          location.pathname ===
+                          subItem.path;
 
                         return (
                           <button
                             key={subItem.id}
                             onClick={() =>
                               handleSubItemClick(
-                                subItem.id,
                                 subItem.path
                               )
                             }
                             className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 relative ${
-                              isSelected
-                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                : 'text-emerald-300/50 hover:text-white hover:bg-white/5'
+                              isSubSelected
+                                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                                : "text-emerald-300/50 hover:text-white hover:bg-white/5"
                             }`}
                           >
-                            {isSelected && (
+                            {isSubSelected && (
                               <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-white rounded-r-full" />
                             )}
 
@@ -373,19 +386,17 @@ function Sidebar({ currentTab, setCurrentTab }) {
                 </div>
               );
             })}
-
           </nav>
         </div>
 
-     <div className="relative z-10 space-y-4 shrink-0 pl-6 pr-6 pb-9">
-
+        <div className="relative z-10 space-y-4 shrink-0 pl-6 pr-6 pb-9">
           <button
             onClick={handleLogoutClick}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-sm font-bold text-black bg-gray-300 hover:text-white hover:bg-gray-500 transition-all duration-300">
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-sm font-bold text-black bg-gray-300 hover:text-white hover:bg-gray-500 transition-all duration-300"
+          >
             <LogOut size={18} />
             Logout
           </button>
-
         </div>
       </aside>
 

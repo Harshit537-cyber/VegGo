@@ -1,8 +1,10 @@
-import apiClient from '../Interceptor/axiosInstance';
+import apiClient from "../Interceptor/axiosInstance";
 
-export const getCategories = async (includeInactive = false) => {
+export const getCategories = async (
+  includeInactive = false
+) => {
   const response = await apiClient.get(
-    '/api/admin/catalog/categories',
+    "/api/admin/catalog/categories",
     {
       params: {
         includeInactive,
@@ -15,7 +17,7 @@ export const getCategories = async (includeInactive = false) => {
 
 export const createCategory = async (categoryData) => {
   const response = await apiClient.post(
-    '/api/admin/catalog/categories',
+    "/api/admin/catalog/categories",
     categoryData
   );
 
@@ -42,7 +44,9 @@ export const updateCategory = async (
   return response.data;
 };
 
-export const deactivateCategory = async (categoryId) => {
+export const deactivateCategory = async (
+  categoryId
+) => {
   const response = await apiClient.patch(
     `/api/admin/catalog/categories/${categoryId}/status`,
     null,
@@ -56,7 +60,9 @@ export const deactivateCategory = async (categoryId) => {
   return response.data;
 };
 
-export const activateCategory = async (categoryId) => {
+export const activateCategory = async (
+  categoryId
+) => {
   const response = await apiClient.patch(
     `/api/admin/catalog/categories/${categoryId}/status`,
     null,

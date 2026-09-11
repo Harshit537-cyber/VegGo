@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState } from "react";
+import Sidebar from "../components/Sidebar";
+import { motion, AnimatePresence } from "framer-motion";
 
 import {
   getCategories,
@@ -8,8 +8,8 @@ import {
   getCategoryById,
   updateCategory,
   deactivateCategory,
-  activateCategory
-} from '../Api/catalogService/categoryService';
+  activateCategory,
+} from "../Api/catalogService/categoryService";
 
 import {
   Calendar,
@@ -18,294 +18,94 @@ import {
   Filter,
   Plus,
   Edit3,
-  Trash2,
-  FolderTree,
   Power,
   X,
   Save,
   CheckCircle2,
-  Package,
-  ArrowUpRight,
-  ArrowDownRight,
-  Sparkles,
-  Zap,
+  FolderTree,
   Eye,
-  ChevronDown
-} from 'lucide-react';
-
-function AnimatedValue({ value }) {
-  const [displayValue, setDisplayValue] = useState('');
-
-  useEffect(() => {
-    const stringValue = String(value ?? '');
-
-    const match = stringValue.match(/([\d,.]+)\s*(.*)/);
-
-    if (!match) {
-      setDisplayValue(stringValue);
-      return;
-    }
-
-    const rawNumberStr = match[1].replace(/,/g, '');
-    const targetNum = parseFloat(rawNumberStr);
-    const suffix = match[2] || '';
-
-    if (isNaN(targetNum)) {
-      setDisplayValue(stringValue);
-      return;
-    }
-
-    const isDecimal = rawNumberStr.includes('.');
-    const hasComma = match[1].includes(',');
-
-    const duration = 1000;
-    const startTime = performance.now();
-
-    let animationFrameId;
-
-    const updateCount = (timestamp) => {
-      const elapsed = timestamp - startTime;
-
-      const progress = Math.min(
-        elapsed / duration,
-        1
-      );
-
-      const easeProgress =
-        progress === 1
-          ? 1
-          : 1 - Math.pow(2, -10 * progress);
-
-      const currentVal =
-        easeProgress * targetNum;
-
-      let formatted;
-
-      if (isDecimal) {
-        formatted = currentVal.toFixed(2);
-      } else {
-        formatted =
-          Math.floor(currentVal).toString();
-      }
-
-      if (hasComma) {
-        const parts = formatted.split('.');
-
-        parts[0] = parseInt(
-          parts[0],
-          10
-        ).toLocaleString('en-IN');
-
-        formatted = parts.join('.');
-      }
-
-      setDisplayValue(
-        `${formatted}${suffix ? ` ${suffix}` : ''}`
-      );
-
-      if (progress < 1) {
-        animationFrameId =
-          requestAnimationFrame(updateCount);
-      } else {
-        setDisplayValue(stringValue);
-      }
-    };
-
-    animationFrameId =
-      requestAnimationFrame(updateCount);
-
-    return () =>
-      cancelAnimationFrame(animationFrameId);
-  }, [value]);
-
-  return <span>{displayValue}</span>;
-}
+  ChevronDown,
+  Upload,
+  Image as ImageIcon,
+} from "lucide-react";
 
 export default function Categories() {
-  const [currentTab, setCurrentTab] =
-    useState('categories');
-
-  const [searchQuery, setSearchQuery] =
-    useState('');
-
-  const [statusFilter, setStatusFilter] =
-    useState('All');
-
-  const [categories, setCategories] =
-    useState([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [isRefreshing, setIsRefreshing] =
-    useState(false);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [refreshKey, setRefreshKey] =
-    useState(0);
-
-  const [errorMessage, setErrorMessage] =
-    useState('');
-
-  const [successMessage, setSuccessMessage] =
-    useState('');
-
-  const [selectedCategory, setSelectedCategory] =
-    useState(null);
-
-  const [isPanelOpen, setIsPanelOpen] =
-    useState(false);
-
-  const [editingCategory, setEditingCategory] =
-    useState(null);
-
-  const [isStatusOpen, setIsStatusOpen] =
-    useState(false);
+  const [currentTab, setCurrentTab] = useState("categories");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
 
   const [formData, setFormData] = useState({
-    id: '',
-    name: '',
-    slug: '',
-    description: '',
+    id: "",
+    name: "",
+    description: "",
+    imageUrl: "",
+    imageFile: null,
     displayOrder: 1,
-    imageUrl: '',
-    status: 'Active'
+    active: true,
   });
 
-  const getCategoryId = (category) =>
-    category?.id ||
-    category?._id ||
-    category?.categoryId;
-
-  const getCategoryName = (category) =>
-    category?.name ||
-    category?.categoryName ||
-    '';
-
-  const getCategoryDescription = (category) =>
-    category?.description || '';
-
-  const getCategoryStatus = (category) => {
-    if (
-      category?.active === true ||
-      category?.status === 'Active' ||
-      category?.status === 'active' ||
-      category?.isActive === true
-    ) {
-      return 'Active';
-    }
-
-    if (
-      category?.active === false ||
-      category?.status === 'Inactive' ||
-      category?.status === 'inactive' ||
-      category?.isActive === false
-    ) {
-      return 'Inactive';
-    }
-
-    return 'Active';
+  const normalizeImageUrl = (value) => {
+    if (!value) return "";
+    return String(value).trim();
   };
 
-  const getDisplayOrder = (category) =>
-    category?.displayOrder ?? 0;
-
-  const getImageUrl = (category) =>
-    category?.imageUrl ||
-    category?.image ||
-    '';
-
-  const getProductsCount = (category) =>
-    category?.productsCount ??
-    category?.productCount ??
-    (Array.isArray(category?.products)
-      ? category.products.length
-      : 0);
-
   const normalizeCategory = (category) => ({
-    ...category,
-    id: getCategoryId(category),
-    name: getCategoryName(category),
-    description:
-      getCategoryDescription(category),
-    displayOrder:
-      getDisplayOrder(category),
-    imageUrl:
-      getImageUrl(category),
-    productsCount:
-      getProductsCount(category),
-    status:
-      getCategoryStatus(category)
+    id: category?.id || "",
+    name: category?.name?.trim() || "",
+    description: category?.description || "",
+    imageUrl: normalizeImageUrl(category?.imageUrl),
+    displayOrder: Number(category?.displayOrder ?? 0),
+    active: category?.active === true,
   });
 
   const clearMessages = () => {
-    setErrorMessage('');
-    setSuccessMessage('');
+    setErrorMessage("");
+    setSuccessMessage("");
   };
 
-  const fetchCategories = async () => {
+  const fetchCategories = async (filter = statusFilter) => {
     try {
+      setLoading(true);
       setIsRefreshing(true);
-      setErrorMessage('');
+      setErrorMessage("");
 
-      const response =
-        await getCategories(false);
+      const includeInactive =
+        filter === "All" || filter === "Inactive";
 
-      console.log(
-        'Categories API Response:',
-        response
-      );
+      const response = await getCategories(includeInactive);
 
       if (response?.success) {
-        let data = [];
+        const data = Array.isArray(response?.data)
+          ? response.data
+          : [];
 
-        if (Array.isArray(response?.data)) {
-          data = response.data;
-        } else if (
-          Array.isArray(
-            response?.data?.content
-          )
-        ) {
-          data =
-            response.data.content;
-        } else if (
-          Array.isArray(
-            response?.data?.categories
-          )
-        ) {
-          data =
-            response.data.categories;
-        }
-
-        setCategories(
-          data.map(normalizeCategory)
+        const mappedCategories = data.map((category) =>
+          normalizeCategory(category)
         );
 
-        setRefreshKey(
-          (prev) => prev + 1
-        );
+        setCategories(mappedCategories);
       } else {
         setCategories([]);
-
         setErrorMessage(
-          response?.message ||
-            'Failed to fetch categories'
+          response?.message || "Failed to fetch categories"
         );
       }
     } catch (error) {
-      console.error(
-        'Categories API Error:',
-        error
-      );
-
       setCategories([]);
-
       setErrorMessage(
         error?.response?.data?.message ||
           error?.message ||
-          'Failed to fetch categories'
+          "Failed to fetch categories"
       );
     } finally {
       setLoading(false);
@@ -314,23 +114,27 @@ export default function Categories() {
   };
 
   useEffect(() => {
-    fetchCategories();
+    fetchCategories("All");
   }, []);
+
+  const handleStatusFilter = (status) => {
+    setStatusFilter(status);
+    fetchCategories(status);
+  };
 
   const openAddPanel = () => {
     clearMessages();
-
     setEditingCategory(null);
     setIsStatusOpen(false);
 
     setFormData({
-      id: '',
-      name: '',
-      slug: '',
-      description: '',
+      id: "",
+      name: "",
+      description: "",
+      imageUrl: "",
+      imageFile: null,
       displayOrder: 1,
-      imageUrl: '',
-      status: 'Active'
+      active: true,
     });
 
     setIsPanelOpen(true);
@@ -340,32 +144,21 @@ export default function Categories() {
     clearMessages();
     setIsStatusOpen(false);
 
-    const categoryId =
-      getCategoryId(category);
-
-    if (!categoryId) {
-      setErrorMessage(
-        'Category ID not found'
-      );
+    if (!category?.id) {
+      setErrorMessage("Category ID not found");
       return;
     }
 
     try {
-      setEditingCategory(categoryId);
+      setEditingCategory(category.id);
       setIsPanelOpen(true);
 
-      const response =
-        await getCategoryById(categoryId);
-
-      console.log(
-        'Category Details API Response:',
-        response
-      );
+      const response = await getCategoryById(category.id);
 
       if (!response?.success) {
         setErrorMessage(
           response?.message ||
-            'Failed to fetch category details'
+            "Failed to fetch category details"
         );
         return;
       }
@@ -375,132 +168,111 @@ export default function Categories() {
         response?.data ||
         category;
 
+      const normalized = normalizeCategory(categoryData);
+
       setFormData({
-        id:
-          getCategoryId(
-            categoryData
-          ),
-
-        name:
-          getCategoryName(
-            categoryData
-          ),
-
-        slug:
-          categoryData?.slug ||
-          '',
-
-        description:
-          getCategoryDescription(
-            categoryData
-          ),
-
-        displayOrder:
-          getDisplayOrder(
-            categoryData
-          ),
-
-        imageUrl:
-          getImageUrl(
-            categoryData
-          ),
-
-        status:
-          getCategoryStatus(
-            categoryData
-          )
+        id: normalized.id,
+        name: normalized.name,
+        description: normalized.description,
+        imageUrl: normalized.imageUrl,
+        imageFile: null,
+        displayOrder: normalized.displayOrder,
+        active: normalized.active,
       });
     } catch (error) {
-      console.error(
-        'Category Details Error:',
-        error
-      );
-
       setErrorMessage(
         error?.response?.data?.message ||
           error?.message ||
-          'Failed to fetch category details'
+          "Failed to fetch category details"
       );
     }
   };
 
-  const handleToggleStatus = async (
-    category
-  ) => {
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
     clearMessages();
 
-    const categoryId =
-      getCategoryId(category);
+    if (!file.type.startsWith("image/")) {
+      setErrorMessage("Please select a valid image file");
+      return;
+    }
 
-    if (!categoryId) {
-      setErrorMessage(
-        'Category ID not found'
-      );
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMessage("Image size must be less than 5MB");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+
+    setFormData((prev) => ({
+      ...prev,
+      imageFile: file,
+      imageUrl: previewUrl,
+    }));
+  };
+
+  const removeImage = () => {
+    if (
+      formData.imageUrl &&
+      formData.imageUrl.startsWith("blob:")
+    ) {
+      URL.revokeObjectURL(formData.imageUrl);
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      imageFile: null,
+      imageUrl: "",
+    }));
+  };
+
+  const handleViewCategory = async (category) => {
+    clearMessages();
+
+    if (!category?.id) {
+      setErrorMessage("Category ID not found");
       return;
     }
 
     try {
       setIsRefreshing(true);
 
-      const isActive =
-        getCategoryStatus(category) ===
-        'Active';
-
-      const response = isActive
-        ? await deactivateCategory(
-            categoryId
-          )
-        : await activateCategory(
-            categoryId
-          );
+      const response = await getCategoryById(category.id);
 
       if (response?.success) {
-        setSuccessMessage(
-          isActive
-            ? 'Category deactivated successfully'
-            : 'Category activated successfully'
-        );
+        const categoryData =
+          response?.data?.category ||
+          response?.data ||
+          category;
 
-        await fetchCategories();
+        setSelectedCategory(
+          normalizeCategory(categoryData)
+        );
       } else {
         setErrorMessage(
           response?.message ||
-            'Failed to update category status'
+            "Failed to fetch category details"
         );
       }
     } catch (error) {
       setErrorMessage(
         error?.response?.data?.message ||
           error?.message ||
-          'Failed to update category status'
+          "Failed to fetch category details"
       );
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  const handleDelete = async (
-    category
-  ) => {
+  const handleToggleStatus = async (category) => {
     clearMessages();
 
-    const categoryId =
-      getCategoryId(category);
-
-    if (!categoryId) {
-      setErrorMessage(
-        'Category ID not found'
-      );
-      return;
-    }
-
-    if (
-      getCategoryStatus(category) ===
-      'Inactive'
-    ) {
-      setErrorMessage(
-        'Category is already inactive'
-      );
+    if (!category?.id) {
+      setErrorMessage("Category ID not found");
       return;
     }
 
@@ -508,27 +280,30 @@ export default function Categories() {
       setIsRefreshing(true);
 
       const response =
-        await deactivateCategory(
-          categoryId
-        );
+        category.active === true
+          ? await deactivateCategory(category.id)
+          : await activateCategory(category.id);
 
       if (response?.success) {
         setSuccessMessage(
-          'Category deactivated successfully'
+          response?.message ||
+            (category.active
+              ? "Category deactivated successfully"
+              : "Category activated successfully")
         );
 
-        await fetchCategories();
+        await fetchCategories(statusFilter);
       } else {
         setErrorMessage(
           response?.message ||
-            'Failed to deactivate category'
+            "Failed to update category status"
         );
       }
     } catch (error) {
       setErrorMessage(
         error?.response?.data?.message ||
           error?.message ||
-          'Failed to deactivate category'
+          "Failed to update category status"
       );
     } finally {
       setIsRefreshing(false);
@@ -537,1382 +312,847 @@ export default function Categories() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-
     clearMessages();
+
+    if (!formData.name.trim()) {
+      setErrorMessage("Category name is required");
+      return;
+    }
+
     setSaving(true);
 
     try {
-      const payload = {
-        name:
-          formData.name.trim(),
+      const payload = new FormData();
 
-        description:
-          formData.description.trim(),
+      payload.append("name", formData.name.trim());
+      payload.append(
+        "description",
+        formData.description.trim()
+      );
+      payload.append(
+        "displayOrder",
+        String(Number(formData.displayOrder) || 1)
+      );
 
-        displayOrder:
-          Number(
-            formData.displayOrder
-          ) || 1
-      };
-
-      if (
-        formData.slug.trim()
-      ) {
-        payload.slug =
-          formData.slug.trim();
-      }
-
-      if (
-        formData.imageUrl.trim()
-      ) {
-        payload.imageUrl =
-          formData.imageUrl.trim();
+      if (formData.imageFile) {
+        payload.append("image", formData.imageFile);
       }
 
       let response;
 
       if (editingCategory) {
-        response =
-          await updateCategory(
-            editingCategory,
-            payload
-          );
+        response = await updateCategory(
+          editingCategory,
+          payload
+        );
       } else {
-        response =
-          await createCategory(
-            payload
-          );
+        response = await createCategory(payload);
       }
-
-      console.log(
-        'Save Category Response:',
-        response
-      );
 
       if (!response?.success) {
         setErrorMessage(
-          response?.message ||
-            'Failed to save category'
+          response?.message || "Failed to save category"
         );
         return;
       }
 
       if (editingCategory) {
-        const existingCategory =
-          categories.find(
-            (category) =>
-              String(
-                getCategoryId(
-                  category
-                )
-              ) ===
-              String(
+        const oldCategory = categories.find(
+          (item) =>
+            String(item.id) ===
+            String(editingCategory)
+        );
+
+        const oldStatus = oldCategory?.active === true;
+
+        if (oldStatus !== formData.active) {
+          const statusResponse = formData.active
+            ? await activateCategory(editingCategory)
+            : await deactivateCategory(
                 editingCategory
-              )
-          );
+              );
 
-        const oldStatus =
-          getCategoryStatus(
-            existingCategory
-          );
-
-        const newStatus =
-          formData.status;
-
-        if (
-          oldStatus !== newStatus
-        ) {
-          if (
-            newStatus ===
-            'Active'
-          ) {
-            await activateCategory(
-              editingCategory
+          if (!statusResponse?.success) {
+            setErrorMessage(
+              statusResponse?.message ||
+                "Category updated but status update failed"
             );
-          } else {
-            await deactivateCategory(
-              editingCategory
-            );
+            return;
           }
         }
       }
 
       setSuccessMessage(
-        editingCategory
-          ? 'Category updated successfully'
-          : 'Category created successfully'
+        response?.message ||
+          (editingCategory
+            ? "Category updated successfully"
+            : "Category created successfully")
       );
+
+      if (
+        formData.imageUrl &&
+        formData.imageUrl.startsWith("blob:")
+      ) {
+        URL.revokeObjectURL(formData.imageUrl);
+      }
 
       setIsPanelOpen(false);
       setEditingCategory(null);
       setIsStatusOpen(false);
 
-      await fetchCategories();
+      await fetchCategories(statusFilter);
     } catch (error) {
-      console.error(
-        'Save Category Error:',
-        error
-      );
-
       setErrorMessage(
         error?.response?.data?.message ||
           error?.message ||
-          'Failed to save category'
+          "Failed to save category"
       );
     } finally {
       setSaving(false);
     }
   };
 
-  const filteredCategories =
-    categories.filter((cat) => {
-      const name =
-        getCategoryName(
-          cat
-        ).toLowerCase();
+  const closePanel = () => {
+    if (saving) return;
 
-      const description =
-        getCategoryDescription(
-          cat
-        ).toLowerCase();
+    if (
+      formData.imageUrl &&
+      formData.imageUrl.startsWith("blob:")
+    ) {
+      URL.revokeObjectURL(formData.imageUrl);
+    }
 
-      const query =
-        searchQuery.toLowerCase();
+    setIsPanelOpen(false);
+    setEditingCategory(null);
+    setIsStatusOpen(false);
+  };
+
+  const filteredCategories = categories.filter(
+    (category) => {
+      const query = searchQuery.toLowerCase().trim();
 
       const matchesSearch =
-        name.includes(query) ||
-        description.includes(query);
+        category.name
+          .toLowerCase()
+          .includes(query) ||
+        category.description
+          .toLowerCase()
+          .includes(query);
+
+      const status = category.active
+        ? "Active"
+        : "Inactive";
 
       const matchesStatus =
-        statusFilter === 'All' ||
-        getCategoryStatus(cat) ===
-          statusFilter;
+        statusFilter === "All" ||
+        statusFilter === status;
 
-      return (
-        matchesSearch &&
-        matchesStatus
-      );
-    });
+      return matchesSearch && matchesStatus;
+    }
+  );
 
-  const activeCategories =
-    categories.filter(
-      (category) =>
-        getCategoryStatus(
-          category
-        ) === 'Active'
-    );
+  const activeCategories = categories.filter(
+    (category) => category.active
+  );
 
-  const inactiveCategories =
-    categories.filter(
-      (category) =>
-        getCategoryStatus(
-          category
-        ) === 'Inactive'
-    );
-
-  const totalProducts =
-    categories.reduce(
-      (acc, category) =>
-        acc +
-        Number(
-          getProductsCount(
-            category
-          ) || 0
-        ),
-      0
-    );
+  const inactiveCategories = categories.filter(
+    (category) => !category.active
+  );
 
   const categoryStats = [
     {
-      label: 'Total Categories',
-      value: `${categories.length}`,
-      change: '+12.4%',
-      up: true,
-      accentColor:
-        'bg-emerald-600',
-      iconBg:
-        'bg-emerald-50 text-emerald-700',
-      tagColor:
-        'text-emerald-700 bg-emerald-50/80 border-emerald-200/80',
+      label: "Total Categories",
+      value: categories.length,
+      suffix: " Categories",
       icon: FolderTree,
-      suffix: ' Categories'
+      iconBg: "bg-emerald-50 text-emerald-700",
+      accentColor: "bg-emerald-600",
     },
     {
-      label: 'Active Categories',
-      value: `${activeCategories.length}`,
-      change: '+8.2%',
-      up: true,
-      accentColor:
-        'bg-teal-600',
-      iconBg:
-        'bg-teal-50 text-teal-700',
-      tagColor:
-        'text-teal-700 bg-teal-50/80 border-teal-200/80',
+      label: "Active Categories",
+      value: activeCategories.length,
+      suffix: " Active",
       icon: CheckCircle2,
-      suffix: ' Active'
+      iconBg: "bg-teal-50 text-teal-700",
+      accentColor: "bg-teal-600",
     },
     {
-      label: 'Inactive Categories',
-      value: `${inactiveCategories.length}`,
-      change: '-4.1%',
-      up: false,
-      accentColor:
-        'bg-emerald-500',
-      iconBg:
-        'bg-emerald-50 text-emerald-700',
-      tagColor:
-        'text-rose-700 bg-rose-50/80 border-rose-200/80',
+      label: "Inactive Categories",
+      value: inactiveCategories.length,
+      suffix: " Inactive",
       icon: FolderTree,
-      suffix: ' Inactive'
+      iconBg: "bg-slate-100 text-slate-600",
+      accentColor: "bg-slate-500",
     },
-    {
-      label: 'Assigned Products',
-      value: `${totalProducts}`,
-      change: '+15.5%',
-      up: true,
-      accentColor:
-        'bg-green-700',
-      iconBg:
-        'bg-green-50 text-green-700',
-      tagColor:
-        'text-emerald-700 bg-emerald-50/80 border-emerald-200/80',
-      icon: Package,
-      suffix: ' Products'
-    }
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
-
+    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans text-slate-800">
       <Sidebar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
       />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
-
         <motion.header
-          initial={{
-            opacity: 0,
-            y: -20
-          }}
-          animate={{
-            opacity: 1,
-            y: 0
-          }}
-          transition={{
-            duration: 0.5,
-            ease: 'easeOut'
-          }}
-          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl border border-emerald-900"
         >
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse duration-1000" />
-
-          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="space-y-2.5 z-10">
-
+          <div className="space-y-2.5">
             <div className="flex flex-wrap items-center gap-2.5">
-
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm backdrop-blur-md">
-
-                <Zap
-                  size={12}
-                  className="text-emerald-400 animate-bounce"
-                />
-
-                Category Management Directory
-
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900 px-3 py-1 rounded-full border border-emerald-800">
+                <FolderTree size={12} />
+                Category Management
               </span>
 
-              <div className="flex items-center gap-2 bg-rose-950/80 border border-rose-900/80 px-3 py-1 rounded-full text-rose-300 shadow-sm">
-
+              <div className="flex items-center gap-2 bg-emerald-900 border border-emerald-800 px-3 py-1 rounded-full">
                 <span className="relative flex h-2 w-2">
-
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
-
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
 
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-white">
+                <span className="text-[10px] font-semibold uppercase tracking-widest">
                   LIVE ADMIN VEG GO
                 </span>
-
               </div>
-
             </div>
 
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
-
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
               Category Directory
-
-              <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
             </h1>
-
           </div>
 
-          <div className="flex items-center gap-3 self-start lg:self-center z-10">
-
+          <div className="flex items-center gap-3">
             <motion.button
-              whileHover={{
-                scale: 1.05
-              }}
-              whileTap={{
-                scale: 0.95
-              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={openAddPanel}
-              className="px-4 py-2.5 bg-emerald-500/20 border border-emerald-700 rounded-2xl hover:bg-emerald-500/30 transition-all text-xs font-semibold text-emerald-100 flex items-center gap-2"
+              className="px-4 py-2.5 bg-emerald-500/20 border border-emerald-700 rounded-2xl hover:bg-emerald-500/30 text-xs font-semibold text-emerald-100 flex items-center gap-2"
             >
               <Plus size={15} />
               New Category
             </motion.button>
 
-            <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
-
+            <div className="bg-emerald-900 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold text-emerald-100">
               <Calendar
                 size={14}
                 className="text-emerald-400"
               />
 
-              <span>
-                {new Date().toLocaleDateString(
-                  'en-US',
-                  {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  }
-                )}
-              </span>
-
+              {new Date().toLocaleDateString(
+                "en-US",
+                {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                }
+              )}
             </div>
 
-            <motion.button
-              whileHover={{
-                scale: 1.05
-              }}
-              whileTap={{
-                scale: 0.95
-              }}
-              onClick={fetchCategories}
+            <button
+              onClick={() =>
+                fetchCategories(statusFilter)
+              }
               disabled={isRefreshing}
-              className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner group/btn disabled:opacity-50"
-              title="Refresh Data"
+              className="p-2.5 bg-emerald-900 border border-emerald-800 rounded-2xl"
             >
-
               <RefreshCw
                 size={15}
-                className={`text-emerald-300 transition-transform duration-700 ${
+                className={
                   isRefreshing
-                    ? 'rotate-180'
-                    : 'group-hover/btn:rotate-45'
-                }`}
+                    ? "animate-spin"
+                    : ""
+                }
               />
-
-            </motion.button>
-
+            </button>
           </div>
-
         </motion.header>
 
         <AnimatePresence>
-          {(errorMessage ||
-            successMessage) && (
+          {(errorMessage || successMessage) && (
             <motion.div
               initial={{
                 opacity: 0,
-                y: -10
+                y: -10,
               }}
               animate={{
                 opacity: 1,
-                y: 0
+                y: 0,
               }}
               exit={{
                 opacity: 0,
-                y: -10
+                y: -10,
               }}
               className={`px-5 py-3.5 rounded-2xl border text-xs font-semibold ${
                 errorMessage
-                  ? 'bg-rose-50 border-rose-200 text-rose-700'
-                  : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                  ? "bg-rose-50 border-rose-200 text-rose-700"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-700"
               }`}
             >
-              {errorMessage ||
-                successMessage}
+              {errorMessage || successMessage}
             </motion.div>
           )}
         </AnimatePresence>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+          {categoryStats.map((stat, index) => {
+            const Icon = stat.icon;
 
-          {categoryStats.map(
-            (stat, idx) => {
-              const IconComponent =
-                stat.icon;
+            return (
+              <motion.div
+                key={stat.label}
+                initial={{
+                  opacity: 0,
+                  y: 20,
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                }}
+                transition={{
+                  delay: index * 0.1,
+                }}
+                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden"
+              >
+                <div
+                  className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor}`}
+                />
 
-              return (
-                <motion.div
-                  key={`${idx}-${refreshKey}`}
-                  initial={{
-                    opacity: 0,
-                    y: 20
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0
-                  }}
-                  transition={{
-                    duration: 0.4,
-                    delay: idx * 0.1
-                  }}
-                  whileHover={{
-                    y: -6,
-                    transition: {
-                      duration: 0.2
-                    }
-                  }}
-                  className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group cursor-pointer"
-                >
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-[11px] font-semibold text-black uppercase tracking-wider">
+                    {stat.label}
+                  </span>
 
                   <div
-                    className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor} transition-all duration-300 group-hover:h-2`}
-                  />
+                    className={`${stat.iconBg} p-2.5 rounded-2xl`}
+                  >
+                    <Icon size={18} />
+                  </div>
+                </div>
 
-                  <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none group-hover:scale-125" />
+                <h3 className="text-2xl sm:text-3xl font-semibold text-black">
+                  {loading ? (
+                    "..."
+                  ) : (
+                    <>
+                      {stat.value}
 
-                  <div className="relative z-10">
-
-                    <div className="flex items-center justify-between mb-4">
-
-                      <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors duration-200">
-                        {stat.label}
+                      <span className="text-base ml-1">
+                        {stat.suffix}
                       </span>
-
-                      <motion.div
-                        whileHover={{
-                          rotate: 12,
-                          scale: 1.1
-                        }}
-                        className={`${stat.iconBg} p-2.5 rounded-2xl transition-all shadow-xs`}
-                      >
-                        <IconComponent
-                          size={18}
-                        />
-                      </motion.div>
-
-                    </div>
-
-                    <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono group-hover:text-emerald-800 transition-colors duration-200">
-
-                      {loading ? (
-                        <span className="text-slate-300">
-                          ...
-                        </span>
-                      ) : (
-                        <>
-                          <AnimatedValue
-                            value={
-                              stat.value
-                            }
-                          />
-
-                          <span className="text-base ml-1 font-sans">
-                            {stat.suffix}
-                          </span>
-                        </>
-                      )}
-
-                    </h3>
-
-                  </div>
-
-                  <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between relative z-10">
-
-                    <span
-                      className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-transform duration-300 group-hover:scale-105 ${stat.tagColor}`}
-                    >
-
-                      {stat.up ? (
-                        <ArrowUpRight
-                          size={13}
-                          className="text-emerald-600 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-                        />
-                      ) : (
-                        <ArrowDownRight
-                          size={13}
-                          className="text-rose-600 transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5"
-                        />
-                      )}
-
-                      {stat.change}
-
-                    </span>
-
-                    <span className="text-[11px] text-black font-semibold">
-                      Monthly Period
-                    </span>
-
-                  </div>
-
-                </motion.div>
-              );
-            }
-          )}
-
+                    </>
+                  )}
+                </h3>
+              </motion.div>
+            );
+          })}
         </section>
 
-        <section className="w-full">
-
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: 20
-            }}
-            animate={{
-              opacity: 1,
-              y: 0
-            }}
-            transition={{
-              duration: 0.5,
-              delay: 0.3
-            }}
-            className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
-          >
-
-            <div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
-
-                <div className="flex items-center gap-3">
-
-                  <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-                    <FolderTree size={18} />
-                  </div>
-
-                  <div>
-
-                    <h2 className="text-lg font-semibold text-black tracking-tight">
-                      Category Records
-                    </h2>
-
-                    <p className="text-xs font-semibold text-black">
-                      Product category management directory
-                    </p>
-
-                  </div>
-
+        <section>
+          <motion.div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                  <FolderTree size={18} />
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div>
+                  <h2 className="text-lg font-semibold text-black">
+                    Category Records
+                  </h2>
 
-                  <div className="relative flex-1 sm:w-60">
+                  <p className="text-xs font-semibold text-slate-500">
+                    Categories from catalog API
+                  </p>
+                </div>
+              </div>
 
-                    <Search
-                      className="absolute left-3 top-2.5 text-slate-400"
-                      size={15}
-                    />
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative flex-1 sm:w-60">
+                  <Search
+                    className="absolute left-3 top-2.5 text-slate-400"
+                    size={15}
+                  />
 
-                    <input
-                      type="text"
-                      placeholder="Search categories..."
-                      value={searchQuery}
-                      onChange={(e) =>
-                        setSearchQuery(
-                          e.target.value
-                        )
+                  <input
+                    type="text"
+                    placeholder="Search categories..."
+                    value={searchQuery}
+                    onChange={(e) =>
+                      setSearchQuery(e.target.value)
+                    }
+                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-0.5">
+                  <Filter
+                    size={13}
+                    className="text-slate-400 ml-2"
+                  />
+
+                  {[
+                    "All",
+                    "Active",
+                    "Inactive",
+                  ].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() =>
+                        handleStatusFilter(status)
                       }
-                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
-                    />
-
-                  </div>
-
-                  <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-0.5">
-
-                    <Filter
-                      size={13}
-                      className="text-slate-400 ml-2"
-                    />
-
-                    {[
-                      'All',
-                      'Active',
-                      'Inactive'
-                    ].map(
-                      (status) => (
-                        <button
-                          key={status}
-                          onClick={() =>
-                            setStatusFilter(
-                              status
-                            )
-                          }
-                          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
-                            statusFilter ===
-                            status
-                              ? 'bg-white text-emerald-700 shadow-sm'
-                              : 'text-slate-500 hover:text-slate-800'
-                          }`}
-                        >
-                          {status}
-                        </button>
-                      )
-                    )}
-
-                  </div>
-
+                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold ${
+                        statusFilter === status
+                          ? "bg-white text-emerald-700 shadow-sm"
+                          : "text-slate-500"
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
                 </div>
-
               </div>
+            </div>
 
-              <div className="hidden md:block overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50">
+                    <th className="py-3.5 px-4 rounded-l-xl">
+                      Category
+                    </th>
 
-                <table className="w-full text-left border-collapse">
+                    <th className="py-3.5 px-4">
+                      Description
+                    </th>
 
-                  <thead>
+                    <th className="py-3.5 px-4 text-center">
+                      Display Order
+                    </th>
 
-                    <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
+                    <th className="py-3.5 px-4 text-center">
+                      Status
+                    </th>
 
-                      <th className="py-3.5 px-4 rounded-l-xl">
-                        Category
-                      </th>
+                    <th className="py-3.5 px-4 text-right rounded-r-xl">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
 
-                      <th className="py-3.5 px-4">
-                        Description
-                      </th>
-
-                      <th className="py-3.5 px-4 text-center">
-                        Display Order
-                      </th>
-
-                      <th className="py-3.5 px-4 text-center">
-                        Products
-                      </th>
-
-                      <th className="py-3.5 px-4 text-center">
-                        Status
-                      </th>
-
-                      <th className="py-3.5 px-4 text-right rounded-r-xl">
-                        Actions
-                      </th>
-
+                <tbody className="divide-y divide-slate-100">
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="py-12 text-center text-xs font-semibold text-slate-400"
+                      >
+                        Loading categories...
+                      </td>
                     </tr>
-
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100">
-
-                    {loading ? (
-                      <tr>
-
-                        <td
-                          colSpan="6"
-                          className="py-12 text-center text-xs font-semibold text-slate-400"
+                  ) : filteredCategories.length > 0 ? (
+                    filteredCategories.map(
+                      (category) => (
+                        <tr
+                          key={category.id}
+                          className="text-xs font-semibold text-black hover:bg-emerald-50/40"
                         >
-                          Loading categories...
-                        </td>
-
-                      </tr>
-                    ) : filteredCategories.length >
-                      0 ? (
-                      filteredCategories.map(
-                        (category, idx) => {
-
-                          const categoryId =
-                            getCategoryId(
-                              category
-                            );
-
-                          const status =
-                            getCategoryStatus(
-                              category
-                            );
-
-                          const imageUrl =
-                            getImageUrl(
-                              category
-                            );
-
-                          return (
-                            <motion.tr
-                              key={categoryId}
-                              initial={{
-                                opacity: 0,
-                                y: 10
-                              }}
-                              animate={{
-                                opacity: 1,
-                                y: 0
-                              }}
-                              transition={{
-                                duration: 0.3,
-                                delay:
-                                  0.3 +
-                                  idx * 0.05
-                              }}
-                              className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group"
-                            >
-
-                              <td className="py-3.5 px-4">
-
-                                <div className="flex items-center gap-3">
-
-                                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 overflow-hidden flex items-center justify-center shrink-0 group-hover:border-emerald-300 transition-colors">
-
-                                    {imageUrl ? (
-                                      <img
-                                        src={
-                                          imageUrl
-                                        }
-                                        alt={getCategoryName(
-                                          category
-                                        )}
-                                        className="w-full h-full object-cover"
-                                        onError={(
-                                          e
-                                        ) => {
-                                          e.currentTarget.style.display =
-                                            'none';
-
-                                          e.currentTarget.parentElement
-                                            .querySelector(
-                                              '[data-fallback]'
-                                            )
-                                            ?.classList.remove(
-                                              'hidden'
-                                            );
-                                        }}
-                                      />
-                                    ) : null}
-
-                                    <FolderTree
-                                      data-fallback
-                                      size={17}
-                                      className={
-                                        imageUrl
-                                          ? 'hidden text-emerald-600'
-                                          : 'text-emerald-600'
-                                      }
-                                    />
-
-                                  </div>
-
-                                  <div className="flex flex-col">
-
-                                    <span className="font-semibold text-black group-hover:text-emerald-700 transition-colors">
-                                      {getCategoryName(
-                                        category
-                                      )}
-                                    </span>
-
-                                    <span className="text-[10px] text-slate-500 font-mono">
-                                      {categoryId ||
-                                        'CATEGORY'}
-                                    </span>
-
-                                  </div>
-
-                                </div>
-
-                              </td>
-
-                              <td className="py-3.5 px-4">
-
-                                <span className="text-[10px] text-slate-500 font-semibold line-clamp-2 max-w-[280px]">
-                                  {getCategoryDescription(
-                                    category
-                                  ) ||
-                                    'No description available'}
-                                </span>
-
-                              </td>
-
-                              <td className="py-3.5 px-4 text-center font-mono text-black">
-                                {getDisplayOrder(
-                                  category
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-11 h-11 rounded-xl overflow-hidden bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                                {category.imageUrl ? (
+                                  <img
+                                    src={
+                                      category.imageUrl
+                                    }
+                                    alt={
+                                      category.name
+                                    }
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display =
+                                        "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <FolderTree
+                                    size={18}
+                                    className="text-emerald-600"
+                                  />
                                 )}
-                              </td>
-
-                              <td className="py-3.5 px-4 text-center">
-
-                                <span className="inline-flex items-center gap-1.5 font-mono text-emerald-700 font-semibold">
-
-                                  <Package
-                                    size={13}
-                                  />
-
-                                  {getProductsCount(
-                                    category
-                                  )}
-
-                                </span>
-
-                              </td>
-
-                              <td className="py-3.5 px-4 text-center">
-
-                                <span
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border transition-all duration-300 group-hover:scale-105 ${
-                                    status ===
-                                    'Active'
-                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
-                                      : 'bg-slate-100 text-slate-600 border-slate-200/80'
-                                  }`}
-                                >
-
-                                  <span
-                                    className={`w-1.5 h-1.5 rounded-full ${
-                                      status ===
-                                      'Active'
-                                        ? 'bg-emerald-500'
-                                        : 'bg-slate-400'
-                                    }`}
-                                  />
-
-                                  {status}
-
-                                </span>
-
-                              </td>
-
-                              <td className="py-3.5 px-4 text-right">
-
-                                <div className="flex items-center justify-end gap-1">
-
-                                  <button
-                                    onClick={() =>
-                                      setSelectedCategory(
-                                        category
-                                      )
-                                    }
-                                    className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                                    title="View Info"
-                                  >
-                                    <Eye size={15} />
-                                  </button>
-
-                                  <button
-                                    onClick={() =>
-                                      handleToggleStatus(
-                                        category
-                                      )
-                                    }
-                                    disabled={
-                                      isRefreshing
-                                    }
-                                    className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-40"
-                                    title={
-                                      status ===
-                                      'Active'
-                                        ? 'Deactivate'
-                                        : 'Activate'
-                                    }
-                                  >
-                                    <Power size={15} />
-                                  </button>
-
-                                  <button
-                                    onClick={() =>
-                                      openEditPanel(
-                                        category
-                                      )
-                                    }
-                                    className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                                    title="Edit"
-                                  >
-                                    <Edit3 size={15} />
-                                  </button>
-
-                                  <button
-                                    onClick={() =>
-                                      handleDelete(
-                                        category
-                                      )
-                                    }
-                                    disabled={
-                                      isRefreshing ||
-                                      status ===
-                                        'Inactive'
-                                    }
-                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40"
-                                    title="Deactivate"
-                                  >
-                                    <Trash2 size={15} />
-                                  </button>
-
-                                </div>
-
-                              </td>
-
-                            </motion.tr>
-                          );
-                        }
-                      )
-                    ) : (
-                      <tr>
-
-                        <td
-                          colSpan="6"
-                          className="py-12 text-center"
-                        >
-
-                          <FolderTree
-                            size={35}
-                            className="mx-auto text-slate-300 mb-3"
-                          />
-
-                          <p className="text-xs font-semibold text-slate-400">
-                            No matching category profiles found.
-                          </p>
-
-                        </td>
-
-                      </tr>
-                    )}
-
-                  </tbody>
-
-                </table>
-
-              </div>
-
-              <div className="md:hidden space-y-3">
-
-                {loading ? (
-                  <div className="py-10 text-center text-xs font-semibold text-slate-400">
-                    Loading categories...
-                  </div>
-                ) : filteredCategories.length >
-                  0 ? (
-                  filteredCategories.map(
-                    (category) => {
-
-                      const status =
-                        getCategoryStatus(
-                          category
-                        );
-
-                      return (
-                        <motion.div
-                          key={getCategoryId(
-                            category
-                          )}
-                          whileHover={{
-                            scale: 1.01
-                          }}
-                          className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3 group"
-                        >
-
-                          <div className="flex items-center justify-between">
-
-                            <div className="flex items-center gap-2">
-
-                              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                                <FolderTree size={16} />
                               </div>
 
-                              <div>
-
-                                <h4 className="font-semibold text-sm text-black group-hover:text-emerald-700 transition-colors">
-                                  {getCategoryName(
-                                    category
-                                  )}
-                                </h4>
-
-                                <p className="text-[10px] font-mono text-slate-400">
-                                  {getCategoryId(
-                                    category
-                                  )}
-                                </p>
-
-                              </div>
-
+                              <span className="font-semibold text-black">
+                                {category.name}
+                              </span>
                             </div>
+                          </td>
 
+                          <td className="py-3.5 px-4">
+                            <span className="text-[10px] text-slate-500 line-clamp-2 max-w-[280px]">
+                              {category.description ||
+                                "No description available"}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="inline-flex items-center justify-center min-w-8 h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg font-mono">
+                              {category.displayOrder}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 px-4 text-center">
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                                status ===
-                                'Active'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : 'bg-slate-100 text-slate-600 border-slate-200'
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                category.active
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : "bg-slate-100 text-slate-600 border-slate-200"
                               }`}
                             >
-
                               <span
                                 className={`w-1.5 h-1.5 rounded-full ${
-                                  status ===
-                                  'Active'
-                                    ? 'bg-emerald-500'
-                                    : 'bg-slate-400'
+                                  category.active
+                                    ? "bg-emerald-500"
+                                    : "bg-slate-400"
                                 }`}
                               />
 
-                              {status}
-
+                              {category.active
+                                ? "Active"
+                                : "Inactive"}
                             </span>
+                          </td>
 
-                          </div>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() =>
+                                  handleViewCategory(
+                                    category
+                                  )
+                                }
+                                className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                              >
+                                <Eye size={15} />
+                              </button>
 
-                          <p className="text-xs text-slate-500">
-                            {getCategoryDescription(
-                              category
-                            ) ||
-                              'No description available'}
-                          </p>
+                              <button
+                                onClick={() =>
+                                  openEditPanel(
+                                    category
+                                  )
+                                }
+                                className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                              >
+                                <Edit3 size={15} />
+                              </button>
 
-                          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 text-xs">
-
-                            <div>
-
-                              <span className="text-[10px] uppercase font-semibold text-black block">
-                                Display Order
-                              </span>
-
-                              <span className="font-mono font-semibold text-black">
-                                {getDisplayOrder(
-                                  category
-                                )}
-                              </span>
-
+                              <button
+                                onClick={() =>
+                                  handleToggleStatus(
+                                    category
+                                  )
+                                }
+                                className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                              >
+                                <Power size={15} />
+                              </button>
                             </div>
-
-                            <div>
-
-                              <span className="text-[10px] uppercase font-semibold text-black block">
-                                Products
-                              </span>
-
-                              <span className="font-mono font-semibold text-emerald-700">
-                                {getProductsCount(
-                                  category
-                                )}
-                              </span>
-
-                            </div>
-
-                          </div>
-
-                          <div className="flex justify-end gap-1 pt-2">
-
-                            <button
-                              onClick={() =>
-                                setSelectedCategory(
-                                  category
-                                )
-                              }
-                              className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
-                            >
-                              <Eye size={15} />
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                openEditPanel(
-                                  category
-                                )
-                              }
-                              className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
-                            >
-                              <Edit3 size={15} />
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleToggleStatus(
-                                  category
-                                )
-                              }
-                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
-                            >
-                              <Power size={15} />
-                            </button>
-
-                          </div>
-
-                        </motion.div>
-                      );
-                    }
-                  )
-                ) : (
-                  <div className="py-10 text-center">
-
-                    <FolderTree
-                      size={35}
-                      className="mx-auto text-slate-300 mb-3"
-                    />
-
-                    <p className="text-xs font-semibold text-slate-400">
-                      No categories found.
-                    </p>
-
-                  </div>
-                )}
-
-              </div>
-
+                          </td>
+                        </tr>
+                      )
+                    )
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="py-12 text-center text-xs font-semibold text-slate-400"
+                      >
+                        No categories found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
 
+            <div className="md:hidden space-y-3">
+              {loading ? (
+                <div className="py-10 text-center text-xs font-semibold text-slate-400">
+                  Loading categories...
+                </div>
+              ) : filteredCategories.length > 0 ? (
+                filteredCategories.map(
+                  (category) => (
+                    <div
+                      key={category.id}
+                      className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-11 h-11 rounded-xl overflow-hidden bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                            {category.imageUrl ? (
+                              <img
+                                src={
+                                  category.imageUrl
+                                }
+                                alt={
+                                  category.name
+                                }
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <FolderTree
+                                size={18}
+                                className="text-emerald-600"
+                              />
+                            )}
+                          </div>
+
+                          <h4 className="font-semibold text-sm text-black truncate">
+                            {category.name}
+                          </h4>
+                        </div>
+
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border ${
+                            category.active
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-slate-100 text-slate-600 border-slate-200"
+                          }`}
+                        >
+                          {category.active
+                            ? "Active"
+                            : "Inactive"}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-slate-500 mt-3">
+                        {category.description ||
+                          "No description available"}
+                      </p>
+
+                      <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-200">
+                        <span className="text-[10px] font-semibold text-slate-500">
+                          Display Order:{" "}
+                          {category.displayOrder}
+                        </span>
+
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() =>
+                              handleViewCategory(
+                                category
+                              )
+                            }
+                            className="p-2 text-slate-400 hover:text-emerald-700"
+                          >
+                            <Eye size={15} />
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              openEditPanel(
+                                category
+                              )
+                            }
+                            className="p-2 text-slate-400 hover:text-emerald-700"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleToggleStatus(
+                                category
+                              )
+                            }
+                            className="p-2 text-slate-400 hover:text-amber-600"
+                          >
+                            <Power size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )
+              ) : (
+                <div className="py-10 text-center text-xs font-semibold text-slate-400">
+                  No categories found.
+                </div>
+              )}
+            </div>
           </motion.div>
-
         </section>
-
       </main>
 
       <AnimatePresence>
-
         {selectedCategory && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
             onClick={() =>
               setSelectedCategory(null)
             }
           >
-
             <motion.div
               initial={{
                 opacity: 0,
                 scale: 0.95,
-                y: 10
               }}
               animate={{
                 opacity: 1,
                 scale: 1,
-                y: 0
-              }}
-              exit={{
-                opacity: 0,
-                scale: 0.95,
-                y: 10
               }}
               onClick={(e) =>
                 e.stopPropagation()
               }
-              className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-100 relative"
+              className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative"
             >
-
               <button
                 onClick={() =>
                   setSelectedCategory(null)
                 }
-                className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                className="absolute right-5 top-5 p-2 text-slate-400 hover:bg-slate-100 rounded-full"
               >
                 <X size={18} />
               </button>
 
-              <div className="flex items-center gap-3.5 mb-6">
-
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
-                  <FolderTree size={21} />
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                  {selectedCategory.imageUrl ? (
+                    <img
+                      src={
+                        selectedCategory.imageUrl
+                      }
+                      alt={
+                        selectedCategory.name
+                      }
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <FolderTree
+                      size={24}
+                      className="text-emerald-600"
+                    />
+                  )}
                 </div>
 
-                <div>
-
-                  <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase">
-                    {getCategoryId(
-                      selectedCategory
-                    )}
-                  </span>
-
-                  <h3 className="text-lg font-bold text-black">
-                    {getCategoryName(
-                      selectedCategory
-                    )}
-                  </h3>
-
-                </div>
-
+                <h3 className="text-lg font-bold text-black">
+                  {selectedCategory.name}
+                </h3>
               </div>
 
               <div className="space-y-3">
-
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/60 flex items-center justify-between">
-
-                  <div className="flex items-center gap-3">
-
-                    <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
-                      <Package size={16} />
-                    </div>
-
-                    <span className="text-xs font-semibold text-black">
-                      Assigned Products
-                    </span>
-
-                  </div>
-
-                  <span className="font-mono font-bold text-emerald-700 text-sm">
-                    {getProductsCount(
-                      selectedCategory
-                    )}
+                <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between">
+                  <span className="text-xs font-semibold">
+                    Display Order
                   </span>
 
+                  <span className="font-mono font-bold">
+                    {
+                      selectedCategory.displayOrder
+                    }
+                  </span>
                 </div>
 
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/60 flex items-center justify-between">
-
-                  <div className="flex items-center gap-3">
-
-                    <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
-                      <FolderTree size={16} />
-                    </div>
-
-                    <span className="text-xs font-semibold text-black">
-                      Display Order
-                    </span>
-
-                  </div>
-
-                  <span className="font-mono font-bold text-black text-sm">
-                    {getDisplayOrder(
-                      selectedCategory
-                    )}
+                <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between">
+                  <span className="text-xs font-semibold">
+                    Status
                   </span>
 
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${
+                      selectedCategory.active
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {selectedCategory.active
+                      ? "Active"
+                      : "Inactive"}
+                  </span>
                 </div>
-
               </div>
 
               <div className="mt-5">
-
-                <span className="text-[10px] font-bold text-black uppercase tracking-wider block mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider">
                   Description
                 </span>
 
-                <p className="text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-2xl p-4 leading-relaxed">
-                  {getCategoryDescription(
-                    selectedCategory
-                  ) ||
-                    'No description available'}
+                <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-2xl p-4 mt-1.5">
+                  {selectedCategory.description ||
+                    "No description available"}
                 </p>
-
               </div>
-
-              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-
-                <span className="text-[10px] font-bold text-black uppercase tracking-wider">
-                  Status
-                </span>
-
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${
-                    getCategoryStatus(
-                      selectedCategory
-                    ) === 'Active'
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-slate-100 text-slate-600 border-slate-200'
-                  }`}
-                >
-
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      getCategoryStatus(
-                        selectedCategory
-                      ) === 'Active'
-                        ? 'bg-emerald-500'
-                        : 'bg-slate-400'
-                    }`}
-                  />
-
-                  {getCategoryStatus(
-                    selectedCategory
-                  )}
-
-                </span>
-
-              </div>
-
             </motion.div>
-
           </div>
         )}
-
       </AnimatePresence>
 
       <AnimatePresence>
-
         {isPanelOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
-            onClick={() => {
-              if (!saving) {
-                setIsPanelOpen(false);
-                setEditingCategory(null);
-                setIsStatusOpen(false);
-              }
-            }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
+            onClick={closePanel}
           >
-
             <motion.div
               initial={{
                 opacity: 0,
                 scale: 0.95,
-                y: 10
+                y: 10,
               }}
               animate={{
                 opacity: 1,
                 scale: 1,
-                y: 0
+                y: 0,
               }}
               exit={{
                 opacity: 0,
                 scale: 0.95,
-                y: 10
+                y: 10,
               }}
               onClick={(e) =>
                 e.stopPropagation()
               }
-              className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto overflow-x-visible"
+              className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto"
             >
-
               <button
                 type="button"
-                onClick={() => {
-                  setIsPanelOpen(false);
-                  setEditingCategory(null);
-                  setIsStatusOpen(false);
-                }}
+                onClick={closePanel}
                 disabled={saving}
-                className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50"
+                className="absolute right-5 top-5 p-2 text-slate-400 hover:bg-slate-100 rounded-full"
               >
                 <X size={18} />
               </button>
 
               <div className="flex items-center gap-3.5 mb-6">
-
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
-
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl flex items-center justify-center">
                   {editingCategory ? (
                     <Edit3 size={20} />
                   ) : (
                     <Plus size={20} />
                   )}
-
                 </div>
 
                 <div>
-
-                  <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">
                     Category Management
                   </span>
 
                   <h3 className="text-lg font-bold text-black">
                     {editingCategory
-                      ? 'Update Category'
-                      : 'Create Category'}
+                      ? "Update Category"
+                      : "Create Category"}
                   </h3>
-
                 </div>
-
               </div>
 
               <form
                 onSubmit={handleSave}
                 className="space-y-4"
               >
-
                 <div>
-
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
                     Category Name
                   </label>
@@ -1920,62 +1160,109 @@ export default function Categories() {
                   <input
                     required
                     type="text"
-                    placeholder="e.g. Vegetables"
-                    value={
-                      formData.name
-                    }
+                    value={formData.name}
                     onChange={(e) =>
-                      setFormData(
-                        (prev) => ({
-                          ...prev,
-                          name:
-                            e.target
-                              .value,
-                          slug:
-                            e.target.value
-                              .toLowerCase()
-                              .trim()
-                              .replace(
-                                /\s+/g,
-                                '-'
-                              )
-                        })
-                      )
+                      setFormData((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500"
                   />
-
                 </div>
 
                 <div>
-
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                    Slug
+                    Description
                   </label>
 
-                  <input
-                    type="text"
-                    placeholder="vegetables"
-                    value={
-                      formData.slug
-                    }
+                  <textarea
+                    rows="4"
+                    value={formData.description}
                     onChange={(e) =>
-                      setFormData(
-                        (prev) => ({
-                          ...prev,
-                          slug:
-                            e.target
-                              .value
-                        })
-                      )
+                      setFormData((prev) => ({
+                        ...prev,
+                        description:
+                          e.target.value,
+                      }))
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-black focus:outline-none focus:border-emerald-500 resize-none"
                   />
-
                 </div>
 
                 <div>
+                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                    Category Image
+                  </label>
 
+                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 bg-slate-50">
+                    <label className="flex flex-col items-center justify-center cursor-pointer py-5">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 mb-3">
+                        {formData.imageFile ? (
+                          <ImageIcon size={22} />
+                        ) : (
+                          <Upload size={22} />
+                        )}
+                      </div>
+
+                      <span className="text-xs font-bold text-slate-700">
+                        {formData.imageFile
+                          ? "Change Image"
+                          : "Upload Category Image"}
+                      </span>
+
+                      <span className="text-[10px] text-slate-400 mt-1">
+                        PNG, JPG, JPEG or WEBP
+                      </span>
+
+                      <span className="text-[10px] text-slate-400">
+                        Maximum size 5MB
+                      </span>
+
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  {formData.imageUrl && (
+                    <div className="relative mt-3">
+                      <div className="w-full h-44 rounded-2xl overflow-hidden border border-slate-200 bg-white">
+                        <img
+                          src={
+                            formData.imageUrl
+                          }
+                          alt={
+                            formData.name ||
+                            "Category preview"
+                          }
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md text-rose-500 hover:bg-rose-50"
+                      >
+                        <X size={15} />
+                      </button>
+
+                      {formData.imageFile && (
+                        <div className="mt-2 px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-xl">
+                          <p className="text-[10px] font-semibold text-emerald-700 truncate">
+                            {formData.imageFile.name}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
                     Display Order
                   </label>
@@ -1983,56 +1270,19 @@ export default function Categories() {
                   <input
                     type="number"
                     min="1"
-                    value={
-                      formData.displayOrder
-                    }
+                    value={formData.displayOrder}
                     onChange={(e) =>
-                      setFormData(
-                        (prev) => ({
-                          ...prev,
-                          displayOrder:
-                            e.target
-                              .value
-                        })
-                      )
+                      setFormData((prev) => ({
+                        ...prev,
+                        displayOrder:
+                          e.target.value,
+                      }))
                     }
-                    onWheel={(e) =>
-                      e.currentTarget.blur()
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500"
                   />
-
-                </div>
-
-                <div>
-
-                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                    Image URL
-                  </label>
-
-                  <input
-                    type="text"
-                    placeholder="https://example.com/image.png"
-                    value={
-                      formData.imageUrl
-                    }
-                    onChange={(e) =>
-                      setFormData(
-                        (prev) => ({
-                          ...prev,
-                          imageUrl:
-                            e.target
-                              .value
-                        })
-                      )
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all"
-                  />
-
                 </div>
 
                 <div className="relative">
-
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
                     Status
                   </label>
@@ -2044,103 +1294,66 @@ export default function Categories() {
                         (prev) => !prev
                       )
                     }
-                    disabled={saving}
-                    className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold text-black flex items-center justify-between transition-all ${
-                      isStatusOpen
-                        ? 'border-emerald-500 bg-white ring-2 ring-emerald-100'
-                        : 'border-slate-200 hover:border-emerald-300 hover:bg-white'
-                    } disabled:opacity-60`}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold flex items-center justify-between"
                   >
-
                     <span className="flex items-center gap-2">
-
                       <span
                         className={`w-2 h-2 rounded-full ${
-                          formData.status ===
-                          'Active'
-                            ? 'bg-emerald-500'
-                            : 'bg-slate-400'
+                          formData.active
+                            ? "bg-emerald-500"
+                            : "bg-slate-400"
                         }`}
                       />
 
-                      <span>
-                        {formData.status}
-                      </span>
-
+                      {formData.active
+                        ? "Active"
+                        : "Inactive"}
                     </span>
 
                     <ChevronDown
                       size={15}
-                      className={`text-emerald-600 transition-transform duration-200 ${
+                      className={
                         isStatusOpen
-                          ? 'rotate-180'
-                          : ''
-                      }`}
+                          ? "rotate-180"
+                          : ""
+                      }
                     />
-
                   </button>
 
                   <AnimatePresence>
-
                     {isStatusOpen && (
                       <motion.div
                         initial={{
                           opacity: 0,
                           y: -5,
-                          scale: 0.98
                         }}
                         animate={{
                           opacity: 1,
                           y: 0,
-                          scale: 1
                         }}
                         exit={{
                           opacity: 0,
                           y: -5,
-                          scale: 0.98
                         }}
-                        transition={{
-                          duration: 0.15
-                        }}
-                        className="absolute z-[100] left-0 right-0 mt-1.5 bg-white border border-emerald-100 rounded-xl shadow-xl shadow-emerald-900/10 overflow-hidden"
+                        className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden"
                       >
-
                         <button
                           type="button"
                           onClick={() => {
                             setFormData(
                               (prev) => ({
                                 ...prev,
-                                status:
-                                  'Active'
+                                active: true,
                               })
                             );
                             setIsStatusOpen(
                               false
                             );
                           }}
-                          className={`w-full px-3.5 py-2.5 flex items-center gap-2.5 text-left text-xs font-bold transition-all ${
-                            formData.status ===
-                            'Active'
-                              ? 'bg-emerald-50 text-emerald-700'
-                              : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'
-                          }`}
+                          className="w-full px-3.5 py-2.5 text-left text-xs font-bold hover:bg-emerald-50 flex items-center gap-2"
                         >
-
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-
-                          <span className="flex-1">
-                            Active
-                          </span>
-
-                          {formData.status ===
-                            'Active' && (
-                            <CheckCircle2
-                              size={14}
-                              className="text-emerald-600"
-                            />
-                          )}
-
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          Active
                         </button>
 
                         <button
@@ -2149,89 +1362,29 @@ export default function Categories() {
                             setFormData(
                               (prev) => ({
                                 ...prev,
-                                status:
-                                  'Inactive'
+                                active: false,
                               })
                             );
                             setIsStatusOpen(
                               false
                             );
                           }}
-                          className={`w-full px-3.5 py-2.5 flex items-center gap-2.5 text-left text-xs font-bold transition-all ${
-                            formData.status ===
-                            'Inactive'
-                              ? 'bg-slate-100 text-slate-700'
-                              : 'text-slate-700 hover:bg-slate-50 hover:text-slate-800'
-                          }`}
+                          className="w-full px-3.5 py-2.5 text-left text-xs font-bold hover:bg-slate-50 flex items-center gap-2"
                         >
-
-                          <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
-
-                          <span className="flex-1">
-                            Inactive
-                          </span>
-
-                          {formData.status ===
-                            'Inactive' && (
-                            <CheckCircle2
-                              size={14}
-                              className="text-slate-500"
-                            />
-                          )}
-
+                          <span className="w-2 h-2 rounded-full bg-slate-400" />
+                          Inactive
                         </button>
-
                       </motion.div>
                     )}
-
                   </AnimatePresence>
-
-                </div>
-
-                <div>
-
-                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                    Description
-                  </label>
-
-                  <textarea
-                    rows="4"
-                    placeholder="Provide short category information..."
-                    value={
-                      formData.description
-                    }
-                    onChange={(e) =>
-                      setFormData(
-                        (prev) => ({
-                          ...prev,
-                          description:
-                            e.target
-                              .value
-                        })
-                      )
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100 transition-all resize-none"
-                  />
-
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsPanelOpen(
-                        false
-                      );
-                      setEditingCategory(
-                        null
-                      );
-                      setIsStatusOpen(
-                        false
-                      );
-                    }}
+                    onClick={closePanel}
                     disabled={saving}
-                    className="px-4 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                    className="px-4 py-2.5 bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold"
                   >
                     Cancel
                   </button>
@@ -2242,9 +1395,8 @@ export default function Categories() {
                       saving ||
                       !formData.name.trim()
                     }
-                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm transition-colors"
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl flex items-center gap-1.5 text-xs font-bold"
                   >
-
                     {saving ? (
                       <RefreshCw
                         size={14}
@@ -2255,24 +1407,17 @@ export default function Categories() {
                     )}
 
                     {saving
-                      ? 'Saving...'
+                      ? "Saving..."
                       : editingCategory
-                      ? 'Update Category'
-                      : 'Create Category'}
-
+                        ? "Update Category"
+                        : "Create Category"}
                   </button>
-
                 </div>
-
               </form>
-
             </motion.div>
-
           </div>
         )}
-
       </AnimatePresence>
-
     </div>
   );
 }

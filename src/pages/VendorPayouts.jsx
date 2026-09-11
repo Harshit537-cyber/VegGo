@@ -1,503 +1,1004 @@
-import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import { 
-  Calendar, 
-  RefreshCw, 
-  Search, 
-  Filter, 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  X, 
-  Save, 
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Package,
-  Sparkles
-} from 'lucide-react';
 
-function AnimatedValue({ value }) {
-  const [displayValue, setDisplayValue] = useState('');
+import React, { useEffect, useMemo, useState } from "react";
+import Sidebar from "../components/Sidebar";
+
+import {
+  RefreshCw,
+  Search,
+  Filter,
+  CheckCircle2,
+  XCircle,
+  Clock3,
+  Wallet,
+  IndianRupee,
+  Eye,
+  X,
+  Calendar,
+  Store,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+} from "lucide-react";
+
+import { motion, AnimatePresence } from "framer-motion";
+
+import {
+  getPendingPayouts,
+  approvePayout,
+  rejectPayout,
+} from "../Api/payouts/vendorPayouts";
+
+const VendorPayouts = () => {
+  const [currentTab, setCurrentTab] = useState("vendor-payouts");
+
+  const [payouts, setPayouts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
+
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const [selectedPayout, setSelectedPayout] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
+
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState("");
+
+  const loadPayouts = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await getPendingPayouts(page, 20);
+      const root = response?.data || response;
+
+      let list = [];
+
+      if (Array.isArray(root)) {
+        list = root;
+      } else if (Array.isArray(root?.content)) {
+        list = root.content;
+      } else if (Array.isArray(root?.items)) {
+        list = root.items;
+      } else if (Array.isArray(root?.payouts)) {
+        list = root.payouts;
+      } else if (Array.isArray(root?.data)) {
+        list = root.data;
+      }
+
+      setPayouts(list);
+
+      const pages =
+        root?.totalPages ??
+        root?.pagination?.totalPages ??
+        root?.data?.totalPages ??
+        1;
+
+      setTotalPages(Number(pages) || 1);
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to load vendor payouts"
+      );
+      setPayouts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const match = value.match(/([₹\d,.]+)\s*(.*)/);
-    if (!match) {
-      setDisplayValue(value);
-      return;
-    }
+    loadPayouts();
+  }, [page]);
 
-    const isRupee = value.startsWith('₹');
-    const rawNumberStr = match[1].replace(/[₹,]/g, '');
-    const targetNum = parseFloat(rawNumberStr);
-    const suffix = match[2] || '';
-    const isDecimal = rawNumberStr.includes('.');
-    const hasComma = match[1].includes(',');
+  const getId = (item) =>
+    item?.id || item?.payoutRequestId || item?._id || "";
 
-    const duration = 1200;
-    const startTime = performance.now();
-    let animationFrameId;
+  const getAmount = (item) =>
+    Number(
+      item?.amount ??
+        item?.payoutAmount ??
+        item?.requestedAmount ??
+        0
+    );
 
-    const updateCount = (timestamp) => {
-      const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      const currentVal = easeProgress * targetNum;
+  const getStatus = (item) =>
+    String(item?.status || "PENDING").toUpperCase();
 
-      let formatted;
-      if (isDecimal) {
-        formatted = currentVal.toFixed(2);
-      } else {
-        formatted = Math.floor(currentVal).toString();
-      }
+  const getVendorName = (item) =>
+    item?.vendorName ||
+    item?.vendor?.name ||
+    item?.vendor?.businessName ||
+    "Unknown Vendor";
 
-      if (hasComma) {
-        const parts = formatted.split('.');
-        parts[0] = parseInt(parts[0], 10).toLocaleString('en-IN');
-        formatted = parts.join('.');
-      }
+  const getVendorEmail = (item) =>
+    item?.vendorEmail ||
+    item?.vendor?.email ||
+    "-";
 
-      setDisplayValue(`${isRupee ? '₹' : ''}${formatted}${suffix ? ' ' + suffix : ''}`);
+  const getRequestedAt = (item) =>
+    item?.createdAt ||
+    item?.requestedAt ||
+    item?.createdDate ||
+    item?.date ||
+    null;
 
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(updateCount);
-      } else {
-        setDisplayValue(value);
-      }
-    };
+  const formatAmount = (amount) =>
+    `₹${Number(amount || 0).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 
-    animationFrameId = requestAnimationFrame(updateCount);
+  const formatDate = (value) => {
+    if (!value) return "-";
 
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [value]);
+    const date = new Date(value);
 
-  return <span>{displayValue}</span>;
-}
+    if (Number.isNaN(date.getTime())) return "-";
 
-export default function Products() {
-  const [currentTab, setCurrentTab] = useState('products');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [stockFilter, setStockFilter] = useState('All');
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-  
-  const [products, setProducts] = useState([
-    { id: 'PRD-801', name: 'Organic Spinach', category: 'Leafy Greens', price: '₹120.00', stock: 120, unit: 'kg', status: 'In Stock', sku: 'VG-SPN-01' },
-    { id: 'PRD-802', name: 'Fresh Broccoli', category: 'Root Vegetables', price: '₹180.00', stock: 85, unit: 'kg', status: 'In Stock', sku: 'VG-BRC-02' },
-    { id: 'PRD-803', name: 'Sweet Potatoes', category: 'Root Vegetables', price: '₹60.00', stock: 340, unit: 'kg', status: 'In Stock', sku: 'VG-SPT-03' },
-    { id: 'PRD-804', name: 'Organic Strawberries', category: 'Berries', price: '₹250.00', stock: 8, unit: 'box', status: 'Low Stock', sku: 'VG-STR-04' },
-    { id: 'PRD-805', name: 'Button Mushrooms', category: 'Mushrooms & Fungi', price: '₹150.00', stock: 0, unit: 'kg', status: 'Out of Stock', sku: 'VG-MSH-05' },
-    { id: 'PRD-806', name: 'Fresh Basil Leaves', category: 'Exotic Herbs', price: '₹40.00', stock: 42, unit: 'bunch', status: 'In Stock', sku: 'VG-BSL-06' }
-  ]);
-
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
-  
-  const [formData, setFormData] = useState({
-    id: '',
-    name: '',
-    category: 'Leafy Greens',
-    price: '',
-    stock: '',
-    unit: 'kg',
-    status: 'In Stock',
-    sku: ''
-  });
-
-  const openAddPanel = () => {
-    setEditingProduct(null);
-    setFormData({
-      id: `PRD-${Math.floor(800 + Math.random() * 199)}`,
-      name: '',
-      category: 'Leafy Greens',
-      price: '',
-      stock: '',
-      unit: 'kg',
-      status: 'In Stock',
-      sku: ''
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
-    setIsPanelOpen(true);
   };
 
-  const openEditPanel = (product) => {
-    setEditingProduct(product.id);
-    const cleanedPrice = product.price.replace(/[₹,]/g, '');
-    setFormData({ ...product, price: cleanedPrice });
-    setIsPanelOpen(true);
-  };
+  const filteredPayouts = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-  const handleDelete = (id) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
-    if (editingProduct === id) {
-      setIsPanelOpen(false);
-    }
-  };
+    return payouts.filter((item) => {
+      const vendor = getVendorName(item).toLowerCase();
+      const email = getVendorEmail(item).toLowerCase();
+      const id = getId(item).toLowerCase();
+      const status = getStatus(item);
 
-  const handleSave = (e) => {
-    e.preventDefault();
-    const stockVal = parseInt(formData.stock) || 0;
-    const priceVal = parseFloat(formData.price) || 0;
-    let computedStatus = 'In Stock';
-    if (stockVal === 0) {
-      computedStatus = 'Out of Stock';
-    } else if (stockVal < 15) {
-      computedStatus = 'Low Stock';
-    }
+      const matchesSearch =
+        !query ||
+        vendor.includes(query) ||
+        email.includes(query) ||
+        id.includes(query) ||
+        status.toLowerCase().includes(query);
 
-    const payload = { 
-      ...formData, 
-      price: `₹${priceVal.toFixed(2)}`,
-      stock: stockVal, 
-      status: computedStatus 
-    };
+      const matchesStatus =
+        statusFilter === "ALL" || status === statusFilter;
 
-    if (editingProduct) {
-      setProducts(prev => prev.map(p => p.id === editingProduct ? payload : p));
-    } else {
-      setProducts(prev => [payload, ...prev]);
-    }
-    setIsPanelOpen(false);
-  };
+      return matchesSearch && matchesStatus;
+    });
+  }, [payouts, search, statusFilter]);
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setRefreshKey((prev) => prev + 1);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
-  };
+  const totalAmount = payouts.reduce(
+    (sum, item) => sum + getAmount(item),
+    0
+  );
 
-  const filteredProducts = products.filter((prod) => {
-    const matchesSearch = prod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          prod.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          prod.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStock = stockFilter === 'All' || prod.status === stockFilter;
-    return matchesSearch && matchesStock;
+  const pendingCount = payouts.filter(
+    (item) => getStatus(item) === "PENDING"
+  ).length;
+
+  const approvedCount = payouts.filter(
+    (item) => getStatus(item) === "APPROVED"
+  ).length;
+
+  const rejectedCount = payouts.filter(
+    (item) => getStatus(item) === "REJECTED"
+  ).length;
+
+  const currentDate = new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
   });
 
-  const productStats = [
-    {
-      label: 'Total SKUs',
-      value: `${products.length} Products`,
-      bg: 'bg-slate-900/60 border-emerald-500/20',
-      iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      icon: Package
-    },
-    {
-      label: 'In Stock',
-      value: `${products.filter(p => p.status === 'In Stock').length} Active`,
-      bg: 'bg-slate-900/60 border-teal-500/20',
-      iconBg: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
-      icon: CheckCircle2
-    },
-    {
-      label: 'Low Stock Warnings',
-      value: `${products.filter(p => p.status === 'Low Stock').length} Alerted`,
-      bg: 'bg-slate-900/60 border-amber-500/20',
-      iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-      icon: AlertTriangle
-    },
-    {
-      label: 'Out of Stock',
-      value: `${products.filter(p => p.status === 'Out of Stock').length} Depleted`,
-      bg: 'bg-slate-900/60 border-rose-500/20',
-      iconBg: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-      icon: XCircle
+  const getStatusClasses = (status) => {
+    if (status === "APPROVED") {
+      return "bg-emerald-50 text-emerald-700 border-emerald-100";
     }
-  ];
+
+    if (status === "REJECTED") {
+      return "bg-rose-50 text-rose-700 border-rose-100";
+    }
+
+    return "bg-amber-50 text-amber-700 border-amber-100";
+  };
+
+  const getStatusIcon = (status) => {
+    if (status === "APPROVED") return CheckCircle2;
+    if (status === "REJECTED") return XCircle;
+    return Clock3;
+  };
+
+  const handleApprove = async (id) => {
+    if (!id) return;
+
+    try {
+      setActionLoading(id);
+
+      await approvePayout(id);
+
+      setPayouts((prev) =>
+        prev.filter((item) => getId(item) !== id)
+      );
+
+      setSelectedPayout(null);
+      setShowDetails(false);
+    } catch (err) {
+      alert(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to approve payout"
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async (id) => {
+    if (!id) return;
+
+    try {
+      setActionLoading(id);
+
+      await rejectPayout(id);
+
+      setPayouts((prev) =>
+        prev.filter((item) => getId(item) !== id)
+      );
+
+      setSelectedPayout(null);
+      setShowDetails(false);
+    } catch (err) {
+      alert(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to reject payout"
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const openDetails = (item) => {
+    setSelectedPayout(item);
+    setShowDetails(true);
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans antialiased selection:bg-emerald-500 selection:text-slate-950">
-      <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+      <Sidebar
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+      />
 
-      <main className="flex-1 p-6 md:p-8 lg:p-10 overflow-y-auto max-h-screen space-y-8">
-        <header className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 md:p-8 rounded-[2rem] bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white shadow-2xl border border-emerald-800/40 overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:16px_24px] pointer-events-none" />
-          <div className="absolute top-0 right-1/4 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="space-y-3 z-10 flex-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[10px] uppercase font-black tracking-widest text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-700/50 flex items-center gap-1.5">
-                <Sparkles size={12} /> Inventory Control
-              </span>
-              
-              <div className="flex items-center gap-2 bg-rose-950/60 border border-rose-500/30 px-3 py-1 rounded-full text-rose-300">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+      <main className="flex-1 min-h-screen w-full min-w-0 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 md:max-h-screen md:overflow-y-auto">
+        <motion.header
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900"
+        >
+          <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="absolute -left-16 -bottom-20 w-56 h-56 rounded-full bg-teal-400/10 blur-3xl" />
+
+          <div className="relative z-10 p-5 sm:p-6 lg:p-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+            <div>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-900 border border-emerald-800 text-[10px] font-bold uppercase tracking-widest text-emerald-100">
+                  <Wallet size={12} />
+                  Payout Control
                 </span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-white">LIVE ADMIN CATALOG</span>
-              </div>
-            </div>
-            <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
-              Product Catalog
-            </h1>
-          </div>
-          
-          <div className="flex items-center gap-3 z-10">
-            <button 
-              onClick={openAddPanel}
-              className="px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold rounded-2xl flex items-center gap-2 text-xs shadow-lg shadow-emerald-500/20 transition-all duration-300 active:scale-95"
-            >
-              <Plus size={16} />
-              Add Product
-            </button>
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl px-4 py-3 flex items-center gap-2 text-xs font-bold text-slate-300">
-              <Calendar size={15} className="text-emerald-400" />
-              <span>Oct 12, 2026</span>
-            </div>
-            <button 
-              onClick={handleRefresh}
-              className="p-3 bg-slate-900/80 border border-slate-800 rounded-2xl hover:bg-slate-800 transition-all duration-300 active:scale-95 text-slate-300 group"
-            >
-              <RefreshCw size={16} className={`text-emerald-400 transition-transform duration-700 ${isRefreshing ? 'rotate-180' : 'group-hover:rotate-45'}`} />
-            </button>
-          </div>
-        </header>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {productStats.map((stat, idx) => {
-            const IconComponent = stat.icon;
-            return (
-              <div 
-                key={idx} 
-                className={`${stat.bg} p-6 rounded-3xl border shadow-lg hover:border-slate-700 transition-all duration-300 flex items-center justify-between group`}
-              >
-                <div>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    {stat.label}
-                  </p>
-                  <h3 className="text-2xl font-black text-white mt-1 tracking-tight">
-                    <AnimatedValue value={stat.value} key={refreshKey} />
-                  </h3>
-                </div>
-                <div className={`${stat.iconBg} p-3.5 rounded-2xl border`}>
-                  <IconComponent size={20} />
-                </div>
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-950/80 border border-rose-900 text-[10px] font-bold uppercase tracking-widest text-rose-100">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  LIVE ADMIN VEG GO
+                </span>
               </div>
-            );
-          })}
-        </section>
 
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
-          <section className="flex-1 bg-slate-900/60 rounded-3xl border border-slate-800 p-6 md:p-8 w-full shadow-2xl">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  type="text"
-                  placeholder="Search by product name, SKU or category..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-xs font-semibold focus:outline-none focus:border-emerald-500 text-white placeholder-slate-500 transition-all"
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
+                  Vendor Payouts
+                </h1>
+
+                <Sparkles
+                  size={19}
+                  className="text-emerald-300 opacity-0 group-hover:opacity-100 transition-opacity"
                 />
               </div>
-              <div className="flex items-center gap-3">
-                <Filter size={16} className="text-slate-400" />
-                <div className="flex gap-1 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
-                  {['All', 'In Stock', 'Low Stock', 'Out of Stock'].map((status) => (
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-900/80 border border-emerald-800 text-xs font-semibold text-emerald-100">
+                <Calendar size={14} />
+                {currentDate}
+              </div>
+
+              <button
+                type="button"
+                onClick={loadPayouts}
+                disabled={loading}
+                className="p-2.5 rounded-2xl bg-emerald-900 border border-emerald-800 text-emerald-100 hover:bg-emerald-800 transition disabled:opacity-50"
+              >
+                <RefreshCw
+                  size={16}
+                  className={loading ? "animate-spin" : ""}
+                />
+              </button>
+            </div>
+          </div>
+        </motion.header>
+
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, y: -5 }}
+              animate={{ opacity: 1, height: "auto", y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -5 }}
+              className="px-5 py-3.5 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-medium"
+            >
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <StatCard
+            label="Pending Requests"
+            value={pendingCount}
+            icon={Clock3}
+            iconClass="bg-amber-50 text-amber-700 border-amber-100"
+            status="Awaiting action"
+            statusClass="bg-amber-50 text-amber-700"
+            sideText="Requests"
+          />
+
+          <StatCard
+            label="Total Requested"
+            value={formatAmount(totalAmount)}
+            icon={IndianRupee}
+            iconClass="bg-emerald-50 text-emerald-700 border-emerald-100"
+            status="Current page"
+            statusClass="bg-emerald-50 text-emerald-700"
+            sideText="Amount"
+          />
+
+          <StatCard
+            label="Approved"
+            value={approvedCount}
+            icon={CheckCircle2}
+            iconClass="bg-emerald-50 text-emerald-700 border-emerald-100"
+            status="Processed"
+            statusClass="bg-emerald-50 text-emerald-700"
+            sideText="Payouts"
+          />
+
+          <StatCard
+            label="Rejected"
+            value={rejectedCount}
+            icon={XCircle}
+            iconClass="bg-rose-50 text-rose-700 border-rose-100"
+            status="Declined"
+            statusClass="bg-rose-50 text-rose-700"
+            sideText="Payouts"
+          />
+        </section>
+
+        <section className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                <Wallet size={18} />
+              </div>
+
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                  Vendor Payout Records
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Vendor payout transaction management directory
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative sm:w-72">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+
+                <input
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(0);
+                  }}
+                  placeholder="Search vendor, email or ID..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 text-xs outline-none focus:bg-white focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition"
+                />
+              </div>
+
+              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-0.5 overflow-x-auto">
+                <div className="px-2 text-slate-400">
+                  <Filter size={13} />
+                </div>
+
+                {["ALL", "PENDING", "APPROVED", "REJECTED"].map(
+                  (status) => (
                     <button
                       key={status}
-                      onClick={() => setStockFilter(status)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        stockFilter === status
-                          ? 'bg-emerald-500 text-slate-950 shadow-md'
-                          : 'text-slate-400 hover:text-white'
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter(status);
+                        setPage(0);
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition ${
+                        statusFilter === status
+                          ? "bg-white text-emerald-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
                       }`}
                     >
-                      {status}
+                      {status === "ALL"
+                        ? "All"
+                        : status.charAt(0) +
+                          status.slice(1).toLowerCase()}
                     </button>
-                  ))}
-                </div>
+                  )
+                )}
               </div>
             </div>
+          </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-800 text-[11px] uppercase font-bold tracking-widest text-slate-400">
-                    <th className="pb-4 pl-2">SKU</th>
-                    <th className="pb-4">Product Details</th>
-                    <th className="pb-4">Category</th>
-                    <th className="pb-4">Unit Rate</th>
-                    <th className="pb-4 text-center">Stock Volume</th>
-                    <th className="pb-4">Availability</th>
-                    <th className="pb-4 text-right pr-2">Actions</th>
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/80">
+                  <th className="py-3.5 px-4 text-[10px] font-black uppercase tracking-wider text-slate-500 rounded-l-xl">
+                    Vendor
+                  </th>
+                  <th className="py-3.5 px-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Payout ID
+                  </th>
+                  <th className="py-3.5 px-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Amount
+                  </th>
+                  <th className="py-3.5 px-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Status
+                  </th>
+                  <th className="py-3.5 px-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    Requested
+                  </th>
+                  <th className="py-3.5 px-4 text-[10px] font-black uppercase tracking-wider text-slate-500 text-right rounded-r-xl">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="6" className="py-14 text-center">
+                      <RefreshCw
+                        size={22}
+                        className="mx-auto animate-spin text-emerald-600"
+                      />
+                      <p className="mt-3 text-xs font-semibold text-slate-500">
+                        Loading payouts...
+                      </p>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {filteredProducts.map((prod) => (
-                    <tr key={prod.id} className="text-xs font-semibold text-slate-300 hover:bg-slate-800/40 transition-colors">
-                      <td className="py-4 pl-2 font-mono font-bold text-emerald-400">{prod.sku}</td>
-                      <td className="py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-slate-700/60 flex items-center justify-center text-emerald-400 font-bold">
-                            <Package size={18} />
-                          </div>
-                          <div>
-                            <span className="font-bold text-white block text-sm">{prod.name}</span>
-                            <span className="text-[10px] text-slate-500 font-normal">{prod.id}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 text-slate-400">{prod.category}</td>
-                      <td className="py-4 font-bold text-white">{prod.price} <span className="text-[10px] text-slate-500 font-normal">/ {prod.unit}</span></td>
-                      <td className="py-4 text-center font-bold text-white">
-                        {prod.stock} <span className="text-[10px] text-slate-500 font-normal">{prod.unit}</span>
-                      </td>
-                      <td className="py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold border ${
-                          prod.status === 'In Stock' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                          prod.status === 'Low Stock' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                          'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                        }`}>
-                          {prod.status === 'In Stock' && <CheckCircle2 size={12} />}
-                          {prod.status === 'Low Stock' && <AlertTriangle size={12} />}
-                          {prod.status === 'Out of Stock' && <XCircle size={12} />}
-                          {prod.status}
-                        </span>
-                      </td>
-                      <td className="py-4 text-right pr-2">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button 
-                            onClick={() => openEditPanel(prod)}
-                            className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-emerald-400 transition-colors"
-                          >
-                            <Edit3 size={15} />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(prod.id)}
-                            className="p-2 hover:bg-rose-500/10 rounded-xl text-slate-400 hover:text-rose-400 transition-colors"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                ) : filteredPayouts.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="py-14 text-center">
+                      <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                        <Wallet size={20} />
+                      </div>
+                      <p className="mt-3 text-sm font-bold text-slate-700">
+                        No payout records found
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Try changing the search or status filter.
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredPayouts.map((item, index) => {
+                    const id = getId(item);
+                    const status = getStatus(item);
+                    const StatusIcon = getStatusIcon(status);
 
-          {isPanelOpen && (
-            <aside className="w-full lg:w-96 bg-slate-900/90 rounded-3xl border border-slate-800 p-6 md:p-8 shrink-0 shadow-2xl backdrop-blur-md">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
-                <h3 className="text-base font-black text-white">
-                  {editingProduct ? 'Modify Product' : 'Add New Product'}
-                </h3>
-                <button 
-                  onClick={() => setIsPanelOpen(false)}
-                  className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-colors"
+                    return (
+                      <motion.tr
+                        key={id || index}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: index * 0.025 }}
+                        className="border-b border-slate-100 last:border-0 hover:bg-emerald-50/40 transition-colors"
+                      >
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center shrink-0">
+                              <Store size={17} />
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-800 truncate max-w-[190px]">
+                                {getVendorName(item)}
+                              </p>
+                              <p className="text-[10px] text-slate-400 truncate max-w-[190px] mt-0.5">
+                                {getVendorEmail(item)}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span className="inline-flex max-w-[170px] truncate px-2.5 py-1.5 rounded-lg bg-slate-100 text-[10px] font-bold text-slate-500">
+                            {id || "-"}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span className="text-sm font-black text-emerald-700">
+                            {formatAmount(getAmount(item))}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-[10px] font-bold ${getStatusClasses(
+                              status
+                            )}`}
+                          >
+                            <StatusIcon size={12} />
+                            {status}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 whitespace-nowrap">
+                            <Calendar size={12} />
+                            {formatDate(getRequestedAt(item))}
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openDetails(item)}
+                              className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50 transition"
+                              title="View details"
+                            >
+                              <Eye size={14} />
+                            </button>
+
+                            {status === "PENDING" && (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={actionLoading === id}
+                                  onClick={() => handleApprove(id)}
+                                  className="p-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-50"
+                                  title="Approve"
+                                >
+                                  <CheckCircle2 size={14} />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={actionLoading === id}
+                                  onClick={() => handleReject(id)}
+                                  className="p-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 hover:bg-rose-100 transition disabled:opacity-50"
+                                  title="Reject"
+                                >
+                                  <XCircle size={14} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="md:hidden space-y-3">
+            {loading ? (
+              <div className="py-12 text-center">
+                <RefreshCw
+                  size={22}
+                  className="mx-auto animate-spin text-emerald-600"
+                />
+                <p className="mt-3 text-xs font-semibold text-slate-500">
+                  Loading payouts...
+                </p>
+              </div>
+            ) : filteredPayouts.length === 0 ? (
+              <div className="py-12 text-center">
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                  <Wallet size={20} />
+                </div>
+                <p className="mt-3 text-sm font-bold text-slate-700">
+                  No payout records found
+                </p>
+              </div>
+            ) : (
+              filteredPayouts.map((item, index) => {
+                const id = getId(item);
+                const status = getStatus(item);
+                const StatusIcon = getStatusIcon(status);
+
+                return (
+                  <motion.div
+                    key={id || index}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.025 }}
+                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center shrink-0">
+                          <Store size={17} />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate">
+                            {getVendorName(item)}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                            {getVendorEmail(item)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="text-sm font-black text-emerald-700 whitespace-nowrap">
+                        {formatAmount(getAmount(item))}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2.5 rounded-xl bg-white border border-slate-100">
+                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400">
+                          Payout ID
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-600 truncate mt-1">
+                          {id || "-"}
+                        </p>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-white border border-slate-100">
+                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400">
+                          Requested
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-600 mt-1">
+                          {formatDate(getRequestedAt(item))}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-[10px] font-bold ${getStatusClasses(
+                          status
+                        )}`}
+                      >
+                        <StatusIcon size={12} />
+                        {status}
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openDetails(item)}
+                          className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-emerald-700 hover:border-emerald-200 transition"
+                        >
+                          <Eye size={14} />
+                        </button>
+
+                        {status === "PENDING" && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={actionLoading === id}
+                              onClick={() => handleApprove(id)}
+                              className="p-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-50"
+                            >
+                              <CheckCircle2 size={14} />
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={actionLoading === id}
+                              onClick={() => handleReject(id)}
+                              className="p-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 hover:bg-rose-100 transition disabled:opacity-50"
+                            >
+                              <XCircle size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )}
+          </div>
+
+          {!loading && payouts.length > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-5 pt-4 border-t border-slate-100">
+              <p className="text-xs font-semibold text-slate-500">
+                Showing{" "}
+                <span className="text-slate-800">
+                  {filteredPayouts.length}
+                </span>{" "}
+                of{" "}
+                <span className="text-slate-800">
+                  {payouts.length}
+                </span>{" "}
+                payouts
+              </p>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page === 0 || loading}
+                  onClick={() =>
+                    setPage((prev) => Math.max(prev - 1, 0))
+                  }
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-[10px] font-bold text-slate-600 hover:border-emerald-200 hover:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
                 >
-                  <X size={16} />
+                  <ChevronLeft size={13} />
+                  Previous
+                </button>
+
+                <span className="min-w-9 h-8 px-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-[10px] font-black flex items-center justify-center">
+                  {page + 1}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={page + 1 >= totalPages || loading}
+                  onClick={() =>
+                    setPage((prev) =>
+                      Math.min(prev + 1, totalPages - 1)
+                    )
+                  }
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-[10px] font-bold text-slate-600 hover:border-emerald-200 hover:text-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  Next
+                  <ChevronRight size={13} />
                 </button>
               </div>
+            </div>
+          )}
+        </section>
+      </main>
 
-              <form onSubmit={handleSave} className="space-y-4 text-xs">
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-slate-400 mb-1.5 text-[10px]">Product Title</label>
-                  <input
-                    required
-                    type="text"
-                    placeholder="e.g. Crisp Romaine Lettuce"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl font-semibold text-white focus:outline-none focus:border-emerald-500 placeholder-slate-600"
-                  />
-                </div>
+      <AnimatePresence>
+        {showDetails && selectedPayout && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowDetails(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
+            >
+              <div className="p-5 sm:p-6 bg-emerald-950 text-white relative overflow-hidden">
+                <div className="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-emerald-500/10 blur-2xl" />
 
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-slate-400 mb-1.5 text-[10px]">Stock Keeping Unit (SKU)</label>
-                  <input
-                    required
-                    type="text"
-                    placeholder="VG-LTC-09"
-                    value={formData.sku}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl font-mono font-bold text-emerald-400 focus:outline-none focus:border-emerald-500 placeholder-slate-600"
-                  />
-                </div>
+                <div className="relative flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-emerald-900 border border-emerald-800">
+                      <Wallet size={18} />
+                    </div>
 
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-slate-400 mb-1.5 text-[10px]">Taxonomy Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl font-bold text-white focus:outline-none focus:border-emerald-500"
-                  >
-                    <option value="Leafy Greens">Leafy Greens</option>
-                    <option value="Root Vegetables">Root Vegetables</option>
-                    <option value="Citrus Fruits">Citrus Fruits</option>
-                    <option value="Berries">Berries</option>
-                    <option value="Mushrooms & Fungi">Mushrooms & Fungi</option>
-                    <option value="Exotic Herbs">Exotic Herbs</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold uppercase tracking-wider text-slate-400 mb-1.5 text-[10px]">Unit Rate (₹)</label>
-                    <input
-                      required
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={formData.price}
-                      onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl font-semibold text-white focus:outline-none focus:border-emerald-500 placeholder-slate-600"
-                    />
+                    <div>
+                      <h3 className="text-lg font-black">
+                        Payout Details
+                      </h3>
+                      <p className="text-[10px] text-emerald-200 mt-0.5">
+                        Vendor payout request
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block font-bold uppercase tracking-wider text-slate-400 mb-1.5 text-[10px]">Unit Metric</label>
-                    <select
-                      value={formData.unit}
-                      onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl font-bold text-white focus:outline-none focus:border-emerald-500"
-                    >
-                      <option value="kg">kg</option>
-                      <option value="bunch">bunch</option>
-                      <option value="box">box</option>
-                      <option value="pack">pack</option>
-                    </select>
-                  </div>
-                </div>
 
-                <div>
-                  <label className="block font-bold uppercase tracking-wider text-slate-400 mb-1.5 text-[10px]">In-Stock Quantity</label>
-                  <input
-                    required
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={formData.stock}
-                    onChange={(e) => setFormData(prev => ({ ...prev, stock: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl font-semibold text-white focus:outline-none focus:border-emerald-500 placeholder-slate-600"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
                   <button
                     type="button"
-                    onClick={() => setIsPanelOpen(false)}
-                    className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-colors"
+                    onClick={() => setShowDetails(false)}
+                    className="p-2 rounded-xl bg-emerald-900 border border-emerald-800 text-emerald-100 hover:bg-emerald-800 transition"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl flex items-center gap-1.5 font-bold shadow-lg shadow-emerald-500/20 transition-colors"
-                  >
-                    <Save size={14} />
-                    Save Product
+                    <X size={16} />
                   </button>
                 </div>
-              </form>
-            </aside>
-          )}
-        </div>
-      </main>
+              </div>
+
+              <div className="p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-emerald-50 border border-emerald-100">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-600">
+                      Requested Amount
+                    </p>
+                    <p className="text-2xl font-black text-emerald-800 mt-1">
+                      {formatAmount(getAmount(selectedPayout))}
+                    </p>
+                  </div>
+
+                  <IndianRupee
+                    size={25}
+                    className="text-emerald-600"
+                  />
+                </div>
+
+                <DetailRow
+                  label="Vendor"
+                  value={getVendorName(selectedPayout)}
+                  icon={Store}
+                />
+
+                <DetailRow
+                  label="Email"
+                  value={getVendorEmail(selectedPayout)}
+                  icon={Wallet}
+                />
+
+                <DetailRow
+                  label="Payout ID"
+                  value={getId(selectedPayout) || "-"}
+                  icon={Wallet}
+                />
+
+                <DetailRow
+                  label="Requested At"
+                  value={formatDate(
+                    getRequestedAt(selectedPayout)
+                  )}
+                  icon={Calendar}
+                />
+
+                <div className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200">
+                  <span className="text-xs font-bold text-slate-500">
+                    Status
+                  </span>
+
+                  {(() => {
+                    const status = getStatus(selectedPayout);
+                    const StatusIcon = getStatusIcon(status);
+
+                    return (
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-[10px] font-bold ${getStatusClasses(
+                          status
+                        )}`}
+                      >
+                        <StatusIcon size={12} />
+                        {status}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {getStatus(selectedPayout) === "PENDING" && (
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <button
+                      type="button"
+                      disabled={
+                        actionLoading === getId(selectedPayout)
+                      }
+                      onClick={() =>
+                        handleReject(getId(selectedPayout))
+                      }
+                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold hover:bg-rose-100 transition disabled:opacity-50"
+                    >
+                      <XCircle size={15} />
+                      Reject
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={
+                        actionLoading === getId(selectedPayout)
+                      }
+                      onClick={() =>
+                        handleApprove(getId(selectedPayout))
+                      }
+                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition disabled:opacity-50"
+                    >
+                      <CheckCircle2 size={15} />
+                      Approve
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-}
+};
+
+const StatCard = ({
+  label,
+  value,
+  icon: Icon,
+  iconClass,
+  status,
+  statusClass,
+  sideText,
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden group"
+    >
+      <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500/80" />
+
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+            {label}
+          </p>
+
+          <p className="mt-2 text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+            {value}
+          </p>
+        </div>
+
+        <div
+          className={`p-2.5 rounded-2xl border ${iconClass}`}
+        >
+          <Icon size={18} />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 mt-5 pt-4 border-t border-slate-100">
+        <span
+          className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wide ${statusClass}`}
+        >
+          {status}
+        </span>
+
+        <span className="text-[10px] font-semibold text-slate-400">
+          {sideText}
+        </span>
+      </div>
+    </motion.div>
+  );
+};
+
+const DetailRow = ({ label, value, icon: Icon }) => {
+  return (
+    <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50">
+      <div className="p-2 rounded-xl bg-white border border-slate-200 text-emerald-600">
+        <Icon size={14} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400">
+          {label}
+        </p>
+        <p className="text-xs font-bold text-slate-700 mt-0.5 break-all">
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default VendorPayouts;
+
+

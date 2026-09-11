@@ -1,1433 +1,787 @@
-import React, { useEffect, useState } from 'react';
-import Sidebar from '../components/Sidebar';
+import React, { useEffect, useState } from 'react'
+import Sidebar from '../components/Sidebar'
+import { motion } from 'framer-motion'
 
 import {
-  User,
-  Bell,
-  Shield,
-  Globe,
-  Save,
-  Mail,
-  Key,
   Settings as SettingsIcon,
   Truck,
   Percent,
   Clock,
   RotateCcw,
+  Save,
   Loader2,
   CheckCircle2,
   AlertCircle,
-  X
-} from 'lucide-react';
+  RefreshCw,
+  Zap,
+  Sparkles,
+  ShieldCheck,
+  Timer
+} from 'lucide-react'
 
 import {
-  getAdminProfile,
-  updateAdminProfile,
-  getNotificationPreferences,
-  updateNotificationPreferences,
-  changeAdminPassword,
-  getActiveSessions,
-  revokeSession
-} from '../Api/settingsService/settingsService';
+  getPlatformSettings,
+  updatePlatformSettings
+} from '../Api/settingsService/settingsService'
 
-import apiClient from '../Api/Interceptor/axiosInstance';
-
-export default function Settings() {
-  const [currentTab, setCurrentTab] = useState('settings');
-
-  // =========================
-  // GLOBAL MESSAGE
-  // =========================
-  const [message, setMessage] = useState({
-    type: '',
-    text: ''
-  });
-
-  // =========================
-  // PROFILE
-  // =========================
-  const [profile, setProfile] = useState({
-    name: '',
-    email: '',
-    role: ''
-  });
-
-  const [loadingProfile, setLoadingProfile] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
-
-  // =========================
-  // NOTIFICATIONS
-  // =========================
-  const [notifications, setNotifications] = useState({
-    emailAlerts: false,
-    pushNotifications: false,
-    weeklyReport: false
-  });
-
-  const [loadingNotifications, setLoadingNotifications] = useState(true);
-  const [savingNotifications, setSavingNotifications] = useState(false);
-
-  // =========================
-  // PLATFORM SETTINGS
-  // =========================
-  const [platformSettings, setPlatformSettings] = useState({
+const Settings = () => {
+  const [settings, setSettings] = useState({
     deliveryRadiusKm: '',
     platformCommissionPercent: '',
     vendorAcceptTimeoutSeconds: '',
     deliveryAcceptTimeoutSeconds: '',
     rebroadcastMaxRounds: '',
-    rebroadcastMaxElapsedMinutes: ''
-  });
+    rebroadcastMaxElapsedMinutes: '',
+    otpExpiryMinutes: ''
+  })
 
-  const [loadingSettings, setLoadingSettings] = useState(true);
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [ceilings, setCeilings] = useState({
+    maxDeliveryRadiusKm: null,
+    maxPlatformCommissionPercent: null,
+    maxAcceptTimeoutSeconds: null,
+    maxRebroadcastRounds: null,
+    maxRebroadcastElapsedMinutes: null
+  })
 
-  // =========================
-  // PASSWORD MODAL
-  // =========================
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-
-  const [changingPassword, setChangingPassword] = useState(false);
-
-  // =========================
-  // SESSIONS MODAL
-  // =========================
-  const [showSessionsModal, setShowSessionsModal] = useState(false);
-  const [sessions, setSessions] = useState([]);
-  const [loadingSessions, setLoadingSessions] = useState(false);
-
-  // =========================
-  // INITIAL LOAD
-  // =========================
-  useEffect(() => {
-    fetchAllSettings();
-  }, []);
-
-  const fetchAllSettings = async () => {
-    await Promise.all([
-      fetchProfile(),
-      fetchNotifications(),
-      fetchPlatformSettings()
-    ]);
-  };
-
-  // =========================================================
-  // PROFILE API
-  // =========================================================
-
-  const fetchProfile = async () => {
+  const loadSettings = async () => {
     try {
-      setLoadingProfile(true);
+      setLoading(true)
+      setError('')
+      setMessage('')
 
-      const response = await getAdminProfile();
+      const response = await getPlatformSettings()
 
-      console.log('Admin Profile Response:', response);
+      if (response?.success && response?.data) {
+        const data = response.data
 
-      const data = response?.data || response;
-
-      setProfile({
-        name: data?.name || data?.fullName || '',
-        email: data?.email || '',
-        role: data?.role || data?.adminRole || ''
-      });
-    } catch (error) {
-      console.error('Failed to fetch admin profile:', error);
-
-      setMessage({
-        type: 'error',
-        text:
-          error?.response?.data?.message ||
-          'Failed to load admin profile.'
-      });
-    } finally {
-      setLoadingProfile(false);
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    try {
-      setSavingProfile(true);
-      setMessage({ type: '', text: '' });
-
-      const payload = {
-        name: profile.name,
-        email: profile.email
-      };
-
-      const response = await updateAdminProfile(payload);
-
-      console.log('Update Profile Response:', response);
-
-      const data = response?.data || response;
-
-      setProfile((prev) => ({
-        ...prev,
-        name: data?.name || data?.fullName || payload.name,
-        email: data?.email || payload.email,
-        role: data?.role || data?.adminRole || prev.role
-      }));
-
-      setMessage({
-        type: 'success',
-        text: 'Profile updated successfully.'
-      });
-    } catch (error) {
-      console.error('Failed to update profile:', error);
-
-      setMessage({
-        type: 'error',
-        text:
-          error?.response?.data?.message ||
-          'Failed to update profile.'
-      });
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  // =========================================================
-  // NOTIFICATION API
-  // =========================================================
-
-  const fetchNotifications = async () => {
-    try {
-      setLoadingNotifications(true);
-
-      const response = await getNotificationPreferences();
-
-      console.log(
-        'Notification Preferences Response:',
-        response
-      );
-
-      const data = response?.data || response;
-
-      setNotifications({
-        emailAlerts:
-          data?.emailAlerts ??
-          data?.emailNotifications ??
-          false,
-
-        pushNotifications:
-          data?.pushNotifications ??
-          data?.pushAlerts ??
-          false,
-
-        weeklyReport:
-          data?.weeklyReport ??
-          data?.weeklyReports ??
-          false
-      });
-    } catch (error) {
-      console.error(
-        'Failed to fetch notification preferences:',
-        error
-      );
-
-      setMessage({
-        type: 'error',
-        text:
-          error?.response?.data?.message ||
-          'Failed to load notification preferences.'
-      });
-    } finally {
-      setLoadingNotifications(false);
-    }
-  };
-
-  const handleNotificationChange = async (
-    field,
-    value
-  ) => {
-    const updatedNotifications = {
-      ...notifications,
-      [field]: value
-    };
-
-    setNotifications(updatedNotifications);
-
-    try {
-      setSavingNotifications(true);
-
-      const response =
-        await updateNotificationPreferences(
-          updatedNotifications
-        );
-
-      console.log(
-        'Notification Update Response:',
-        response
-      );
-
-      setMessage({
-        type: 'success',
-        text: 'Notification preferences updated.'
-      });
-    } catch (error) {
-      console.error(
-        'Failed to update notification preferences:',
-        error
-      );
-
-      // Revert on API failure
-      setNotifications(notifications);
-
-      setMessage({
-        type: 'error',
-        text:
-          error?.response?.data?.message ||
-          'Failed to update notification preferences.'
-      });
-    } finally {
-      setSavingNotifications(false);
-    }
-  };
-
-  // =========================================================
-  // PLATFORM SETTINGS API
-  // =========================================================
-
-  const fetchPlatformSettings = async () => {
-    try {
-      setLoadingSettings(true);
-
-      const response = await apiClient.get(
-        '/api/admin/settings'
-      );
-
-      console.log(
-        'Platform Settings API Response:',
-        response.data
-      );
-
-      const data =
-        response?.data?.data ||
-        response?.data;
-
-      if (data) {
-        setPlatformSettings({
-          deliveryRadiusKm:
-            data.deliveryRadiusKm ?? '',
-
+        setSettings({
+          deliveryRadiusKm: data.deliveryRadiusKm ?? '',
           platformCommissionPercent:
             data.platformCommissionPercent ?? '',
-
           vendorAcceptTimeoutSeconds:
             data.vendorAcceptTimeoutSeconds ?? '',
-
           deliveryAcceptTimeoutSeconds:
             data.deliveryAcceptTimeoutSeconds ?? '',
-
           rebroadcastMaxRounds:
             data.rebroadcastMaxRounds ?? '',
-
           rebroadcastMaxElapsedMinutes:
-            data.rebroadcastMaxElapsedMinutes ?? ''
-        });
+            data.rebroadcastMaxElapsedMinutes ?? '',
+          otpExpiryMinutes:
+            data.otpExpiryMinutes ?? ''
+        })
+
+        if (data.ceilings) {
+          setCeilings({
+            maxDeliveryRadiusKm:
+              data.ceilings.maxDeliveryRadiusKm ?? null,
+            maxPlatformCommissionPercent:
+              data.ceilings.maxPlatformCommissionPercent ?? null,
+            maxAcceptTimeoutSeconds:
+              data.ceilings.maxAcceptTimeoutSeconds ?? null,
+            maxRebroadcastRounds:
+              data.ceilings.maxRebroadcastRounds ?? null,
+            maxRebroadcastElapsedMinutes:
+              data.ceilings.maxRebroadcastElapsedMinutes ?? null
+          })
+        }
+      } else {
+        setError(
+          response?.message ||
+          'Unable to load platform settings'
+        )
       }
-    } catch (error) {
-      console.error(
-        'Failed to fetch platform settings:',
-        error
-      );
-
-      setMessage({
-        type: 'error',
-        text:
-          error?.response?.data?.message ||
-          'Failed to load platform settings.'
-      });
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to load platform settings'
+      )
     } finally {
-      setLoadingSettings(false);
+      setLoading(false)
+      setRefreshing(false)
     }
-  };
+  }
 
-  const handlePlatformSettingChange = (
-    field,
-    value
-  ) => {
-    setPlatformSettings((prev) => ({
+  useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadSettings()
+  }
+
+  const handleChange = (field, value) => {
+    setSettings((prev) => ({
       ...prev,
       [field]: value
-    }));
+    }))
 
-    setMessage({
-      type: '',
-      text: ''
-    });
-  };
+    setMessage('')
+    setError('')
+  }
 
-  const handleSavePlatformSettings = async () => {
-    try {
-      setSavingSettings(true);
-      setMessage({ type: '', text: '' });
-
-      const payload = {
-        deliveryRadiusKm: Number(
-          platformSettings.deliveryRadiusKm
-        ),
-
-        platformCommissionPercent: Number(
-          platformSettings.platformCommissionPercent
-        ),
-
-        vendorAcceptTimeoutSeconds: Number(
-          platformSettings.vendorAcceptTimeoutSeconds
-        ),
-
-        deliveryAcceptTimeoutSeconds: Number(
-          platformSettings.deliveryAcceptTimeoutSeconds
-        ),
-
-        rebroadcastMaxRounds: Number(
-          platformSettings.rebroadcastMaxRounds
-        ),
-
-        rebroadcastMaxElapsedMinutes: Number(
-          platformSettings.rebroadcastMaxElapsedMinutes
-        )
-      };
-
-      console.log(
-        'Updating Platform Settings:',
-        payload
-      );
-
-      const response = await apiClient.put(
-        '/api/admin/settings',
-        payload
-      );
-
-      console.log(
-        'Update Platform Settings Response:',
-        response.data
-      );
-
-      const updatedData =
-        response?.data?.data ||
-        response?.data;
-
-      if (updatedData) {
-        setPlatformSettings({
-          deliveryRadiusKm:
-            updatedData.deliveryRadiusKm ??
-            payload.deliveryRadiusKm,
-
-          platformCommissionPercent:
-            updatedData.platformCommissionPercent ??
-            payload.platformCommissionPercent,
-
-          vendorAcceptTimeoutSeconds:
-            updatedData.vendorAcceptTimeoutSeconds ??
-            payload.vendorAcceptTimeoutSeconds,
-
-          deliveryAcceptTimeoutSeconds:
-            updatedData.deliveryAcceptTimeoutSeconds ??
-            payload.deliveryAcceptTimeoutSeconds,
-
-          rebroadcastMaxRounds:
-            updatedData.rebroadcastMaxRounds ??
-            payload.rebroadcastMaxRounds,
-
-          rebroadcastMaxElapsedMinutes:
-            updatedData.rebroadcastMaxElapsedMinutes ??
-            payload.rebroadcastMaxElapsedMinutes
-        });
-      }
-
-      setMessage({
-        type: 'success',
-        text: 'Platform settings updated successfully.'
-      });
-    } catch (error) {
-      console.error(
-        'Failed to update platform settings:',
-        error
-      );
-
-      setMessage({
-        type: 'error',
-        text:
-          error?.response?.data?.message ||
-          'Failed to update platform settings.'
-      });
-    } finally {
-      setSavingSettings(false);
-    }
-  };
-
-  // =========================================================
-  // PASSWORD API
-  // =========================================================
-
-  const handleChangePassword = async () => {
-    if (!passwordData.currentPassword) {
-      setMessage({
-        type: 'error',
-        text: 'Please enter your current password.'
-      });
-      return;
-    }
-
-    if (!passwordData.newPassword) {
-      setMessage({
-        type: 'error',
-        text: 'Please enter a new password.'
-      });
-      return;
+  const validateSettings = () => {
+    const values = {
+      deliveryRadiusKm: Number(
+        settings.deliveryRadiusKm
+      ),
+      platformCommissionPercent: Number(
+        settings.platformCommissionPercent
+      ),
+      vendorAcceptTimeoutSeconds: Number(
+        settings.vendorAcceptTimeoutSeconds
+      ),
+      deliveryAcceptTimeoutSeconds: Number(
+        settings.deliveryAcceptTimeoutSeconds
+      ),
+      rebroadcastMaxRounds: Number(
+        settings.rebroadcastMaxRounds
+      ),
+      rebroadcastMaxElapsedMinutes: Number(
+        settings.rebroadcastMaxElapsedMinutes
+      ),
+      otpExpiryMinutes: Number(
+        settings.otpExpiryMinutes
+      )
     }
 
     if (
-      passwordData.newPassword !==
-      passwordData.confirmPassword
+      Object.values(settings).some(
+        (value) =>
+          value === '' ||
+          value === null ||
+          value === undefined
+      )
     ) {
-      setMessage({
-        type: 'error',
-        text: 'New password and confirm password do not match.'
-      });
-      return;
+      return 'Please fill all platform settings fields.'
+    }
+
+    if (
+      Object.values(values).some(
+        (value) =>
+          !Number.isFinite(value) || value < 0
+      )
+    ) {
+      return 'Please enter valid positive values.'
+    }
+
+    if (
+      ceilings.maxDeliveryRadiusKm !== null &&
+      values.deliveryRadiusKm >
+        ceilings.maxDeliveryRadiusKm
+    ) {
+      return `Delivery radius cannot exceed ${ceilings.maxDeliveryRadiusKm} KM.`
+    }
+
+    if (
+      ceilings.maxPlatformCommissionPercent !== null &&
+      values.platformCommissionPercent >
+        ceilings.maxPlatformCommissionPercent
+    ) {
+      return `Platform commission cannot exceed ${ceilings.maxPlatformCommissionPercent}%.`
+    }
+
+    if (
+      ceilings.maxAcceptTimeoutSeconds !== null &&
+      values.vendorAcceptTimeoutSeconds >
+        ceilings.maxAcceptTimeoutSeconds
+    ) {
+      return `Vendor accept timeout cannot exceed ${ceilings.maxAcceptTimeoutSeconds} seconds.`
+    }
+
+    if (
+      ceilings.maxAcceptTimeoutSeconds !== null &&
+      values.deliveryAcceptTimeoutSeconds >
+        ceilings.maxAcceptTimeoutSeconds
+    ) {
+      return `Delivery accept timeout cannot exceed ${ceilings.maxAcceptTimeoutSeconds} seconds.`
+    }
+
+    if (
+      ceilings.maxRebroadcastRounds !== null &&
+      values.rebroadcastMaxRounds >
+        ceilings.maxRebroadcastRounds
+    ) {
+      return `Rebroadcast rounds cannot exceed ${ceilings.maxRebroadcastRounds}.`
+    }
+
+    if (
+      ceilings.maxRebroadcastElapsedMinutes !== null &&
+      values.rebroadcastMaxElapsedMinutes >
+        ceilings.maxRebroadcastElapsedMinutes
+    ) {
+      return `Rebroadcast elapsed time cannot exceed ${ceilings.maxRebroadcastElapsedMinutes} minutes.`
+    }
+
+    return null
+  }
+
+  const handleSave = async () => {
+    const validationError = validateSettings()
+
+    if (validationError) {
+      setError(validationError)
+      setMessage('')
+      return
     }
 
     try {
-      setChangingPassword(true);
+      setSaving(true)
+      setMessage('')
+      setError('')
 
-      const response = await changeAdminPassword({
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword
-      });
-
-      console.log(
-        'Change Password Response:',
-        response
-      );
-
-      setMessage({
-        type: 'success',
-        text: 'Password changed successfully.'
-      });
-
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
-
-      setShowPasswordModal(false);
-    } catch (error) {
-      console.error(
-        'Failed to change password:',
-        error
-      );
-
-      setMessage({
-        type: 'error',
-        text:
-          error?.response?.data?.message ||
-          'Failed to change password.'
-      });
-    } finally {
-      setChangingPassword(false);
-    }
-  };
-
-  // =========================================================
-  // SESSIONS API
-  // =========================================================
-
-  const handleOpenSessions = async () => {
-    try {
-      setShowSessionsModal(true);
-      setLoadingSessions(true);
-
-      const response = await getActiveSessions();
-
-      console.log(
-        'Active Sessions Response:',
-        response
-      );
-
-      const data =
-        response?.data ||
-        response;
-
-      setSessions(
-        Array.isArray(data)
-          ? data
-          : data?.sessions || []
-      );
-    } catch (error) {
-      console.error(
-        'Failed to fetch active sessions:',
-        error
-      );
-
-      setMessage({
-        type: 'error',
-        text:
-          error?.response?.data?.message ||
-          'Failed to load active sessions.'
-      });
-    } finally {
-      setLoadingSessions(false);
-    }
-  };
-
-  const handleRevokeSession = async (
-    sessionId
-  ) => {
-    try {
-      await revokeSession(sessionId);
-
-      setSessions((prev) =>
-        prev.filter(
-          (session) =>
-            (session.id || session.sessionId) !==
-            sessionId
+      const payload = {
+        deliveryRadiusKm: Number(
+          settings.deliveryRadiusKm
+        ),
+        platformCommissionPercent: Number(
+          settings.platformCommissionPercent
+        ),
+        vendorAcceptTimeoutSeconds: Number(
+          settings.vendorAcceptTimeoutSeconds
+        ),
+        deliveryAcceptTimeoutSeconds: Number(
+          settings.deliveryAcceptTimeoutSeconds
+        ),
+        rebroadcastMaxRounds: Number(
+          settings.rebroadcastMaxRounds
+        ),
+        rebroadcastMaxElapsedMinutes: Number(
+          settings.rebroadcastMaxElapsedMinutes
+        ),
+        otpExpiryMinutes: Number(
+          settings.otpExpiryMinutes
         )
-      );
+      }
 
-      setMessage({
-        type: 'success',
-        text: 'Session revoked successfully.'
-      });
-    } catch (error) {
-      console.error(
-        'Failed to revoke session:',
-        error
-      );
+      const response =
+        await updatePlatformSettings(payload)
 
-      setMessage({
-        type: 'error',
-        text:
-          error?.response?.data?.message ||
-          'Failed to revoke session.'
-      });
+      if (response?.success && response?.data) {
+        const data = response.data
+
+        setSettings({
+          deliveryRadiusKm:
+            data.deliveryRadiusKm ?? '',
+          platformCommissionPercent:
+            data.platformCommissionPercent ?? '',
+          vendorAcceptTimeoutSeconds:
+            data.vendorAcceptTimeoutSeconds ?? '',
+          deliveryAcceptTimeoutSeconds:
+            data.deliveryAcceptTimeoutSeconds ?? '',
+          rebroadcastMaxRounds:
+            data.rebroadcastMaxRounds ?? '',
+          rebroadcastMaxElapsedMinutes:
+            data.rebroadcastMaxElapsedMinutes ?? '',
+          otpExpiryMinutes:
+            data.otpExpiryMinutes ?? ''
+        })
+
+        if (data.ceilings) {
+          setCeilings({
+            maxDeliveryRadiusKm:
+              data.ceilings.maxDeliveryRadiusKm ?? null,
+            maxPlatformCommissionPercent:
+              data.ceilings.maxPlatformCommissionPercent ?? null,
+            maxAcceptTimeoutSeconds:
+              data.ceilings.maxAcceptTimeoutSeconds ?? null,
+            maxRebroadcastRounds:
+              data.ceilings.maxRebroadcastRounds ?? null,
+            maxRebroadcastElapsedMinutes:
+              data.ceilings.maxRebroadcastElapsedMinutes ?? null
+          })
+        }
+
+        setMessage(
+          response.message ||
+          'Platform settings updated successfully'
+        )
+      } else {
+        setError(
+          response?.message ||
+          'Failed to update settings'
+        )
+      }
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to update platform settings'
+      )
+    } finally {
+      setSaving(false)
     }
-  };
+  }
 
-  // =========================================================
-  // TOGGLE COMPONENT
-  // =========================================================
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800">
+        <Sidebar />
 
-  const Toggle = ({
-    checked,
-    onChange,
-    disabled = false
-  }) => (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`w-11 h-6 flex items-center rounded-full p-1 transition-all duration-300 ${
-        checked
-          ? 'bg-emerald-500 justify-end'
-          : 'bg-slate-200 justify-start'
-      } ${
-        disabled
-          ? 'opacity-50 cursor-not-allowed'
-          : ''
-      }`}
-    >
-      <span className="bg-white w-4 h-4 rounded-full shadow-sm" />
-    </button>
-  );
+        <main className="flex-1 flex items-center justify-center p-6">
+          <div className="flex items-center gap-3 rounded-2xl bg-white border border-slate-200 px-6 py-4 shadow-sm">
+            <Loader2
+              size={20}
+              className="animate-spin text-emerald-600"
+            />
+
+            <span className="text-sm font-semibold text-slate-600">
+              Loading platform settings...
+            </span>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 flex">
-      <Sidebar
-        currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
-      />
+    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+      <Sidebar />
 
-      <main className="flex-1 min-h-screen p-8 lg:p-12 overflow-y-auto w-full">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
 
-        {/* HEADER */}
-        <header className="mb-8">
-          <span className="text-xs uppercase font-bold tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-            Configuration
-          </span>
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.5,
+            ease: 'easeOut'
+          }}
+          className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
+        >
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
 
-          <h1 className="text-3xl font-black text-slate-900 mt-2">
-            System Settings
-          </h1>
+          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
 
-          <p className="text-slate-500 mt-1">
-            Manage your profile, platform configuration,
-            notification preferences, and security.
-          </p>
-        </header>
-
-        {/* GLOBAL MESSAGE */}
-        {message.text && (
-          <div
-            className={`mb-6 flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${
-              message.type === 'success'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                : 'bg-red-50 border-red-200 text-red-700'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              {message.type === 'success' ? (
-                <CheckCircle2 size={18} />
-              ) : (
-                <AlertCircle size={18} />
-              )}
-
-              <span className="text-sm font-semibold">
-                {message.text}
+          <div className="space-y-2.5 z-10">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm backdrop-blur-md">
+                <Zap
+                  size={12}
+                  className="text-emerald-400 animate-bounce"
+                />
+                Platform Configuration
               </span>
+
+              <div className="flex items-center gap-2 bg-rose-950/80 border border-rose-900/80 px-3 py-1 rounded-full text-rose-300 shadow-sm">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+                </span>
+
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-white">
+                  LIVE ADMIN VEG GO
+                </span>
+              </div>
             </div>
 
-            <button
-              onClick={() =>
-                setMessage({
-                  type: '',
-                  text: ''
-                })
-              }
-            >
-              <X size={16} />
-            </button>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
+              Platform Settings
+              <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            </h1>
+
+            <p className="text-xs sm:text-sm text-emerald-100/70 max-w-2xl">
+              Manage delivery radius, platform commission,
+              vendor acceptance, rebroadcast and OTP configuration.
+            </p>
           </div>
+
+          <div className="flex items-center gap-3 self-start lg:self-center z-10">
+            <div className="hidden sm:flex items-center gap-2 bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
+              <ShieldCheck
+                size={14}
+                className="text-emerald-400"
+              />
+              <span>Live API Configuration</span>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleRefresh}
+              disabled={refreshing || saving}
+              className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner disabled:opacity-60"
+              title="Refresh Settings"
+            >
+              <RefreshCw
+                size={15}
+                className={`text-emerald-300 ${
+                  refreshing ? 'animate-spin' : ''
+                }`}
+              />
+            </motion.button>
+          </div>
+        </motion.header>
+
+        {message && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-700 shadow-sm"
+          >
+            <div className="p-2 rounded-xl bg-emerald-100">
+              <CheckCircle2 size={18} />
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold">
+                Settings Updated
+              </p>
+
+              <p className="text-xs mt-0.5 text-emerald-600">
+                {message}
+              </p>
+            </div>
+          </motion.div>
         )}
 
-        <div className="w-full space-y-6">
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-rose-700 shadow-sm"
+          >
+            <div className="p-2 rounded-xl bg-rose-100">
+              <AlertCircle size={18} />
+            </div>
 
-          {/* =================================================
-              PLATFORM SETTINGS
-          ================================================= */}
+            <div>
+              <p className="text-sm font-semibold">
+                Configuration Error
+              </p>
 
-          <section className="bg-white p-6 md:p-8 rounded-[24px] border border-slate-200/60 shadow-sm space-y-6">
+              <p className="text-xs mt-0.5 text-rose-600">
+                {error}
+              </p>
+            </div>
+          </motion.div>
+        )}
 
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
-                <SettingsIcon size={20} />
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+
+          <SettingCard
+            icon={Truck}
+            label="Delivery Radius"
+            value={settings.deliveryRadiusKm}
+            suffix="KM"
+            max={ceilings.maxDeliveryRadiusKm}
+            step="0.1"
+            accent="bg-emerald-600"
+            iconBg="bg-emerald-50 text-emerald-700"
+            onChange={(value) =>
+              handleChange(
+                'deliveryRadiusKm',
+                value
+              )
+            }
+          />
+
+          <SettingCard
+            icon={Percent}
+            label="Platform Commission"
+            value={settings.platformCommissionPercent}
+            suffix="%"
+            max={ceilings.maxPlatformCommissionPercent}
+            step="0.01"
+            accent="bg-teal-600"
+            iconBg="bg-teal-50 text-teal-700"
+            onChange={(value) =>
+              handleChange(
+                'platformCommissionPercent',
+                value
+              )
+            }
+          />
+
+          <SettingCard
+            icon={Clock}
+            label="Vendor Accept Timeout"
+            value={settings.vendorAcceptTimeoutSeconds}
+            suffix="Seconds"
+            max={ceilings.maxAcceptTimeoutSeconds}
+            step="1"
+            accent="bg-emerald-500"
+            iconBg="bg-emerald-50 text-emerald-700"
+            onChange={(value) =>
+              handleChange(
+                'vendorAcceptTimeoutSeconds',
+                value
+              )
+            }
+          />
+
+          <SettingCard
+            icon={Clock}
+            label="Delivery Accept Timeout"
+            value={settings.deliveryAcceptTimeoutSeconds}
+            suffix="Seconds"
+            max={ceilings.maxAcceptTimeoutSeconds}
+            step="1"
+            accent="bg-teal-600"
+            iconBg="bg-teal-50 text-teal-700"
+            onChange={(value) =>
+              handleChange(
+                'deliveryAcceptTimeoutSeconds',
+                value
+              )
+            }
+          />
+
+          <SettingCard
+            icon={RotateCcw}
+            label="Maximum Rebroadcast Rounds"
+            value={settings.rebroadcastMaxRounds}
+            suffix="Rounds"
+            max={ceilings.maxRebroadcastRounds}
+            step="1"
+            accent="bg-green-700"
+            iconBg="bg-green-50 text-green-700"
+            onChange={(value) =>
+              handleChange(
+                'rebroadcastMaxRounds',
+                value
+              )
+            }
+          />
+
+          <SettingCard
+            icon={RotateCcw}
+            label="Maximum Rebroadcast Time"
+            value={settings.rebroadcastMaxElapsedMinutes}
+            suffix="Minutes"
+            max={ceilings.maxRebroadcastElapsedMinutes}
+            step="1"
+            accent="bg-emerald-600"
+            iconBg="bg-emerald-50 text-emerald-700"
+            onChange={(value) =>
+              handleChange(
+                'rebroadcastMaxElapsedMinutes',
+                value
+              )
+            }
+          />
+
+          <SettingCard
+            icon={Timer}
+            label="OTP Expiry"
+            value={settings.otpExpiryMinutes}
+            suffix="Minutes"
+            max={null}
+            step="1"
+            accent="bg-teal-600"
+            iconBg="bg-teal-50 text-teal-700"
+            onChange={(value) =>
+              handleChange(
+                'otpExpiryMinutes',
+                value
+              )
+            }
+          />
+
+        </section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.5,
+            delay: 0.35
+          }}
+          className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+        >
+          <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                <SettingsIcon size={18} />
               </div>
 
               <div>
-                <h2 className="font-bold text-slate-900 text-lg">
-                  Platform Settings
+                <h2 className="text-lg font-semibold text-black tracking-tight">
+                  Configuration Controls
                 </h2>
 
-                <p className="text-xs text-slate-500">
-                  Configure delivery, commission, timeout and
-                  rebroadcast rules.
+                <p className="text-xs font-semibold text-slate-500">
+                  Update operational settings using live platform APIs
                 </p>
               </div>
             </div>
 
-            {loadingSettings ? (
-              <div className="flex justify-center py-12">
-                <Loader2
-                  size={24}
-                  className="animate-spin text-emerald-600"
-                />
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold uppercase tracking-wider">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+              </span>
 
-                  {/* Delivery Radius */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Delivery Radius
-                    </label>
+              API Connected
+            </div>
+          </div>
 
-                    <div className="relative">
-                      <Truck
-                        size={17}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
+          <div className="p-5 sm:p-6">
+            <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Configuration Status
+                  </p>
 
-                      <input
-                        type="number"
-                        min="0.5"
-                        step="0.1"
-                        value={
-                          platformSettings.deliveryRadiusKm
-                        }
-                        onChange={(e) =>
-                          handlePlatformSettingChange(
-                            'deliveryRadiusKm',
-                            e.target.value
-                          )
-                        }
-                        className="w-full pl-11 pr-14 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
-                      />
-
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                        KM
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Commission */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Platform Commission
-                    </label>
-
-                    <div className="relative">
-                      <Percent
-                        size={17}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={
-                          platformSettings.platformCommissionPercent
-                        }
-                        onChange={(e) =>
-                          handlePlatformSettingChange(
-                            'platformCommissionPercent',
-                            e.target.value
-                          )
-                        }
-                        className="w-full pl-11 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
-                      />
-
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                        %
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Vendor Timeout */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Vendor Accept Timeout
-                    </label>
-
-                    <div className="relative">
-                      <Clock
-                        size={17}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-
-                      <input
-                        type="number"
-                        min="0"
-                        value={
-                          platformSettings.vendorAcceptTimeoutSeconds
-                        }
-                        onChange={(e) =>
-                          handlePlatformSettingChange(
-                            'vendorAcceptTimeoutSeconds',
-                            e.target.value
-                          )
-                        }
-                        className="w-full pl-11 pr-20 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
-                      />
-
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                        seconds
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Delivery Timeout */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Delivery Accept Timeout
-                    </label>
-
-                    <div className="relative">
-                      <Clock
-                        size={17}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-
-                      <input
-                        type="number"
-                        min="0"
-                        value={
-                          platformSettings.deliveryAcceptTimeoutSeconds
-                        }
-                        onChange={(e) =>
-                          handlePlatformSettingChange(
-                            'deliveryAcceptTimeoutSeconds',
-                            e.target.value
-                          )
-                        }
-                        className="w-full pl-11 pr-20 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
-                      />
-
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                        seconds
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Rebroadcast Rounds */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Rebroadcast Max Rounds
-                    </label>
-
-                    <div className="relative">
-                      <RotateCcw
-                        size={17}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-
-                      <input
-                        type="number"
-                        min="0"
-                        value={
-                          platformSettings.rebroadcastMaxRounds
-                        }
-                        onChange={(e) =>
-                          handlePlatformSettingChange(
-                            'rebroadcastMaxRounds',
-                            e.target.value
-                          )
-                        }
-                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Rebroadcast Elapsed */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Rebroadcast Max Elapsed Time
-                    </label>
-
-                    <div className="relative">
-                      <Clock
-                        size={17}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-
-                      <input
-                        type="number"
-                        min="0"
-                        value={
-                          platformSettings.rebroadcastMaxElapsedMinutes
-                        }
-                        onChange={(e) =>
-                          handlePlatformSettingChange(
-                            'rebroadcastMaxElapsedMinutes',
-                            e.target.value
-                          )
-                        }
-                        className="w-full pl-11 pr-20 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-sm font-medium"
-                      />
-
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                        minutes
-                      </span>
-                    </div>
-                  </div>
+                  <p className="text-sm font-semibold text-slate-800 mt-1">
+                    Platform settings are managed through the VegGoFresh Admin API.
+                  </p>
                 </div>
 
-                <div className="flex justify-end">
-                  <button
-                    onClick={handleSavePlatformSettings}
-                    disabled={savingSettings}
-                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-bold rounded-xl"
-                  >
-                    {savingSettings ? (
-                      <>
-                        <Loader2
-                          size={16}
-                          className="animate-spin"
-                        />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save size={16} />
-                        Save Platform Settings
-                      </>
-                    )}
-                  </button>
+                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
+                  <CheckCircle2 size={16} />
+                  Ready
                 </div>
-              </>
-            )}
-          </section>
-
-          {/* =================================================
-              PROFILE
-          ================================================= */}
-
-          <section className="bg-white p-6 md:p-8 rounded-[24px] border border-slate-200/60 shadow-sm space-y-6">
-
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-                <User size={20} />
-              </div>
-
-              <div>
-                <h2 className="font-bold text-slate-900 text-lg">
-                  Profile Information
-                </h2>
-
-                <p className="text-xs text-slate-500">
-                  Update your admin account details.
-                </p>
               </div>
             </div>
+          </div>
 
-            {loadingProfile ? (
-              <div className="flex justify-center py-8">
-                <Loader2
-                  size={24}
-                  className="animate-spin text-blue-600"
-                />
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="px-5 sm:px-6 py-5 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold text-slate-500">
+                Review your values before saving
+              </p>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Full Name
-                    </label>
-
-                    <input
-                      type="text"
-                      value={profile.name}
-                      onChange={(e) =>
-                        setProfile({
-                          ...profile,
-                          name: e.target.value
-                        })
-                      }
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Email Address
-                    </label>
-
-                    <div className="relative">
-                      <Mail
-                        size={16}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-
-                      <input
-                        type="email"
-                        value={profile.email}
-                        onChange={(e) =>
-                          setProfile({
-                            ...profile,
-                            email: e.target.value
-                          })
-                        }
-                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Account Role
-                    </label>
-
-                    <input
-                      type="text"
-                      value={profile.role}
-                      disabled
-                      className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-medium text-slate-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={savingProfile}
-                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-bold rounded-xl"
-                  >
-                    {savingProfile ? (
-                      <>
-                        <Loader2
-                          size={16}
-                          className="animate-spin"
-                        />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save size={16} />
-                        Save Profile
-                      </>
-                    )}
-                  </button>
-                </div>
-              </>
-            )}
-          </section>
-
-          {/* =================================================
-              NOTIFICATIONS
-          ================================================= */}
-
-          <section className="bg-white p-6 md:p-8 rounded-[24px] border border-slate-200/60 shadow-sm space-y-6">
-
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
-                <Bell size={20} />
-              </div>
-
-              <div>
-                <h2 className="font-bold text-slate-900 text-lg">
-                  Notification Preferences
-                </h2>
-
-                <p className="text-xs text-slate-500">
-                  Choose when and how you want to be notified.
-                </p>
-              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Values are validated against limits provided by the API.
+              </p>
             </div>
 
-            {loadingNotifications ? (
-              <div className="flex justify-center py-8">
-                <Loader2
-                  size={24}
-                  className="animate-spin text-emerald-600"
-                />
-              </div>
-            ) : (
-              <div className="space-y-4">
-
-                <div className="flex items-center justify-between py-2">
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800">
-                      Email Alerts
-                    </h4>
-
-                    <p className="text-xs text-slate-500">
-                      Receive system updates and critical issue notices via email.
-                    </p>
-                  </div>
-
-                  <Toggle
-                    checked={notifications.emailAlerts}
-                    disabled={savingNotifications}
-                    onChange={(value) =>
-                      handleNotificationChange(
-                        'emailAlerts',
-                        value
-                      )
-                    }
+            <motion.button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              whileHover={{
+                scale: saving ? 1 : 1.02
+              }}
+              whileTap={{
+                scale: saving ? 1 : 0.98
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <>
+                  <Loader2
+                    size={18}
+                    className="animate-spin"
                   />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-t border-slate-100">
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800">
-                      Push Notifications
-                    </h4>
-
-                    <p className="text-xs text-slate-500">
-                      Get alerts directly on your browser or device.
-                    </p>
-                  </div>
-
-                  <Toggle
-                    checked={
-                      notifications.pushNotifications
-                    }
-                    disabled={savingNotifications}
-                    onChange={(value) =>
-                      handleNotificationChange(
-                        'pushNotifications',
-                        value
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-t border-slate-100">
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-800">
-                      Weekly Summary Reports
-                    </h4>
-
-                    <p className="text-xs text-slate-500">
-                      Receive a consolidated status report every Monday.
-                    </p>
-                  </div>
-
-                  <Toggle
-                    checked={
-                      notifications.weeklyReport
-                    }
-                    disabled={savingNotifications}
-                    onChange={(value) =>
-                      handleNotificationChange(
-                        'weeklyReport',
-                        value
-                      )
-                    }
-                  />
-                </div>
-
-              </div>
-            )}
-          </section>
-
-          {/* =================================================
-              SECURITY
-          ================================================= */}
-
-          <section className="bg-white p-6 md:p-8 rounded-[24px] border border-slate-200/60 shadow-sm space-y-6">
-
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
-                <Shield size={20} />
-              </div>
-
-              <div>
-                <h2 className="font-bold text-slate-900 text-lg">
-                  Security & Authentication
-                </h2>
-
-                <p className="text-xs text-slate-500">
-                  Manage credentials and active login sessions.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-
-              <button
-                onClick={() => setShowPasswordModal(true)}
-                className="flex items-center gap-2 px-4 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-bold"
-              >
-                <Key size={16} />
-                Change Password
-              </button>
-
-              <button
-                onClick={handleOpenSessions}
-                className="flex items-center gap-2 px-4 py-3 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-bold"
-              >
-                <Globe size={16} />
-                Manage Active Sessions
-              </button>
-
-            </div>
-          </section>
-
-        </div>
+                  Saving Settings...
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  Save Settings
+                </>
+              )}
+            </motion.button>
+          </div>
+        </motion.section>
       </main>
-
-      {/* =====================================================
-          PASSWORD MODAL
-      ===================================================== */}
-
-      {showPasswordModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-
-          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl">
-
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  Change Password
-                </h2>
-
-                <p className="text-xs text-slate-500 mt-1">
-                  Update your admin account password.
-                </p>
-              </div>
-
-              <button
-                onClick={() =>
-                  setShowPasswordModal(false)
-                }
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-
-              <input
-                type="password"
-                placeholder="Current Password"
-                value={passwordData.currentPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    currentPassword: e.target.value
-                  })
-                }
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-              />
-
-              <input
-                type="password"
-                placeholder="New Password"
-                value={passwordData.newPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    newPassword: e.target.value
-                  })
-                }
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-              />
-
-              <input
-                type="password"
-                placeholder="Confirm New Password"
-                value={passwordData.confirmPassword}
-                onChange={(e) =>
-                  setPasswordData({
-                    ...passwordData,
-                    confirmPassword: e.target.value
-                  })
-                }
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-              />
-
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-
-              <button
-                onClick={() =>
-                  setShowPasswordModal(false)
-                }
-                className="px-5 py-3 border border-slate-200 rounded-xl text-sm font-bold"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={handleChangePassword}
-                disabled={changingPassword}
-                className="px-5 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold"
-              >
-                {changingPassword
-                  ? 'Changing...'
-                  : 'Change Password'}
-              </button>
-
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =====================================================
-          SESSIONS MODAL
-      ===================================================== */}
-
-      {showSessionsModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-
-          <div className="bg-white w-full max-w-2xl rounded-2xl p-6 shadow-xl">
-
-            <div className="flex items-center justify-between mb-6">
-
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  Active Sessions
-                </h2>
-
-                <p className="text-xs text-slate-500 mt-1">
-                  Manage devices currently logged into your account.
-                </p>
-              </div>
-
-              <button
-                onClick={() =>
-                  setShowSessionsModal(false)
-                }
-              >
-                <X size={20} />
-              </button>
-
-            </div>
-
-            {loadingSessions ? (
-              <div className="flex justify-center py-10">
-                <Loader2
-                  size={24}
-                  className="animate-spin text-emerald-600"
-                />
-              </div>
-            ) : sessions.length === 0 ? (
-              <div className="text-center py-10 text-slate-500">
-                <Globe
-                  size={30}
-                  className="mx-auto mb-3"
-                />
-
-                <p className="text-sm font-medium">
-                  No active sessions found.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-
-                {sessions.map((session, index) => {
-                  const sessionId =
-                    session.id ||
-                    session.sessionId;
-
-                  return (
-                    <div
-                      key={sessionId || index}
-                      className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl"
-                    >
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">
-                          {session.device ||
-                            session.deviceName ||
-                            'Unknown Device'}
-                        </p>
-
-                        <p className="text-xs text-slate-500 mt-1">
-                          {session.ipAddress ||
-                            session.ip ||
-                            'Unknown IP'}
-                        </p>
-
-                        <p className="text-xs text-slate-400 mt-1">
-                          {session.lastActive ||
-                            session.lastLogin ||
-                            ''}
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={() =>
-                          handleRevokeSession(
-                            sessionId
-                          )
-                        }
-                        className="px-3 py-2 text-xs font-bold text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
-                      >
-                        Revoke
-                      </button>
-                    </div>
-                  );
-                })}
-
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
     </div>
-  );
+  )
 }
+
+const SettingCard = ({
+  icon: Icon,
+  label,
+  value,
+  suffix,
+  max,
+  step,
+  accent,
+  iconBg,
+  onChange
+}) => {
+  return (
+    <motion.div
+      initial={{
+        opacity: 0,
+        y: 20
+      }}
+      animate={{
+        opacity: 1,
+        y: 0
+      }}
+      transition={{
+        duration: 0.4
+      }}
+      whileHover={{
+        y: -5,
+        transition: {
+          duration: 0.2
+        }
+      }}
+      className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden group"
+    >
+      <div
+        className={`absolute top-0 left-0 right-0 h-1.5 ${accent} transition-all duration-300 group-hover:h-2`}
+      />
+
+      <div className="absolute -right-8 -bottom-8 w-28 h-28 bg-emerald-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none group-hover:scale-125" />
+
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors">
+              {label}
+            </span>
+
+            <p className="text-[10px] text-slate-400 mt-1 font-semibold">
+              Platform configuration
+            </p>
+          </div>
+
+          <motion.div
+            whileHover={{
+              rotate: 12,
+              scale: 1.1
+            }}
+            className={`${iconBg} p-2.5 rounded-2xl shadow-xs`}
+          >
+            <Icon size={18} />
+          </motion.div>
+        </div>
+
+        <div className="relative">
+          <input
+            type="number"
+            value={value}
+            min="0"
+            max={max ?? undefined}
+            step={step}
+            onChange={(e) =>
+              onChange(e.target.value)
+            }
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-4 pr-24 text-xl font-semibold text-black outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100/70 group-hover:border-slate-300"
+          />
+
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            {suffix}
+          </span>
+        </div>
+
+        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+          <span className="text-[10px] text-slate-400 font-semibold">
+            Maximum allowed
+          </span>
+
+          <span className="text-[11px] text-emerald-700 font-bold">
+            {max !== null && max !== undefined
+              ? `${max} ${suffix}`
+              : 'API limit unavailable'}
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+export default Settings
