@@ -3,13 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   Leaf,
   LayoutDashboard,
-  Users,
-  Store,
-  Truck,
   Package,
-  ShoppingCart,
-  BarChart3,
-  Bell,
   Settings,
   Wallet,
   ChevronDown,
@@ -17,6 +11,7 @@ import {
   LogOut,
   Menu,
   X,
+  Users,
 } from "lucide-react";
 import LogoutModal from "../Common/LogoutModal";
 
@@ -36,6 +31,28 @@ function Sidebar() {
       path: "/dashboard",
       subItems: [],
     },
+  {
+  id: "management",
+  label: "Management",
+  icon: Users,
+  subItems: [
+    {
+      id: "customers",
+      label: "Customers",
+      path: "/management/customers",
+    },
+    {
+      id: "delivery",
+      label: "Delivery",
+      path: "/management/delivery",
+    },
+    {
+      id: "vendors",
+      label: "Vendors",
+      path: "/management/vendors",
+    },
+  ],
+},
     {
       id: "payouts",
       label: "Payouts & Settlements",
@@ -47,60 +64,9 @@ function Sidebar() {
           path: "/payouts/wallet",
         },
         {
-          id: "vendor-payouts",
-          label: "Vendor Payouts",
+          id: "payouts",
+          label: "Payouts",
           path: "/payouts/vendors",
-        },
-      ],
-    },
-    {
-      id: "customers",
-      label: "Customer Management",
-      icon: Users,
-      subItems: [
-        {
-          id: "view-customers",
-          label: "View Customers",
-          path: "/customers/view",
-        },
-        {
-          id: "block-unblock",
-          label: "Block / Unblock Accounts",
-          path: "/customers/moderation",
-        },
-      ],
-    },
-    {
-      id: "vendors",
-      label: "Vendor Management",
-      icon: Store,
-      subItems: [
-        {
-          id: "shop-approval",
-          label: "Shop Approval",
-          path: "/vendors/approval",
-        },
-        {
-          id: "shop-suspension",
-          label: "Shop Suspension",
-          path: "/vendors/suspension",
-        },
-      ],
-    },
-    {
-      id: "delivery",
-      label: "Delivery Partner Management",
-      icon: Truck,
-      subItems: [
-        {
-          id: "rider-approval",
-          label: "Rider Approval",
-          path: "/delivery/approval",
-        },
-        {
-          id: "document-verification",
-          label: "Document Verification",
-          path: "/delivery/verification",
         },
       ],
     },
@@ -127,88 +93,24 @@ function Sidebar() {
       ],
     },
     {
-      id: "orders",
-      label: "Order Management",
-      icon: ShoppingCart,
-      subItems: [
-        {
-          id: "live-orders",
-          label: "Live Orders",
-          path: "/orders/live",
-        },
-        {
-          id: "order-monitoring",
-          label: "Order Monitoring",
-          path: "/orders/monitoring",
-        },
-      ],
-    },
-    {
-      id: "reports",
-      label: "Reports",
-      icon: BarChart3,
-      subItems: [
-        {
-          id: "revenue-reports",
-          label: "Revenue Reports",
-          path: "/reports/revenue",
-        },
-        {
-          id: "vendor-reports",
-          label: "Vendor Reports",
-          path: "/reports/vendors",
-        },
-        {
-          id: "delivery-reports",
-          label: "Delivery Reports",
-          path: "/reports/delivery",
-        },
-      ],
-    },
-    {
-      id: "notifications",
-      label: "Notification Center",
-      icon: Bell,
-      subItems: [
-        {
-          id: "push-notifications",
-          label: "Push Notifications",
-          path: "/notifications/push",
-        },
-        {
-          id: "promotional-notifications",
-          label: "Promotional Notifications",
-          path: "/notifications/promotional",
-        },
-      ],
-    },
-    {
       id: "settings",
       label: "System Settings",
       icon: Settings,
-      subItems: [
-        {
-          id: "platform-settings",
-          label: "Platform Settings",
-          path: "/settings",
-        },
-      ],
+      path: "/settings",
+      subItems: [],
     },
   ];
 
   useEffect(() => {
     const activeGroup = menuGroups.find((group) =>
       group.subItems.some(
-        (subItem) =>
-          location.pathname === subItem.path
+        (subItem) => location.pathname === subItem.path
       )
     );
 
     if (activeGroup) {
       setExpandedGroup(activeGroup.id);
-    } else if (
-      location.pathname === "/dashboard"
-    ) {
+    } else {
       setExpandedGroup(null);
     }
   }, [location.pathname]);
@@ -246,11 +148,7 @@ function Sidebar() {
         onClick={() => setIsOpen(!isOpen)}
         className="lg:hidden fixed top-6 left-6 z-50 p-3 bg-emerald-900 text-white rounded-2xl shadow-lg border border-emerald-700/50 hover:bg-emerald-800 transition-all duration-300"
       >
-        {isOpen ? (
-          <X size={20} />
-        ) : (
-          <Menu size={20} />
-        )}
+        {isOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
       {isOpen && (
@@ -262,9 +160,7 @@ function Sidebar() {
 
       <aside
         className={`fixed lg:sticky top-0 left-0 z-40 w-80 h-screen p-6 flex flex-col justify-between transition-transform duration-500 ease-out lg:translate-x-0 ${
-          isOpen
-            ? "translate-x-0"
-            : "-translate-x-full"
+          isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="absolute inset-y-6 left-6 right-0 bg-gradient-to-b from-emerald-950 via-emerald-900 to-slate-950 rounded-[2.5rem] border border-emerald-800/40 shadow-2xl shadow-emerald-950/20 pointer-events-none" />
@@ -288,16 +184,13 @@ function Sidebar() {
 
           <nav className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             {menuGroups.map((group) => {
-              const isExpanded =
-                expandedGroup === group.id;
-
-              const isDashboard =
-                group.id === "dashboard";
+              const isExpanded = expandedGroup === group.id;
 
               const isSelected =
-                isDashboard &&
-                location.pathname ===
-                  "/dashboard";
+                location.pathname === group.path ||
+                group.subItems.some(
+                  (subItem) => location.pathname === subItem.path
+                );
 
               const GroupIcon = group.icon;
 
@@ -307,9 +200,7 @@ function Sidebar() {
                   className="space-y-1"
                 >
                   <button
-                    onClick={() =>
-                      handleGroupToggle(group)
-                    }
+                    onClick={() => handleGroupToggle(group)}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 ${
                       isSelected || isExpanded
                         ? "bg-white/10 text-white shadow-inner border border-white/5"
@@ -320,19 +211,16 @@ function Sidebar() {
                       <GroupIcon
                         size={18}
                         className={
-                          isSelected ||
-                          isExpanded
+                          isSelected || isExpanded
                             ? "text-emerald-400"
                             : "text-emerald-300/60"
                         }
                       />
 
-                      <span>
-                        {group.label}
-                      </span>
+                      <span>{group.label}</span>
                     </div>
 
-                    {!isDashboard &&
+                    {group.subItems.length > 0 &&
                       (isExpanded ? (
                         <ChevronUp
                           size={14}
@@ -353,35 +241,30 @@ function Sidebar() {
                         : "max-h-0 opacity-0 pointer-events-none"
                     }`}
                   >
-                    {group.subItems.map(
-                      (subItem) => {
-                        const isSubSelected =
-                          location.pathname ===
-                          subItem.path;
+                    {group.subItems.map((subItem) => {
+                      const isSubSelected =
+                        location.pathname === subItem.path;
 
-                        return (
-                          <button
-                            key={subItem.id}
-                            onClick={() =>
-                              handleSubItemClick(
-                                subItem.path
-                              )
-                            }
-                            className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 relative ${
-                              isSubSelected
-                                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
-                                : "text-emerald-300/50 hover:text-white hover:bg-white/5"
-                            }`}
-                          >
-                            {isSubSelected && (
-                              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-white rounded-r-full" />
-                            )}
+                      return (
+                        <button
+                          key={subItem.id}
+                          onClick={() =>
+                            handleSubItemClick(subItem.path)
+                          }
+                          className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 relative ${
+                            isSubSelected
+                              ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
+                              : "text-emerald-300/50 hover:text-white hover:bg-white/5"
+                          }`}
+                        >
+                          {isSubSelected && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-white rounded-r-full" />
+                          )}
 
-                            {subItem.label}
-                          </button>
-                        );
-                      }
-                    )}
+                          {subItem.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -402,9 +285,7 @@ function Sidebar() {
 
       <LogoutModal
         isOpen={isLogoutModalOpen}
-        onClose={() =>
-          setIsLogoutModalOpen(false)
-        }
+        onClose={() => setIsLogoutModalOpen(false)}
         onConfirm={handleConfirmLogout}
       />
     </>

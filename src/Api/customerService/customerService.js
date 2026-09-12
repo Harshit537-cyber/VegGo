@@ -19,17 +19,47 @@ export const getCustomers = async (params = {}) => {
   return response.data;
 };
 
-export const getCustomerDetails = async (customerId) => {
+export const searchCustomers = async (search, params = {}) => {
   const response = await apiClient.get(
-    `/api/admin/customers/${customerId}`
+    '/api/admin/customers',
+    {
+      params: {
+        search,
+        ...params,
+      },
+    }
   );
 
   return response.data;
 };
 
-export const deleteCustomer = async (customerId) => {
+export const getCustomerDetails = async (customerUserId) => {
+  const response = await apiClient.get(
+    `/api/admin/customers/${customerUserId}`
+  );
+
+  return response.data;
+};
+
+export const deleteCustomer = async (customerUserId) => {
   const response = await apiClient.delete(
-    `/api/admin/customers/${customerId}`
+    `/api/admin/customers/${customerUserId}`
+  );
+
+  return response.data;
+};
+
+export const blockCustomer = async (customerUserId) => {
+  const response = await apiClient.put(
+    `/api/admin/customers/${customerUserId}/block`
+  );
+
+  return response.data;
+};
+
+export const unblockCustomer = async (customerUserId) => {
+  const response = await apiClient.put(
+    `/api/admin/customers/${customerUserId}/unblock`
   );
 
   return response.data;
@@ -54,17 +84,15 @@ export const getModerationCustomers = async (params = {}) => {
   return response.data;
 };
 
-export const blockCustomer = async (customerId) => {
-  const response = await apiClient.put(
-    `/api/admin/customers/${customerId}/block`
-  );
-
-  return response.data;
-};
-
-export const unblockCustomer = async (customerId) => {
-  const response = await apiClient.put(
-    `/api/admin/customers/${customerId}/unblock`
+export const searchModerationCustomers = async (search, params = {}) => {
+  const response = await apiClient.get(
+    '/api/admin/customers/moderation',
+    {
+      params: {
+        search,
+        ...params,
+      },
+    }
   );
 
   return response.data;

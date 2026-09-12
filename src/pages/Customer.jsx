@@ -1,0 +1,1468 @@
+import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import Sidebar from "../components/Sidebar";
+import ConfirmModal from "../Common/ConfirmModal";
+
+import {
+  getCustomerStats,
+  getCustomers,
+  searchCustomers,
+  getCustomerDetails,
+  deleteCustomer,
+  blockCustomer,
+  unblockCustomer,
+  getModerationStats,
+  getModerationCustomers,
+  searchModerationCustomers,
+} from "../Api/customerService/customerService";
+
+import {
+  Calendar,
+  RefreshCw,
+  UserX,
+  Search,
+  ShieldCheck,
+  Users,
+  Sparkles,
+  AlertCircle,
+  ArrowUpRight,
+  ArrowDownRight,
+  CheckCircle2,
+  Clock,
+  Zap,
+  Flag,
+  ShieldAlert,
+  Eye,
+  Trash2,
+  X,
+} from "lucide-react";
+
+function AnimatedValue({ value }) {
+  const [displayValue, setDisplayValue] = useState("");
+
+  useEffect(() => {
+    if (value === undefined || value === null) {
+      setDisplayValue("0");
+      return;
+    }
+
+    const stringValue = String(value);
+    const match = stringValue.match(/([\d,.]+)\s*(.*)/);
+
+    if (!match) {
+      setDisplayValue(stringValue);
+      return;
+    }
+
+    const rawNumber = match[1].replace(/,/g, "");
+    const targetNumber = Number(rawNumber);
+    const suffix = match[2] || "";
+
+    if (Number.isNaN(targetNumber)) {
+      setDisplayValue(stringValue);
+      return;
+    }
+
+    const duration = 1000;
+    const startTime = performance.now();
+    let animationFrame;
+
+    const animate = (time) => {
+      const progress = Math.min(
+        (time - startTime) / duration,
+        1
+      );
+
+      const ease =
+        progress === 1
+          ? 1
+          : 1 - Math.pow(2, -10 * progress);
+
+      const current = targetNumber * ease;
+
+      const formatted = Number.isInteger(targetNumber)
+        ? Math.floor(current).toLocaleString("en-IN")
+        : current.toFixed(2);
+
+      setDisplayValue(
+        `${formatted}${suffix ? ` ${suffix}` : ""}`
+      );
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      } else {
+        setDisplayValue(stringValue);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [value]);
+
+  return <span>{displayValue}</span>;
+}
+
+export default function Customer() {
+  const [currentTab, setCurrentTab] =
+    useState("block-unblock");
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    account: null,
+    action: null,
+  });
+
+  const [customerDetails, setCustomerDetails] =
+    useState(null);
+
+  const [customerStats, setCustomerStats] =
+    useState(null);
+
+  const [customerLedger, setCustomerLedger] =
+    useState(null);
+
+  const [moderationStats, setModerationStats] =
+    useState(null);
+
+  const [accounts, setAccounts] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const [detailsLoading, setDetailsLoading] =
+    useState(false);
+
+  const [deleteLoading, setDeleteLoading] =
+    useState(false);
+
+  const fetchCustomerData = async (search = "") => {
+    setIsRefreshing(true);
+    setErrorMessage("");
+
+    try {
+      const [
+        customerStatsResponse,
+        customerLedgerResponse,
+        moderationStatsResponse,
+        moderationLedgerResponse,
+      ] = await Promise.all([
+        getCustomerStats(),
+
+        search.trim()
+          ? searchCustomers(search.trim(), {
+              page: 0,
+              size: 20,
+            })
+          : getCustomers({
+              page: 0,
+              size: 20,
+            }),
+
+        getModerationStats(),
+
+        search.trim()
+          ? searchModerationCustomers(search.trim(), {
+              page: 0,
+              size: 20,
+            })
+          : getModerationCustomers({
+              page: 0,
+              size: 20,
+            }),
+      ]);
+
+      setCustomerStats(
+        customerStatsResponse?.data ?? null
+      );
+
+      setCustomerLedger(
+        customerLedgerResponse?.data ?? null
+      );
+
+      setModerationStats(
+        moderationStatsResponse?.data ?? null
+      );
+
+      const moderationData =
+        moderationLedgerResponse?.data;
+
+      let customerList = [];
+
+      if (
+        Array.isArray(
+          moderationData?.content
+        )
+      ) {
+        customerList =
+          moderationData.content;
+      } else if (
+        Array.isArray(moderationData)
+      ) {
+        customerList = moderationData;
+      }
+
+      setAccounts(customerList);
+    } catch (error) {
+      console.error(
+        "Failed to fetch customer data:",
+        error
+      );
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to fetch customer data"
+      );
+    } finally {
+      setIsRefreshing(false);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomerData();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchCustomerData(searchQuery);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleRefresh = () => {
+    fetchCustomerData(searchQuery);
+  };
+
+  const getCustomerId = (customer) => {
+    return (
+      customer?.customerId ??
+      customer?.id ??
+      customer?._id
+    );
+  };
+
+  const getCustomerUserId = (customer) => {
+    return customer?.userId ?? null;
+  };
+
+  const isCustomerBlocked = (customer) => {
+    return customer?.blocked === true;
+  };
+
+  const getStatus = (customer) => {
+    if (isCustomerBlocked(customer)) {
+      return "Blocked";
+    }
+
+    return customer?.accountState || "Active";
+  };
+
+  const getCustomerName = (account) => {
+    return (
+      account?.fullName ??
+      account?.name ??
+      account?.customerName ??
+      account?.user?.name ??
+      account?.customerId ??
+      "Unknown Customer"
+    );
+  };
+
+  const getCustomerEmail = (account) => {
+    return (
+      account?.email ??
+      account?.user?.email ??
+      ""
+    );
+  };
+
+  const getFlagsRaised = (account) => {
+    return Number(account?.flagsRaised ?? 0);
+  };
+
+  const getPrimaryInfraction = (account) => {
+    return (
+      account?.primaryInfraction ??
+      "None"
+    );
+  };
+
+  const handleViewCustomer = async (account) => {
+    const customerUserId =
+      getCustomerUserId(account);
+
+    if (!customerUserId) {
+      setErrorMessage(
+        "Customer User ID not found"
+      );
+      return;
+    }
+
+    try {
+      setDetailsLoading(true);
+      setErrorMessage("");
+
+      const response =
+        await getCustomerDetails(
+          customerUserId
+        );
+
+      if (response?.success === false) {
+        setErrorMessage(
+          response?.message ||
+            "Failed to fetch customer details"
+        );
+        return;
+      }
+
+      setCustomerDetails(
+        response?.data ?? null
+      );
+    } catch (error) {
+      console.error(
+        "Failed to fetch customer details:",
+        error
+      );
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to fetch customer details"
+      );
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const closeDetails = () => {
+    setCustomerDetails(null);
+  };
+
+  const initiateToggleStatus = (account) => {
+    setModalConfig({
+      isOpen: true,
+      account,
+      action: isCustomerBlocked(account)
+        ? "unblock"
+        : "block",
+    });
+  };
+
+  const initiateDelete = (account) => {
+    setModalConfig({
+      isOpen: true,
+      account,
+      action: "delete",
+    });
+  };
+
+  const closeModal = () => {
+    setModalConfig({
+      isOpen: false,
+      account: null,
+      action: null,
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    const account = modalConfig.account;
+    const action = modalConfig.action;
+
+    if (!account) return;
+
+    const customerUserId =
+      getCustomerUserId(account);
+
+    if (!customerUserId) {
+      setErrorMessage(
+        "Customer User ID not found"
+      );
+      closeModal();
+      return;
+    }
+
+    try {
+      setIsRefreshing(true);
+      setErrorMessage("");
+
+      let response;
+
+      if (action === "block") {
+        response =
+          await blockCustomer(
+            customerUserId
+          );
+      }
+
+      if (action === "unblock") {
+        response =
+          await unblockCustomer(
+            customerUserId
+          );
+      }
+
+      if (action === "delete") {
+        setDeleteLoading(true);
+
+        response =
+          await deleteCustomer(
+            customerUserId
+          );
+      }
+
+      if (response?.success === false) {
+        setErrorMessage(
+          response?.message ||
+            `Failed to ${action} customer`
+        );
+        return;
+      }
+
+      closeModal();
+      setCustomerDetails(null);
+
+      await fetchCustomerData(
+        searchQuery
+      );
+    } catch (error) {
+      console.error(
+        "Failed to update customer:",
+        error
+      );
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          `Failed to ${action} customer`
+      );
+    } finally {
+      setIsRefreshing(false);
+      setDeleteLoading(false);
+    }
+  };
+
+  const totalCustomers =
+    customerStats?.totalCustomers ??
+    moderationStats?.unrestrictedUsers ??
+    0;
+
+  const activeThisMonth =
+    customerStats?.activeThisMonth ?? 0;
+
+  const premiumSubscribers =
+    customerStats?.premiumSubscribers ?? 0;
+
+  const suspendedOrBlocked =
+    moderationStats?.suspendedOrBlocked ??
+    customerStats?.suspendedAccounts ??
+    0;
+
+  const flaggedWarnings =
+    moderationStats?.flaggedWarnings ?? 0;
+
+  const moderationCards = [
+  {
+    label: "Total Customers",
+    value: `${totalCustomers} Users`,
+    accentColor: "bg-emerald-600",
+    iconBg: "bg-emerald-50 text-emerald-700",
+    icon: Users,
+  },
+  {
+    label: "Active This Month",
+    value: `${activeThisMonth} Users`,
+    accentColor: "bg-teal-600",
+    iconBg: "bg-teal-50 text-teal-700",
+    icon: UserCheckIcon,
+  },
+  {
+    label: "Premium Subscribers",
+    value: `${premiumSubscribers} Accounts`,
+    accentColor: "bg-emerald-500",
+    iconBg: "bg-emerald-50 text-emerald-700",
+    icon: CrownIcon,
+  },
+  {
+    label: "Suspended / Blocked",
+    value: `${suspendedOrBlocked} Accounts`,
+    accentColor: "bg-green-700",
+    iconBg: "bg-green-50 text-green-700",
+    icon: UserX,
+  },
+];
+  return (
+    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800">
+      <Sidebar
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+      />
+
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
+        <motion.header
+          initial={{
+            opacity: 0,
+            y: -20,
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          transition={{
+            duration: 0.5,
+          }}
+          className="relative overflow-hidden rounded-3xl bg-emerald-950 text-white p-6 sm:p-7 shadow-xl shadow-emerald-950/20 border border-emerald-900"
+        >
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800">
+                  <Users size={12} />
+                  Customer Management
+                </span>
+
+                <span className="inline-flex items-center gap-2 bg-rose-950/80 border border-rose-900/80 px-3 py-1 rounded-full text-[10px] font-semibold tracking-widest uppercase">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+                  </span>
+
+                  LIVE ADMIN VEG GO
+                </span>
+              </div>
+
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
+                Customer
+              </h1>
+
+              <p className="text-emerald-200 text-sm">
+                Review customer accounts and manage access status.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold">
+                <Calendar
+                  size={14}
+                  className="text-emerald-400"
+                />
+
+                {new Date().toLocaleDateString(
+                  "en-IN",
+                  {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  }
+                )}
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all disabled:opacity-60"
+                title="Refresh Data"
+              >
+                <RefreshCw
+                  size={15}
+                  className={
+                    isRefreshing
+                      ? "animate-spin text-emerald-300"
+                      : "text-emerald-300"
+                  }
+                />
+              </motion.button>
+            </div>
+          </div>
+        </motion.header>
+
+        <AnimatePresence>
+          {errorMessage && (
+            <motion.div
+              initial={{
+                opacity: 0,
+                y: -10,
+              }}
+              animate={{
+                opacity: 1,
+                y: 0,
+              }}
+              exit={{
+                opacity: 0,
+                y: -10,
+              }}
+              className="px-5 py-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold flex items-center gap-3 shadow-sm"
+            >
+              <AlertCircle
+                size={18}
+                className="text-rose-600 flex-shrink-0"
+              />
+
+              <span>{errorMessage}</span>
+
+              <button
+                onClick={() =>
+                  setErrorMessage("")
+                }
+                className="ml-auto p-1 rounded-lg hover:bg-rose-100"
+              >
+                <X size={16} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+  {moderationCards.map((stat, index) => {
+    const Icon = stat.icon;
+
+    return (
+      <motion.div
+        key={stat.label}
+        initial={{
+          opacity: 0,
+          y: 20,
+        }}
+        animate={{
+          opacity: 1,
+          y: 0,
+        }}
+        transition={{
+          duration: 0.4,
+          delay: index * 0.08,
+        }}
+        whileHover={{
+          y: -4,
+        }}
+        className="relative overflow-hidden bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl transition-all"
+      >
+        <div
+          className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor}`}
+        />
+
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-black">
+            {stat.label}
+          </span>
+
+          <div
+            className={`${stat.iconBg} p-2.5 rounded-2xl`}
+          >
+            <Icon size={18} />
+          </div>
+        </div>
+
+        <h3 className="mt-4 text-2xl sm:text-3xl font-semibold text-black font-mono">
+          {loading ? (
+            <span className="text-slate-300 animate-pulse">
+              ...
+            </span>
+          ) : (
+            <AnimatedValue value={stat.value} />
+          )}
+        </h3>
+
+        <div className="mt-5 pt-3 border-t border-slate-100 text-[11px] font-semibold text-slate-400">
+          Live API Data
+        </div>
+      </motion.div>
+    );
+  })}
+</section>
+
+        <section>
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            transition={{
+              duration: 0.5,
+            }}
+            className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-6"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                  <Users size={18} />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-semibold text-black">
+                    Customer Moderation
+                  </h2>
+
+                  <p className="text-xs font-semibold text-slate-500">
+                    Review flagged accounts and manage access status
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search
+                  className="absolute left-3 top-2.5 text-slate-400"
+                  size={15}
+                />
+
+                <input
+                  type="text"
+                  placeholder="Search customers..."
+                  value={searchQuery}
+                  onChange={(e) =>
+                    setSearchQuery(
+                      e.target.value
+                    )
+                  }
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
+                    <th className="py-3.5 px-4 rounded-l-xl">
+                      Customer Details
+                    </th>
+
+                    <th className="py-3.5 px-4">
+                      Flags
+                    </th>
+
+                    <th className="py-3.5 px-4">
+                      Primary Infraction
+                    </th>
+
+                    <th className="py-3.5 px-4 text-center">
+                      Current Status
+                    </th>
+
+                    <th className="py-3.5 px-4 text-center rounded-r-xl">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="py-12 text-center text-slate-400 text-xs"
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <RefreshCw
+                            size={15}
+                            className="animate-spin text-emerald-600"
+                          />
+                          Loading customer records...
+                        </div>
+                      </td>
+                    </tr>
+                  ) : accounts.length > 0 ? (
+                    accounts.map(
+                      (account, index) => {
+                        const name =
+                          getCustomerName(
+                            account
+                          );
+
+                        const email =
+                          getCustomerEmail(
+                            account
+                          );
+
+                        const flags =
+                          getFlagsRaised(
+                            account
+                          );
+
+                        const infraction =
+                          getPrimaryInfraction(
+                            account
+                          );
+
+                        const status =
+                          getStatus(account);
+
+                        const blocked =
+                          isCustomerBlocked(
+                            account
+                          );
+
+                        return (
+                          <motion.tr
+                            key={
+                              getCustomerId(
+                                account
+                              ) || index
+                            }
+                            initial={{
+                              opacity: 0,
+                              y: 10,
+                            }}
+                            animate={{
+                              opacity: 1,
+                              y: 0,
+                            }}
+                            transition={{
+                              duration: 0.3,
+                              delay:
+                                index * 0.04,
+                            }}
+                            className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors"
+                          >
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                                  <Users size={16} />
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p className="font-semibold truncate max-w-[230px]">
+                                    {name}
+                                  </p>
+
+                                  {email && (
+                                    <p className="text-[10px] text-slate-400 truncate max-w-[230px]">
+                                      {email}
+                                    </p>
+                                  )}
+
+                                  <p className="text-[9px] text-slate-400 font-mono mt-0.5">
+                                    {getCustomerId(
+                                      account
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-4 px-4">
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${
+                                  flags > 0
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-slate-50 text-slate-600 border-slate-200"
+                                }`}
+                              >
+                                <Flag size={11} />
+                                {flags}
+                              </span>
+                            </td>
+
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-2 max-w-[240px]">
+                                <span
+                                  className={`p-1.5 rounded-lg shrink-0 ${
+                                    flags > 0
+                                      ? "bg-rose-50 text-rose-600"
+                                      : "bg-slate-50 text-slate-400"
+                                  }`}
+                                >
+                                  <ShieldAlert
+                                    size={13}
+                                  />
+                                </span>
+
+                                <span className="truncate text-slate-700">
+                                  {infraction}
+                                </span>
+                              </div>
+                            </td>
+
+                            <td className="py-4 px-4 text-center">
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${
+                                  blocked
+                                    ? "bg-rose-50 text-rose-700 border-rose-200"
+                                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                }`}
+                              >
+                                {blocked ? (
+                                  <Clock
+                                    size={11}
+                                  />
+                                ) : (
+                                  <CheckCircle2
+                                    size={11}
+                                  />
+                                )}
+
+                                {status}
+                              </span>
+                            </td>
+
+                            <td className="py-4 px-4">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() =>
+                                    handleViewCustomer(
+                                      account
+                                    )
+                                  }
+                                  disabled={
+                                    isRefreshing ||
+                                    detailsLoading
+                                  }
+                                  className="p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all disabled:opacity-50"
+                                  title="View Details"
+                                >
+                                  <Eye size={15} />
+                                </button>
+
+                                <button
+                                  onClick={() =>
+                                    initiateToggleStatus(
+                                      account
+                                    )
+                                  }
+                                  disabled={
+                                    isRefreshing
+                                  }
+                                  className={`p-2 rounded-xl transition-all disabled:opacity-50 ${
+                                    blocked
+                                      ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                      : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                                  }`}
+                                  title={
+                                    blocked
+                                      ? "Restore Access"
+                                      : "Block Account"
+                                  }
+                                >
+                                  {blocked ? (
+                                    <ShieldCheck
+                                      size={15}
+                                    />
+                                  ) : (
+                                    <UserX
+                                      size={15}
+                                    />
+                                  )}
+                                </button>
+
+                                <button
+                                  onClick={() =>
+                                    initiateDelete(
+                                      account
+                                    )
+                                  }
+                                  disabled={
+                                    isRefreshing
+                                  }
+                                  className="p-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all disabled:opacity-50"
+                                  title="Delete"
+                                >
+                                  <Trash2
+                                    size={15}
+                                  />
+                                </button>
+                              </div>
+                            </td>
+                          </motion.tr>
+                        );
+                      }
+                    )
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="py-12 text-center text-slate-400 text-xs"
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <Users size={19} />
+                          </div>
+
+                          <span>
+                            {searchQuery
+                              ? "No customer records matching your search."
+                              : "No customer moderation records found."}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="md:hidden space-y-3">
+              {loading ? (
+                <div className="py-12 text-center text-slate-400 text-xs">
+                  <RefreshCw
+                    size={15}
+                    className="animate-spin mx-auto mb-2 text-emerald-600"
+                  />
+                  Loading customer records...
+                </div>
+              ) : accounts.length > 0 ? (
+                accounts.map(
+                  (account, index) => {
+                    const name =
+                      getCustomerName(
+                        account
+                      );
+
+                    const email =
+                      getCustomerEmail(
+                        account
+                      );
+
+                    const flags =
+                      getFlagsRaised(
+                        account
+                      );
+
+                    const infraction =
+                      getPrimaryInfraction(
+                        account
+                      );
+
+                    const status =
+                      getStatus(account);
+
+                    const blocked =
+                      isCustomerBlocked(
+                        account
+                      );
+
+                    return (
+                      <motion.div
+                        key={
+                          getCustomerId(
+                            account
+                          ) || index
+                        }
+                        initial={{
+                          opacity: 0,
+                          y: 10,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                        }}
+                        transition={{
+                          duration: 0.3,
+                          delay:
+                            index * 0.03,
+                        }}
+                        className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 space-y-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                              <Users size={16} />
+                            </div>
+
+                            <div className="min-w-0">
+                              <h4 className="font-semibold text-sm truncate">
+                                {name}
+                              </h4>
+
+                              {email && (
+                                <p className="text-xs text-slate-500 truncate">
+                                  {email}
+                                </p>
+                              )}
+
+                              <p className="text-[9px] text-slate-400 font-mono mt-1">
+                                {getCustomerId(
+                                  account
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${
+                              blocked
+                                ? "bg-rose-50 text-rose-700 border-rose-200"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            }`}
+                          >
+                            {status}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200">
+                          <div>
+                            <span className="text-[10px] uppercase font-semibold text-slate-400 block mb-1">
+                              Flags
+                            </span>
+
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold border ${
+                                flags > 0
+                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  : "bg-slate-50 text-slate-600 border-slate-200"
+                              }`}
+                            >
+                              <Flag size={11} />
+                              {flags}
+                            </span>
+                          </div>
+
+                          <div className="min-w-0">
+                            <span className="text-[10px] uppercase font-semibold text-slate-400 block mb-1">
+                              Infraction
+                            </span>
+
+                            <span className="font-semibold text-slate-600 text-xs truncate block">
+                              {infraction}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 pt-1">
+                          <button
+                            onClick={() =>
+                              handleViewCustomer(
+                                account
+                              )
+                            }
+                            disabled={
+                              isRefreshing ||
+                              detailsLoading
+                            }
+                            className="py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1 disabled:opacity-50"
+                          >
+                            <Eye size={14} />
+                            View
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              initiateToggleStatus(
+                                account
+                              )
+                            }
+                            disabled={
+                              isRefreshing
+                            }
+                            className={`py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 border disabled:opacity-50 ${
+                              blocked
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-rose-50 text-rose-700 border-rose-200"
+                            }`}
+                          >
+                            {blocked ? (
+                              <ShieldCheck
+                                size={14}
+                              />
+                            ) : (
+                              <UserX size={14} />
+                            )}
+
+                            {blocked
+                              ? "Restore"
+                              : "Block"}
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              initiateDelete(
+                                account
+                              )
+                            }
+                            disabled={
+                              isRefreshing
+                            }
+                            className="py-2 rounded-xl bg-rose-50 text-rose-700 text-xs font-semibold flex items-center justify-center gap-1 border border-rose-200 disabled:opacity-50"
+                          >
+                            <Trash2 size={14} />
+                            Delete
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  }
+                )
+              ) : (
+                <div className="py-10 text-center text-xs text-slate-400">
+                  {searchQuery
+                    ? "No customer records matching your search."
+                    : "No customer moderation records found."}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </section>
+      </main>
+
+      <AnimatePresence>
+        {modalConfig.isOpen &&
+          modalConfig.account && (
+            <ConfirmModal
+              isOpen={modalConfig.isOpen}
+              onClose={closeModal}
+              onConfirm={handleConfirmAction}
+              type={
+                modalConfig.action ===
+                "unblock"
+                  ? "success"
+                  : "danger"
+              }
+              title={
+                modalConfig.action === "delete"
+                  ? "Delete Customer Account"
+                  : modalConfig.action ===
+                    "unblock"
+                  ? "Restore Account Access"
+                  : "Restrict Account Access"
+              }
+              message={
+                modalConfig.action === "delete"
+                  ? `Are you sure you want to delete ${getCustomerName(
+                      modalConfig.account
+                    )}?`
+                  : modalConfig.action ===
+                    "unblock"
+                  ? `Are you sure you want to restore access for ${getCustomerName(
+                      modalConfig.account
+                    )}?`
+                  : `Are you sure you want to block access for ${getCustomerName(
+                      modalConfig.account
+                    )}?`
+              }
+              confirmText={
+                modalConfig.action === "delete"
+                  ? deleteLoading
+                    ? "Deleting..."
+                    : "Yes, Delete Account"
+                  : modalConfig.action ===
+                    "unblock"
+                  ? "Yes, Restore Access"
+                  : "Yes, Block Account"
+              }
+              cancelText="Cancel Action"
+            />
+          )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {customerDetails && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={closeDetails}
+          >
+            <motion.div
+              initial={{
+                opacity: 0,
+                scale: 0.95,
+                y: 20,
+              }}
+              animate={{
+                opacity: 1,
+                scale: 1,
+                y: 0,
+              }}
+              exit={{
+                opacity: 0,
+                scale: 0.95,
+                y: 20,
+              }}
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+              className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200"
+            >
+              <div className="p-5 bg-emerald-950 text-white flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users size={17} className="text-emerald-300" />
+
+                    <h3 className="text-lg font-semibold">
+                      Customer Details
+                    </h3>
+                  </div>
+
+                  <p className="text-xs text-emerald-200">
+                    Live customer information
+                  </p>
+                </div>
+
+                <button
+                  onClick={closeDetails}
+                  className="p-2 rounded-xl bg-emerald-900 hover:bg-emerald-800 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-5 max-h-[70vh] overflow-y-auto">
+                {detailsLoading ? (
+                  <div className="py-16 flex items-center justify-center gap-2 text-sm text-slate-500">
+                    <RefreshCw
+                      size={16}
+                      className="animate-spin text-emerald-600"
+                    />
+                    Loading customer details...
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] uppercase font-semibold text-slate-400">
+                          Customer ID
+                        </span>
+
+                        <p className="mt-1 text-sm font-semibold text-black break-words">
+                          {customerDetails.customerId ||
+                            "-"}
+                        </p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] uppercase font-semibold text-slate-400">
+                          User ID
+                        </span>
+
+                        <p className="mt-1 text-xs font-semibold text-black break-all">
+                          {customerDetails.userId ||
+                            "-"}
+                        </p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] uppercase font-semibold text-slate-400">
+                          Full Name
+                        </span>
+
+                        <p className="mt-1 text-sm font-semibold text-black">
+                          {customerDetails.fullName ||
+                            "-"}
+                        </p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] uppercase font-semibold text-slate-400">
+                          Email
+                        </span>
+
+                        <p className="mt-1 text-sm font-semibold text-black break-all">
+                          {customerDetails.email ||
+                            "-"}
+                        </p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] uppercase font-semibold text-slate-400">
+                          Phone
+                        </span>
+
+                        <p className="mt-1 text-sm font-semibold text-black">
+                          {customerDetails.phone ||
+                            "-"}
+                        </p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] uppercase font-semibold text-slate-400">
+                          Account State
+                        </span>
+
+                        <p className="mt-1 text-sm font-semibold text-black">
+                          {customerDetails.accountState ||
+                            "-"}
+                        </p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] uppercase font-semibold text-slate-400">
+                          Completed Purchases
+                        </span>
+
+                        <p className="mt-1 text-sm font-semibold text-black">
+                          {customerDetails.completedPurchases ??
+                            0}
+                        </p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <span className="text-[10px] uppercase font-semibold text-slate-400">
+                          Lifetime Outlay
+                        </span>
+
+                        <p className="mt-1 text-sm font-semibold text-black">
+                          ₹
+                          {Number(
+                            customerDetails.lifetimeOutlay ??
+                              0
+                          ).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                          customerDetails.blocked
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        }`}
+                      >
+                        {customerDetails.blocked
+                          ? "Blocked"
+                          : "Active"}
+                      </span>
+
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                          customerDetails.verified
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
+                        }`}
+                      >
+                        {customerDetails.verified
+                          ? "Verified"
+                          : "Unverified"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-5 border-t border-slate-100">
+                <button
+                  onClick={closeDetails}
+                  className="w-full py-3 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
+                >
+                  Close Details
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function UserCheckIcon(props) {
+  return <CheckCircle2 {...props} />;
+}
+
+function CrownIcon(props) {
+  return <Sparkles {...props} />;
+}

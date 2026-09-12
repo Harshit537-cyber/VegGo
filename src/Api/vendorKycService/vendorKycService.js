@@ -1,40 +1,39 @@
-import apiClient from '../Interceptor/axiosInstance';
+import apiClient from "../Interceptor/axiosInstance";
 
-export const getPendingVendorKyc = async (params = {}) => {
+export const getPendingVendorKyc = async () => {
   const response = await apiClient.get(
-    '/api/admin/vendors/kyc/pending',
-    { params }
+    "/api/admin/vendors/kyc/pending?page=0&size=20"
   );
 
   return response.data;
 };
 
-export const getVendorKycDetails = async (shopId) => {
+export const getVendorKycDetail = async (vendorShopId) => {
   const response = await apiClient.get(
-    `/api/admin/vendors/kyc/${shopId}`
+    `/api/admin/vendors/kyc/${vendorShopId}`
   );
 
   return response.data;
 };
 
-export const approveVendorKyc = async (shopId) => {
+export const approveVendorKyc = async (vendorShopId) => {
   const response = await apiClient.put(
-    `/api/admin/vendors/kyc/${shopId}/approve`
+    `/api/admin/vendors/kyc/${vendorShopId}/approve`
   );
 
   return response.data;
 };
 
-export const rejectVendorKyc = async (shopId, reason) => {
+export const rejectVendorKyc = async (
+  vendorShopId,
+  reason = "Document unclear"
+) => {
   const response = await apiClient.put(
-    `/api/admin/vendors/kyc/${shopId}/reject`,
+    `/api/admin/vendors/kyc/${vendorShopId}/reject`,
     null,
     {
       params: {
-        reason:
-          typeof reason === 'string'
-            ? reason
-            : reason?.reason || '',
+        reason,
       },
     }
   );

@@ -10,7 +10,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./components/Dashboard";
 
 import Login from "./pages/Login";
-import OrderStatus from "./pages/Orders";
+import Orders from "./pages/Orders";
 import ColdChain from "./pages/ColdChain";
 import MarketMetrics from "./pages/MarketMetrics";
 import OperatorRoles from "./pages/OperatorRoles";
@@ -19,26 +19,26 @@ import Settings from "./pages/Settings";
 import RevenueOverview from "./pages/RevenueOverview";
 import OrderStatistics from "./pages/OrderStatistics";
 import VendorStatistics from "./pages/VendorStatistics";
-import ViewCustomers from "./pages/ViewCustomers";
-import CustomerModeration from "./pages/CustomerModeration";
-import ShopApproval from "./pages/ShopApproval";
-import ShopSuspension from "./pages/ShopSuspension";
-import RiderApproval from "./pages/RiderApproval";
-import DocumentVerification from "./pages/DocumentVerification";
+
+import Customer from "./pages/Customer";
+import Delivery from "./pages/Delivery";
+import Vendor from "./pages/Vendor";
+
 import PushNotifications from "./pages/PushNotifications";
 import PromotionalNotifications from "./pages/PromotionalNotifications";
+
 import Categories from "./pages/Categories";
 import Subcategories from "./pages/Subcategories";
 import Products from "./pages/Products";
-import LiveOrders from "./pages/LiveOrders";
+
 import OrderMonitoring from "./pages/OrderMonitoring";
+
 import RevenueReports from "./pages/RevenueReports";
 import VendorReports from "./pages/VendorReports";
 import DeliveryReports from "./pages/DeliveryReports";
 
 import Wallet from "./pages/Wallet";
-import VendorPayouts from "./pages/VendorPayouts";
-import CustomerRefunds from "./pages/CustomerRefunds";
+import Payouts from "./pages/Payouts";
 
 export default function App() {
   return (
@@ -70,58 +70,33 @@ export default function App() {
           />
 
           <Route
+            path="/management/customers"
+            element={<Customer />}
+          />
+
+          <Route
+            path="/management/delivery"
+            element={<Delivery />}
+          />
+
+          <Route
+            path="/management/vendors"
+            element={<Vendor />}
+          />
+
+          <Route
             path="/payouts/wallet"
             element={<Wallet />}
           />
 
           <Route
             path="/payouts/vendors"
-            element={<VendorPayouts />}
-          />
-
-          <Route
-            path="/payouts/refunds"
-            element={<CustomerRefunds />}
-          />
-
-          <Route
-            path="/customers/view"
-            element={<ViewCustomers />}
-          />
-
-          <Route
-            path="/customers/moderation"
-            element={<CustomerModeration />}
-          />
-
-          <Route
-            path="/vendors/approval"
-            element={<ShopApproval />}
-          />
-
-          <Route
-            path="/vendors/suspension"
-            element={<ShopSuspension />}
-          />
-
-          <Route
-            path="/delivery/approval"
-            element={<RiderApproval />}
-          />
-
-          <Route
-            path="/delivery/verification"
-            element={<DocumentVerification />}
+            element={<Payouts />}
           />
 
           <Route
             path="/orders"
-            element={<OrderStatus />}
-          />
-
-          <Route
-            path="/orders/live"
-            element={<LiveOrders />}
+            element={<Orders />}
           />
 
           <Route
