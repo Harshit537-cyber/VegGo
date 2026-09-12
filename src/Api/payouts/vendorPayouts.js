@@ -1,4 +1,4 @@
-import apiClient from '../Interceptor/axiosInstance';
+import apiClient from "../Interceptor/axiosInstance";
 
 export const getPendingPayouts = async (page = 0, size = 20) => {
   const response = await apiClient.get(
