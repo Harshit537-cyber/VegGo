@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -23,7 +23,9 @@ import {
   Sparkles,
   Zap,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 
 import {
@@ -35,7 +37,20 @@ import {
   activateSubcategory
 } from '../Api/catalogService/subcategoryService';
 
-const CATEGORY_ID = 'f3a88028-bd45-40a4-aef5-4846d5238ac5';
+/**
+ * ⚠️ IMPORT PATH CHECK KARO
+ * getCategories tumhare categoryService ya productService,
+ * jahan bhi ho, wahan se import karo. Agar path alag hai to
+ * sirf ye ek line badal dena, baaki sab wahi rahega.
+ */
+import { getCategories } from '../Api/catalogService/productService';
+
+/* ------------------------------------------------------------------ */
+/* ✅ FIX: hardcoded CATEGORY_ID hata diya gaya hai.                    */
+/* Ye hi wajah thi ki har subcategory sirf isi ek category ke          */
+/* andar create ho rahi thi, isliye Product page par doosri            */
+/* categories ke liye subcategory dropdown khali aata tha.             */
+/* ------------------------------------------------------------------ */
 
 function AnimatedValue({ value }) {
   const [displayValue, setDisplayValue] = useState('');
@@ -97,6 +112,146 @@ const getErrorMessage = (error, fallback) => {
   );
 };
 
+const getValue = (obj, keys, fallback = '') => {
+  for (const key of keys) {
+    if (obj?.[key] !== undefined && obj?.[key] !== null) {
+      return obj[key];
+    }
+  }
+  return fallback;
+};
+
+const normalizeCategory = (category) => ({
+  ...category,
+  id: getValue(category, ['id', 'categoryId', '_id'], ''),
+  name: getValue(category, ['name', 'categoryName', 'title'], '')
+});
+
+const extractCategories = (response) => {
+  const root = response?.data;
+
+  if (Array.isArray(root)) return root;
+  if (Array.isArray(root?.content)) return root.content;
+  if (Array.isArray(root?.categories)) return root.categories;
+  if (Array.isArray(root?.items)) return root.items;
+  if (Array.isArray(root?.data)) return root.data;
+  if (Array.isArray(response?.categories)) return response.categories;
+  if (Array.isArray(response?.items)) return response.items;
+
+  return [];
+};
+
+/* ------------------------------------------------------------------ */
+/* Simple category select dropdown (same look as rest of the app)      */
+/* ------------------------------------------------------------------ */
+
+function CategorySelect({
+  value,
+  options,
+  placeholder,
+  onChange,
+  disabled = false,
+  loading = false
+}) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () =>
+      document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const selectedOption = options.find(
+    (option) => String(option.id) === String(value)
+  );
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((prev) => !prev)}
+        className={`w-full h-[42px] px-3.5 bg-slate-50 border rounded-xl text-xs font-bold text-black flex items-center justify-between transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+          open
+            ? 'border-emerald-500 bg-white ring-2 ring-emerald-500/10'
+            : 'border-slate-200 hover:border-emerald-300'
+        }`}
+      >
+        <span className={selectedOption ? 'text-black' : 'text-slate-400'}>
+          {loading
+            ? 'Loading...'
+            : selectedOption
+            ? selectedOption.name
+            : placeholder}
+        </span>
+
+        {loading ? (
+          <Loader2 size={14} className="animate-spin text-emerald-600" />
+        ) : (
+          <ChevronDown
+            size={15}
+            className={`text-emerald-600 transition-transform duration-200 ${
+              open ? 'rotate-180' : ''
+            }`}
+          />
+        )}
+      </button>
+
+      <AnimatePresence>
+        {open && !disabled && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 4, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            className="absolute left-0 right-0 top-full z-[90] max-h-56 overflow-y-auto rounded-xl border border-emerald-200 bg-white shadow-xl shadow-slate-900/10 p-1.5"
+          >
+            {options.length > 0 ? (
+              options.map((option) => {
+                const selected =
+                  String(option.id) === String(value);
+
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(option);
+                      setOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition-all ${
+                      selected
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'
+                    }`}
+                  >
+                    <span>{option.name}</span>
+                    {selected && <Check size={14} />}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="px-3 py-3 text-xs font-semibold text-slate-400 text-center">
+                No categories available
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function Subcategories() {
   const [currentTab, setCurrentTab] =
     useState('subcategories');
@@ -106,6 +261,10 @@ export default function Subcategories() {
 
   const [statusFilter, setStatusFilter] =
     useState('All');
+
+  // ✅ FIX: table ko category ke hisaab se filter karne ke liye
+  const [categoryFilterId, setCategoryFilterId] =
+    useState('');
 
   const [isRefreshing, setIsRefreshing] =
     useState(false);
@@ -128,6 +287,13 @@ export default function Subcategories() {
   const [subcategories, setSubcategories] =
     useState([]);
 
+  // ✅ FIX: saari categories yahan store hongi (dropdown ke liye)
+  const [categories, setCategories] =
+    useState([]);
+
+  const [categoriesLoading, setCategoriesLoading] =
+    useState(false);
+
   const [isPanelOpen, setIsPanelOpen] =
     useState(false);
 
@@ -140,41 +306,99 @@ export default function Subcategories() {
   const [formData, setFormData] = useState({
     id: '',
     name: '',
-    categoryId: CATEGORY_ID,
+    categoryId: '', // ✅ FIX: hardcoded CATEGORY_ID nahi, ab khali start hoga
+    categoryName: '',
+    description: '',
+    displayOrder: 1,
     status: 'Active',
     imageFile: null,
     imageUrl: ''
   });
 
-  const fetchSubcategories = async () => {
+  /* ---------------------- Fetch categories ---------------------- */
+
+  const fetchCategoriesList = async () => {
+    setCategoriesLoading(true);
+
+    try {
+      const response = await getCategories();
+      const list = extractCategories(response).map(normalizeCategory);
+
+      setCategories(list);
+      return list;
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+
+      setErrorMessage(
+        getErrorMessage(error, 'Failed to load categories')
+      );
+
+      return [];
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  /* ---------------------- Fetch subcategories ---------------------- */
+
+  /**
+   * ✅ FIX: pehle ye sirf CATEGORY_ID ki subcategories laata tha.
+   * Ab ye har category ke liye subcategories laakar merge karta hai,
+   * taaki poori list dikhe — sirf ek hardcoded category ki nahi.
+   */
+  const fetchSubcategories = async (categoryList) => {
+    const list =
+      Array.isArray(categoryList) && categoryList.length > 0
+        ? categoryList
+        : categories;
+
     setIsRefreshing(true);
     setErrorMessage('');
 
-    try {
-      const response = await getSubcategories({
-        categoryId: CATEGORY_ID
-      });
+    if (!list.length) {
+      setSubcategories([]);
+      setLoading(false);
+      setIsRefreshing(false);
+      return;
+    }
 
-      console.log(
-        'SUBCATEGORY API RESPONSE:',
-        response
+    try {
+      const results = await Promise.all(
+        list.map(async (category) => {
+          try {
+            const response = await getSubcategories({
+              categoryId: category.id
+            });
+
+            const items = response?.success
+              ? Array.isArray(response?.data)
+                ? response.data
+                : []
+              : [];
+
+            return items.map((item) => ({
+              ...item,
+              categoryId: item.categoryId || category.id,
+              categoryName: item.categoryName || category.name
+            }));
+          } catch (err) {
+            console.error(
+              `Failed to fetch subcategories for ${category.name}:`,
+              err
+            );
+            return [];
+          }
+        })
       );
 
-      if (response?.success) {
-        const list = Array.isArray(response?.data)
-          ? response.data
-          : [];
+      const merged = results.flat();
 
-        setSubcategories(list);
-        setRefreshKey((prev) => prev + 1);
-      } else {
-        setSubcategories([]);
+      const unique = Array.from(
+        new Map(merged.map((item) => [item.id, item])).values()
+      );
 
-        setErrorMessage(
-          response?.message ||
-            'Failed to load subcategories'
-        );
-      }
+      setSubcategories(unique);
+      setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error(
         'Failed to fetch subcategories:',
@@ -195,19 +419,30 @@ export default function Subcategories() {
     }
   };
 
+  const refreshAll = async () => {
+    const list = await fetchCategoriesList();
+    await fetchSubcategories(list);
+  };
+
   useEffect(() => {
-    fetchSubcategories();
+    refreshAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRefresh = () => {
-    fetchSubcategories();
+    refreshAll();
   };
+
+  /* ---------------------- Form helpers ---------------------- */
 
   const resetForm = () => {
     setFormData({
       id: '',
       name: '',
-      categoryId: CATEGORY_ID,
+      categoryId: '',
+      categoryName: '',
+      description: '',
+      displayOrder: 1,
       status: 'Active',
       imageFile: null,
       imageUrl: ''
@@ -224,11 +459,15 @@ export default function Subcategories() {
     resetForm();
   };
 
-  const openAddPanel = () => {
+  const openAddPanel = async () => {
     setEditingSubcategory(null);
     setErrorMessage('');
     resetForm();
     setIsPanelOpen(true);
+
+    if (categories.length === 0) {
+      await fetchCategoriesList();
+    }
   };
 
   const openEditPanel = async (subcategory) => {
@@ -242,11 +481,6 @@ export default function Subcategories() {
         await getSubcategoryById(
           subcategory.id
         );
-
-      console.log(
-        'SUBCATEGORY DETAILS RESPONSE:',
-        response
-      );
 
       const data =
         response?.data?.subcategory ||
@@ -268,10 +502,17 @@ export default function Subcategories() {
       setFormData({
         id: data?.id || subcategory.id || '',
         name: data?.name || '',
+        // ✅ FIX: CATEGORY_ID fallback hata diya
         categoryId:
           data?.categoryId ||
           subcategory?.categoryId ||
-          CATEGORY_ID,
+          '',
+        categoryName:
+          data?.categoryName ||
+          subcategory?.categoryName ||
+          '',
+        description: data?.description || '',
+        displayOrder: data?.displayOrder || 1,
         status:
           data?.active === true
             ? 'Active'
@@ -282,6 +523,10 @@ export default function Subcategories() {
 
       setImagePreview(existingImage);
       setIsPanelOpen(true);
+
+      if (categories.length === 0) {
+        await fetchCategoriesList();
+      }
     } catch (error) {
       console.error(
         'Failed to fetch subcategory:',
@@ -297,6 +542,14 @@ export default function Subcategories() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleCategoryChange = (category) => {
+    setFormData((prev) => ({
+      ...prev,
+      categoryId: category?.id || '',
+      categoryName: category?.name || ''
+    }));
   };
 
   const handleImageChange = (e) => {
@@ -350,17 +603,25 @@ export default function Subcategories() {
     }));
   };
 
+  /* ---------------------- Save ---------------------- */
+
   const handleSave = async (e) => {
     e.preventDefault();
 
     const name =
       String(formData.name || '').trim();
 
-    const categoryId = CATEGORY_ID;
-
     if (!name) {
       setErrorMessage(
         'Subcategory name is required'
+      );
+      return;
+    }
+
+    // ✅ FIX: category ab dropdown se compulsory select karni hai
+    if (!formData.categoryId) {
+      setErrorMessage(
+        'Please select a parent category'
       );
       return;
     }
@@ -371,7 +632,20 @@ export default function Subcategories() {
     const payload = new FormData();
 
     payload.append('name', name);
-    payload.append('categoryId', categoryId);
+    // ✅ FIX: hardcoded CATEGORY_ID ki jagah selected category
+    payload.append('categoryId', formData.categoryId);
+    payload.append(
+      'description',
+      String(formData.description || '').trim()
+    );
+    payload.append(
+      'displayOrder',
+      String(Number(formData.displayOrder) || 1)
+    );
+    payload.append(
+      'active',
+      String(formData.status === 'Active')
+    );
 
     if (formData.imageFile) {
       payload.append(
@@ -478,15 +752,23 @@ export default function Subcategories() {
         statusFilter === 'All' ||
         status === statusFilter;
 
+      // ✅ FIX: category-wise filter
+      const matchesCategory =
+        !categoryFilterId ||
+        String(item?.categoryId) ===
+          String(categoryFilterId);
+
       return (
         matchesSearch &&
-        matchesStatus
+        matchesStatus &&
+        matchesCategory
       );
     });
   }, [
     subcategories,
     searchQuery,
-    statusFilter
+    statusFilter,
+    categoryFilterId
   ]);
 
   const totalSubcategories =
@@ -833,7 +1115,23 @@ export default function Subcategories() {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative flex-1 sm:w-72">
+                {/* ✅ FIX: category-wise filter dropdown */}
+                <div className="w-44">
+                  <CategorySelect
+                    value={categoryFilterId}
+                    options={[
+                      { id: '', name: 'All Categories' },
+                      ...categories
+                    ]}
+                    placeholder="All Categories"
+                    loading={categoriesLoading}
+                    onChange={(option) =>
+                      setCategoryFilterId(option?.id || '')
+                    }
+                  />
+                </div>
+
+                <div className="relative flex-1 sm:w-64">
                   <Search
                     className="absolute left-3 top-2.5 text-slate-400"
                     size={15}
@@ -1388,6 +1686,22 @@ export default function Subcategories() {
                 onSubmit={handleSave}
                 className="space-y-4"
               >
+                {/* ✅ FIX: Parent category dropdown — pehle form me tha hi nahi */}
+                <div>
+                  <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                    Parent Category
+                  </label>
+
+                  <CategorySelect
+                    value={formData.categoryId}
+                    options={categories}
+                    placeholder="Select category"
+                    loading={categoriesLoading}
+                    disabled={categoriesLoading || saving}
+                    onChange={handleCategoryChange}
+                  />
+                </div>
+
                 <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
                     Subcategory Name
@@ -1408,29 +1722,71 @@ export default function Subcategories() {
                   />
                 </div>
 
+                {/* ✅ FIX: Description field add kiya, Category ke jaise */}
                 <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                    Status
+                    Description
                   </label>
 
-                  <select
-                    value={formData.status}
+                  <textarea
+                    rows={3}
+                    placeholder="Enter subcategory description"
+                    value={formData.description}
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        status: e.target.value
+                        description: e.target.value
                       }))
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                  >
-                    <option value="Active">
-                      Active
-                    </option>
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none"
+                  />
+                </div>
 
-                    <option value="Inactive">
-                      Inactive
-                    </option>
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* ✅ FIX: Display Order field add kiya */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                      Display Order
+                    </label>
+
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.displayOrder}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          displayOrder: e.target.value
+                        }))
+                      }
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                      Status
+                    </label>
+
+                    <select
+                      value={formData.status}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          status: e.target.value
+                        }))
+                      }
+                      className="w-full h-[42px] px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                    >
+                      <option value="Active">
+                        Active
+                      </option>
+
+                      <option value="Inactive">
+                        Inactive
+                      </option>
+                    </select>
+                  </div>
                 </div>
 
                 <div>
