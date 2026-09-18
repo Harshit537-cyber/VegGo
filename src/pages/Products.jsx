@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { motion, AnimatePresence } from 'framer-motion';
-import apiClient from '../Api/Interceptor/axiosInstance';
 
 import {
   Calendar,
@@ -39,6 +38,7 @@ import {
   deactivateProduct,
   activateProduct,
   addProductImages,
+  getProductImages,
   deleteProductImage,
   reorderProductImages,
   getCategories,
@@ -137,11 +137,7 @@ const normalizeImageUrl = (url = '') => {
 };
 
 const normalizeProduct = (product) => {
-  const id = getValue(
-    product,
-    ['id', 'productId', '_id'],
-    ''
-  );
+  const id = getValue(product, ['id', 'productId', '_id'], '');
 
   const name = getValue(
     product,
@@ -185,39 +181,22 @@ const normalizeProduct = (product) => {
   const originalPrice =
     Number(getValue(product, ['originalPrice'], 0)) || 0;
 
-  const unit = getValue(
-    product,
-    ['unit'],
-    ''
-  );
+  const unit = getValue(product, ['unit'], '');
 
   const discountPercent =
-    Number(
-      getValue(
-        product,
-        ['discountPercent'],
-        0
-      )
-    ) || 0;
+    Number(getValue(product, ['discountPercent'], 0)) || 0;
 
   const active =
     product?.active === true ||
     product?.active === 'true';
 
   const imageUrl = normalizeImageUrl(
-    getValue(
-      product,
-      ['imageUrl'],
-      ''
-    )
+    getValue(product, ['imageUrl'], '')
   );
 
-  const imageUrls =
-    Array.isArray(product?.imageUrls)
-      ? product.imageUrls.map(
-          normalizeImageUrl
-        )
-      : [];
+  const imageUrls = Array.isArray(product?.imageUrls)
+    ? product.imageUrls.map(normalizeImageUrl)
+    : [];
 
   return {
     ...product,
@@ -234,9 +213,7 @@ const normalizeProduct = (product) => {
     unit,
     discountPercent,
     active,
-    status: active
-      ? 'Active'
-      : 'Inactive',
+    status: active ? 'Active' : 'Inactive',
     imageUrl,
     imageUrls
   };
@@ -310,74 +287,6 @@ const extractImages = (response) => {
   return [];
 };
 
-const extractCategories = (response) => {
-  const root = response?.data;
-
-  if (Array.isArray(root)) {
-    return root;
-  }
-
-  if (Array.isArray(root?.content)) {
-    return root.content;
-  }
-
-  if (Array.isArray(root?.categories)) {
-    return root.categories;
-  }
-
-  if (Array.isArray(root?.items)) {
-    return root.items;
-  }
-
-  if (Array.isArray(root?.data)) {
-    return root.data;
-  }
-
-  if (Array.isArray(response?.categories)) {
-    return response.categories;
-  }
-
-  if (Array.isArray(response?.items)) {
-    return response.items;
-  }
-
-  return [];
-};
-
-const extractSubcategories = (response) => {
-  const root = response?.data;
-
-  if (Array.isArray(root)) {
-    return root;
-  }
-
-  if (Array.isArray(root?.content)) {
-    return root.content;
-  }
-
-  if (Array.isArray(root?.subcategories)) {
-    return root.subcategories;
-  }
-
-  if (Array.isArray(root?.items)) {
-    return root.items;
-  }
-
-  if (Array.isArray(root?.data)) {
-    return root.data;
-  }
-
-  if (Array.isArray(response?.subcategories)) {
-    return response.subcategories;
-  }
-
-  if (Array.isArray(response?.items)) {
-    return response.items;
-  }
-
-  return [];
-};
-
 const getImageId = (image) => {
   return (
     image?.id ??
@@ -400,227 +309,59 @@ const getImageUrl = (image) => {
   return normalizeImageUrl(url);
 };
 
-const normalizeCategory = (category) => {
-  return {
-    ...category,
-    id: getValue(
-      category,
-      ['id', 'categoryId', '_id'],
-      ''
-    ),
-    name: getValue(
-      category,
-      ['name', 'categoryName', 'title'],
-      ''
-    )
-  };
+const extractCategories = (response) => {
+  const root = response?.data;
+
+  if (Array.isArray(root)) return root;
+  if (Array.isArray(root?.content)) return root.content;
+  if (Array.isArray(root?.categories)) return root.categories;
+  if (Array.isArray(root?.items)) return root.items;
+  if (Array.isArray(root?.data)) return root.data;
+  if (Array.isArray(response?.categories)) return response.categories;
+  if (Array.isArray(response?.items)) return response.items;
+
+  return [];
 };
 
-const normalizeSubcategory = (subcategory) => {
-  return {
-    ...subcategory,
-    id: getValue(
-      subcategory,
-      ['id', 'subcategoryId', '_id'],
-      ''
-    ),
-    name: getValue(
-      subcategory,
-      [
-        'name',
-        'subcategoryName',
-        'title'
-      ],
-      ''
-    )
-  };
+const extractSubcategories = (response) => {
+  const root = response?.data;
+
+  if (Array.isArray(root)) return root;
+  if (Array.isArray(root?.content)) return root.content;
+  if (Array.isArray(root?.subcategories)) return root.subcategories;
+  if (Array.isArray(root?.items)) return root.items;
+  if (Array.isArray(root?.data)) return root.data;
+  if (Array.isArray(response?.subcategories)) return response.subcategories;
+  if (Array.isArray(response?.items)) return response.items;
+
+  return [];
 };
 
-const UNIT_OPTIONS = [
-  {
-    value: '1 kg',
-    label: '1 kg'
-  },
-  {
-    value: '500 g',
-    label: '500 g'
-  },
-  {
-    value: '1 liter',
-    label: '1 liter'
-  },
-  {
-    value: '500 ml',
-    label: '500 ml'
-  },
-  {
-    value: '1 bunch',
-    label: '1 bunch'
-  },
-  {
-    value: '1 box',
-    label: '1 box'
-  },
-  {
-    value: '1 pack',
-    label: '1 pack'
-  },
-  {
-    value: '1 piece',
-    label: '1 piece'
-  }
-];
+const normalizeCategory = (category) => ({
+  ...category,
+  id: getValue(category, ['id', 'categoryId', '_id'], ''),
+  name: getValue(category, ['name', 'categoryName', 'title'], '')
+});
 
-function UnitDropdown({
-  value,
-  onChange
-}) {
-  const [open, setOpen] =
-    useState(false);
+const normalizeSubcategory = (subcategory) => ({
+  ...subcategory,
+  id: getValue(subcategory, ['id', 'subcategoryId', '_id'], ''),
+  name: getValue(
+    subcategory,
+    ['name', 'subcategoryName', 'title'],
+    ''
+  )
+});
 
-  const dropdownRef =
-    useRef(null);
-
-  useEffect(() => {
-    const handleOutsideClick = (
-      event
-    ) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(
-          event.target
-        )
-      ) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener(
-      'mousedown',
-      handleOutsideClick
-    );
-
-    return () => {
-      document.removeEventListener(
-        'mousedown',
-        handleOutsideClick
-      );
-    };
-  }, []);
-
-  const selectedUnit =
-    UNIT_OPTIONS.find(
-      (option) =>
-        option.value === value
-    ) || {
-      value: value || '',
-      label: value || '-'
-    };
-
-  const handleSelect = (
-    unit
-  ) => {
-    onChange(unit.value);
-    setOpen(false);
-  };
-
+function UnitInput({ value, onChange }) {
   return (
-    <div
-      ref={dropdownRef}
-      className="relative"
-    >
-      <button
-        type="button"
-        onClick={() =>
-          setOpen(
-            (prev) => !prev
-          )
-        }
-        className={`w-full h-[38px] px-3.5 bg-slate-50 border rounded-xl text-xs font-bold text-black flex items-center justify-between transition-all ${
-          open
-            ? 'border-emerald-500 bg-white ring-2 ring-emerald-500/10'
-            : 'border-slate-200 hover:border-emerald-300'
-        }`}
-      >
-        <span>
-          {selectedUnit.label}
-        </span>
-
-        <ChevronDown
-          size={15}
-          className={`text-emerald-600 transition-transform duration-200 ${
-            open
-              ? 'rotate-180'
-              : ''
-          }`}
-        />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: -4,
-              scale: 0.98
-            }}
-            animate={{
-              opacity: 1,
-              y: 4,
-              scale: 1
-            }}
-            exit={{
-              opacity: 0,
-              y: -4,
-              scale: 0.98
-            }}
-            transition={{
-              duration: 0.15
-            }}
-            className="absolute left-0 right-0 top-full z-[80] overflow-hidden rounded-xl border border-emerald-200 bg-white shadow-xl shadow-slate-900/10 p-1.5"
-          >
-            {UNIT_OPTIONS.map(
-              (option) => {
-                const selected =
-                  option.value ===
-                  value;
-
-                return (
-                  <button
-                    key={
-                      option.value
-                    }
-                    type="button"
-                    onClick={() =>
-                      handleSelect(
-                        option
-                      )
-                    }
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition-all ${
-                      selected
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'
-                    }`}
-                  >
-                    <span>
-                      {
-                        option.label
-                      }
-                    </span>
-
-                    {selected && (
-                      <Check
-                        size={14}
-                      />
-                    )}
-                  </button>
-                );
-              }
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Enter unit"
+      className="w-full h-[38px] px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
+    />
   );
 }
 
@@ -632,30 +373,23 @@ function SelectDropdown({
   disabled = false,
   loading = false
 }) {
-  const [open, setOpen] =
-    useState(false);
-
-  const dropdownRef =
-    useRef(null);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const dropdownRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
-    const handleOutsideClick = (
-      event
-    ) => {
+    const handleOutsideClick = (event) => {
       if (
         dropdownRef.current &&
-        !dropdownRef.current.contains(
-          event.target
-        )
+        !dropdownRef.current.contains(event.target)
       ) {
         setOpen(false);
+        setSearch('');
       }
     };
 
-    document.addEventListener(
-      'mousedown',
-      handleOutsideClick
-    );
+    document.addEventListener('mousedown', handleOutsideClick);
 
     return () => {
       document.removeEventListener(
@@ -665,26 +399,37 @@ function SelectDropdown({
     };
   }, []);
 
-  const selectedOption =
-    options.find(
-      (option) =>
-        String(option.id) ===
-        String(value)
-    );
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+    }
+  }, [open]);
+
+  const selectedOption = options.find(
+    (option) =>
+      String(option.id) === String(value)
+  );
+
+  const filteredOptions = options.filter((option) =>
+    String(option.name || '')
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
+
+  const handleSelect = (option) => {
+    onChange(option);
+    setOpen(false);
+    setSearch('');
+  };
 
   return (
-    <div
-      ref={dropdownRef}
-      className="relative"
-    >
+    <div ref={dropdownRef} className="relative">
       <button
         type="button"
-        disabled={disabled}
-        onClick={() =>
-          setOpen(
-            (prev) => !prev
-          )
-        }
+        disabled={disabled || loading}
+        onClick={() => setOpen((prev) => !prev)}
         className={`w-full h-[38px] px-3.5 bg-slate-50 border rounded-xl text-xs font-bold text-black flex items-center justify-between transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
           open
             ? 'border-emerald-500 bg-white ring-2 ring-emerald-500/10'
@@ -694,7 +439,7 @@ function SelectDropdown({
         <span
           className={
             selectedOption
-              ? 'text-black'
+              ? 'text-black truncate'
               : 'text-slate-400'
           }
         >
@@ -708,22 +453,20 @@ function SelectDropdown({
         {loading ? (
           <Loader2
             size={14}
-            className="animate-spin text-emerald-600"
+            className="animate-spin text-emerald-600 shrink-0"
           />
         ) : (
           <ChevronDown
             size={15}
-            className={`text-emerald-600 transition-transform duration-200 ${
-              open
-                ? 'rotate-180'
-                : ''
+            className={`text-emerald-600 transition-transform duration-200 shrink-0 ${
+              open ? 'rotate-180' : ''
             }`}
           />
         )}
       </button>
 
       <AnimatePresence>
-        {open && !disabled && (
+        {open && !disabled && !loading && (
           <motion.div
             initial={{
               opacity: 0,
@@ -740,64 +483,74 @@ function SelectDropdown({
               y: -4,
               scale: 0.98
             }}
-            transition={{
-              duration: 0.15
-            }}
-            className="absolute left-0 right-0 top-full z-[90] max-h-56 overflow-y-auto rounded-xl border border-emerald-200 bg-white shadow-xl shadow-slate-900/10 p-1.5"
+            transition={{ duration: 0.15 }}
+            className="absolute left-0 right-0 top-full z-[90] rounded-xl border border-emerald-200 bg-white shadow-xl shadow-slate-900/10 overflow-hidden"
           >
-            {options.length >
-            0 ? (
-              options.map(
-                (option) => {
+            <div className="p-2 border-b border-slate-100">
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) =>
+                    setSearch(e.target.value)
+                  }
+                  onClick={(e) =>
+                    e.stopPropagation()
+                  }
+                  placeholder={`Search ${
+                    placeholder
+                      .replace('Select ', '')
+                      .toLowerCase()
+                  }...`}
+                  className="w-full h-[36px] pl-9 pr-3 rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/10"
+                />
+              </div>
+            </div>
+
+            <div className="max-h-56 overflow-y-auto p-1.5">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => {
                   const selected =
-                    String(
-                      option.id
-                    ) ===
-                    String(value);
+                    String(option.id) === String(value);
 
                   return (
                     <button
-                      key={
-                        option.id
-                      }
+                      key={option.id}
                       type="button"
-                      onClick={() => {
-                        onChange(
-                          option
-                        );
-                        setOpen(
-                          false
-                        );
-                      }}
+                      onClick={() =>
+                        handleSelect(option)
+                      }
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition-all ${
                         selected
                           ? 'bg-emerald-600 text-white shadow-sm'
                           : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'
                       }`}
                     >
-                      <span>
-                        {
-                          option.name
-                        }
+                      <span className="truncate">
+                        {option.name}
                       </span>
 
                       {selected && (
                         <Check
-                          size={
-                            14
-                          }
+                          size={14}
+                          className="shrink-0"
                         />
                       )}
                     </button>
                   );
-                }
-              )
-            ) : (
-              <div className="px-3 py-3 text-xs font-semibold text-slate-400 text-center">
-                No options
-                available
-              </div>
-            )}
+                })
+              ) : (
+                <div className="px-3 py-5 text-xs font-semibold text-slate-400 text-center">
+                  No matching options found
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -806,106 +559,29 @@ function SelectDropdown({
 }
 
 export default function Products() {
-  const [
-    currentTab,
-    setCurrentTab
-  ] = useState('products');
+  const [currentTab, setCurrentTab] = useState('products');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [stockFilter, setStockFilter] = useState('All');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
 
-  const [
-    searchQuery,
-    setSearchQuery
-  ] = useState('');
+  const [productImages, setProductImages] = useState([]);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
 
-  const [
-    stockFilter,
-    setStockFilter
-  ] = useState('All');
-
-  const [
-    isRefreshing,
-    setIsRefreshing
-  ] = useState(false);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [
-    actionLoading,
-    setActionLoading
-  ] = useState(null);
-
-  const [
-    refreshKey,
-    setRefreshKey
-  ] = useState(0);
-
-  const [
-    errorMessage,
-    setErrorMessage
-  ] = useState('');
-
-  const [
-    products,
-    setProducts
-  ] = useState([]);
-
-  const [
-    categories,
-    setCategories
-  ] = useState([]);
-
-  const [
-    subcategories,
-    setSubcategories
-  ] = useState([]);
-
-  const [
-    categoriesLoading,
-    setCategoriesLoading
-  ] = useState(false);
-
-  const [
-    subcategoriesLoading,
-    setSubcategoriesLoading
-  ] = useState(false);
-
-  const [
-    isPanelOpen,
-    setIsPanelOpen
-  ] = useState(false);
-
-  const [
-    editingProduct,
-    setEditingProduct
-  ] = useState(null);
-
-  const [
-    productImages,
-    setProductImages
-  ] = useState([]);
-
-  const [
-    selectedImages,
-    setSelectedImages
-  ] = useState([]);
-
-  const [
-    imageLoading,
-    setImageLoading
-  ] = useState(false);
-
-  const [
-    imageUploading,
-    setImageUploading
-  ] = useState(false);
-
-  const [
-    formData,
-    setFormData
-  ] = useState({
+  const [formData, setFormData] = useState({
     id: '',
     name: '',
     description: '',
@@ -915,7 +591,7 @@ export default function Products() {
     subcategoryName: '',
     price: '',
     originalPrice: '',
-    unit: '1 kg',
+    unit: '',
     discountPercent: '',
     active: true,
     imageFile: null,
@@ -933,76 +609,22 @@ export default function Products() {
       subcategoryName: '',
       price: '',
       originalPrice: '',
-      unit: '1 kg',
+      unit: '',
       discountPercent: '',
       active: true,
       imageFile: null,
       imageUrl: ''
     });
-
-    setSubcategories([]);
-  };
-
-  const getApiErrorMessage = (
-    error,
-    fallback
-  ) => {
-    const data =
-      error?.response?.data;
-
-    if (
-      typeof data?.message ===
-      'string'
-    ) {
-      return data.message;
-    }
-
-    if (
-      typeof data?.error ===
-      'string'
-    ) {
-      return data.error;
-    }
-
-    if (
-      Array.isArray(data?.errors)
-    ) {
-      return data.errors.join(
-        ', '
-      );
-    }
-
-    if (
-      typeof data === 'string' &&
-      data.trim()
-    ) {
-      return data;
-    }
-
-    if (
-      typeof error?.message ===
-      'string'
-    ) {
-      return error.message;
-    }
-
-    return fallback;
   };
 
   const closePanel = () => {
-    if (
-      saving ||
-      imageUploading
-    ) {
-      return;
-    }
+    if (saving || imageUploading) return;
 
     setIsPanelOpen(false);
     setEditingProduct(null);
     setProductImages([]);
     setSelectedImages([]);
     resetForm();
-    setErrorMessage('');
   };
 
   const fetchProducts = async () => {
@@ -1010,26 +632,17 @@ export default function Products() {
     setErrorMessage('');
 
     try {
-      const response =
-        await getProducts({
-          page: 0,
-          size: 100
-        });
+      const response = await getProducts({
+        page: 0,
+        size: 100
+      });
 
-      const productList =
-        extractProducts(
-          response
-        ).map(
-          normalizeProduct
-        );
-
-      setProducts(
-        productList
+      const productList = extractProducts(response).map(
+        normalizeProduct
       );
 
-      setRefreshKey(
-        (prev) => prev + 1
-      );
+      setProducts(productList);
+      setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error(
         'Failed to fetch products:',
@@ -1037,10 +650,9 @@ export default function Products() {
       );
 
       setErrorMessage(
-        getApiErrorMessage(
-          error,
+        error?.response?.data?.message ||
+          error?.message ||
           'Failed to load products'
-        )
       );
     } finally {
       setLoading(false);
@@ -1048,404 +660,248 @@ export default function Products() {
     }
   };
 
-  const fetchCategoriesList =
-    async () => {
-      setCategoriesLoading(
-        true
+  const fetchCategoriesList = async () => {
+    setCategoriesLoading(true);
+
+    try {
+      const response = await getCategories();
+      const list = extractCategories(response).map(
+        normalizeCategory
       );
-
-      try {
-        const response =
-          await getCategories();
-
-        const list =
-          extractCategories(
-            response
-          ).map(
-            normalizeCategory
-          );
-
-        setCategories(list);
-      } catch (error) {
-        console.error(
-          'Failed to fetch categories:',
-          error
-        );
-
-        setErrorMessage(
-          getApiErrorMessage(
-            error,
-            'Failed to load categories'
-          )
-        );
-      } finally {
-        setCategoriesLoading(
-          false
-        );
-      }
-    };
-
-  const fetchSubcategoriesList =
-    async (
-      categoryId
-    ) => {
-      if (!categoryId) {
-        setSubcategories([]);
-        return;
-      }
-
-      setSubcategoriesLoading(
-        true
+      setCategories(list);
+    } catch (error) {
+      setCategories([]);
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to load categories'
       );
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
-      try {
-        const response =
-          await getSubcategories(
-            categoryId
-          );
+  const fetchSubcategoriesList = async (categoryId) => {
+    if (!categoryId) {
+      setSubcategories([]);
+      return;
+    }
 
-        const list =
-          extractSubcategories(
-            response
-          ).map(
-            normalizeSubcategory
-          );
+    setSubcategoriesLoading(true);
 
-        setSubcategories(list);
-      } catch (error) {
-        console.error(
-          'Failed to fetch subcategories:',
-          error
-        );
+    try {
+      const response = await getSubcategories(categoryId);
+      const list = extractSubcategories(response).map(
+        normalizeSubcategory
+      );
+      setSubcategories(list);
+    } catch (error) {
+      setSubcategories([]);
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to load subcategories'
+      );
+    } finally {
+      setSubcategoriesLoading(false);
+    }
+  };
 
-        setSubcategories([]);
+  const fetchProductImages = async (productId) => {
+    if (!productId) return;
 
-        setErrorMessage(
-          getApiErrorMessage(
-            error,
-            'Failed to load subcategories'
-          )
-        );
-      } finally {
-        setSubcategoriesLoading(
-          false
-        );
-      }
-    };
+    setImageLoading(true);
 
-  const fetchProductImages =
-    async (
-      productId
-    ) => {
-      if (!productId) {
-        return;
-      }
+    try {
+      const response =
+        await getProductImages(productId);
 
-      setImageLoading(true);
+      setProductImages(
+        extractImages(response)
+      );
+    } catch (error) {
+      setProductImages([]);
 
-      try {
-        const response =
-          await apiClient.get(
-            `/api/admin/catalog/products/${productId}/images`
-          );
-
-        const images =
-          Array.isArray(response?.data?.data)
-            ? response.data.data
-            : [];
-
-        setProductImages(
-          images
-        );
-      } catch (error) {
-        setProductImages([]);
-
-        setErrorMessage(
-          getApiErrorMessage(
-            error,
-            'Failed to load product images'
-          )
-        );
-      } finally {
-        setImageLoading(
-          false
-        );
-      }
-    };
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to load product images'
+      );
+    } finally {
+      setImageLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchProducts();
     fetchCategoriesList();
   }, []);
 
-  const openAddPanel =
-    async () => {
-      setEditingProduct(null);
-      setErrorMessage('');
-      setProductImages([]);
-      setSelectedImages([]);
-      setSubcategories([]);
-      resetForm();
+  const openAddPanel = async () => {
+    setEditingProduct(null);
+    setErrorMessage('');
+    setProductImages([]);
+    setSelectedImages([]);
+    setSubcategories([]);
+    resetForm();
+    setIsPanelOpen(true);
+
+    if (categories.length === 0) {
+      await fetchCategoriesList();
+    }
+  };
+
+  const openEditPanel = async (product) => {
+    setActionLoading(product.id);
+    setErrorMessage('');
+    setProductImages([]);
+    setSelectedImages([]);
+
+    try {
+      const response =
+        await getProductById(product.id);
+
+      const productData =
+        response?.data?.product ||
+        response?.data ||
+        response?.product ||
+        product;
+
+      const normalized =
+        normalizeProduct(productData);
+
+      setEditingProduct(normalized.id);
+
+      setFormData({
+        id: normalized.id,
+        name: normalized.name || '',
+        description:
+          normalized.description || '',
+        categoryId:
+          normalized.categoryId || '',
+        categoryName:
+          normalized.categoryName || '',
+        subcategoryId:
+          normalized.subcategoryId || '',
+        subcategoryName:
+          normalized.subcategoryName || '',
+        price:
+          normalized.price !== undefined
+            ? String(normalized.price)
+            : '',
+        originalPrice:
+          normalized.originalPrice !== undefined
+            ? String(normalized.originalPrice)
+            : '',
+        unit: normalized.unit || '',
+        discountPercent:
+          normalized.discountPercent !==
+          undefined
+            ? String(
+                normalized.discountPercent
+              )
+            : '',
+        active: normalized.active
+      });
+
       setIsPanelOpen(true);
 
-      if (
-        categories.length ===
-        0
-      ) {
-        await fetchCategoriesList();
-      }
-    };
-
-  const openEditPanel =
-    async (
-      product
-    ) => {
-      setActionLoading(
-        product.id
-      );
-
-      setErrorMessage('');
-      setProductImages([]);
-      setSelectedImages([]);
-
-      try {
-        const response =
-          await getProductById(
-            product.id
-          );
-
-        const productData =
-          response?.data
-            ?.product ||
-          response?.data ||
-          response?.product ||
-          product;
-
-        const normalized =
-          normalizeProduct(
-            productData
-          );
-
-        setEditingProduct(
-          normalized.id
-        );
-
-        setFormData({
-          id:
-            normalized.id,
-          name:
-            normalized.name ||
-            '',
-          description:
-            normalized.description ||
-            '',
-          categoryId:
-            normalized.categoryId ||
-            '',
-          categoryName:
-            normalized.categoryName ||
-            '',
-          subcategoryId:
-            normalized.subcategoryId ||
-            '',
-          subcategoryName:
-            normalized.subcategoryName ||
-            '',
-          price:
-            normalized.price !==
-            undefined
-              ? String(
-                  normalized.price
-                )
-              : '',
-          originalPrice:
-            normalized.originalPrice !==
-            undefined
-              ? String(
-                  normalized.originalPrice
-                )
-              : '',
-          unit:
-            normalized.unit ||
-            '',
-          discountPercent:
-            normalized.discountPercent !==
-            undefined
-              ? String(
-                  normalized.discountPercent
-                )
-              : '',
-          active:
-            normalized.active,
-          imageFile:
-            null,
-          imageUrl:
-            normalized.imageUrl ||
-            ''
-        });
-
-        setIsPanelOpen(
-          true
-        );
-
-        if (
-          normalized.categoryId
-        ) {
-          await fetchSubcategoriesList(
-            normalized.categoryId
-          );
-        }
-
-        await fetchProductImages(
-          normalized.id
-        );
-      } catch (error) {
-        console.error(
-          'Failed to fetch product:',
-          error
-        );
-
-        setErrorMessage(
-          getApiErrorMessage(
-            error,
-            'Failed to fetch product details'
-          )
-        );
-      } finally {
-        setActionLoading(
-          null
-        );
-      }
-    };
-
-  const handleCategoryChange =
-    async (
-      category
-    ) => {
-      const categoryId =
-        category?.id || '';
-
-      const categoryName =
-        category?.name || '';
-
-      setFormData(
-        (prev) => ({
-          ...prev,
-          categoryId,
-          categoryName,
-          subcategoryId:
-            '',
-          subcategoryName:
-            ''
-        })
-      );
-
-      setSubcategories(
-        []
-      );
-
-      setErrorMessage('');
-
-      if (categoryId) {
+      if (normalized.categoryId) {
         await fetchSubcategoriesList(
-          categoryId
+          normalized.categoryId
         );
+      } else {
+        setSubcategories([]);
       }
-    };
 
-  const handleSubcategoryChange =
-    (
-      subcategory
-    ) => {
-      setFormData(
-        (prev) => ({
-          ...prev,
-          subcategoryId:
-            subcategory?.id ||
-            '',
-          subcategoryName:
-            subcategory?.name ||
-            ''
-        })
+      await fetchProductImages(
+        normalized.id
+      );
+    } catch (error) {
+      console.error(
+        'Failed to fetch product:',
+        error
       );
 
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to fetch product details'
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCategoryChange = async (category) => {
+    const categoryId = category?.id || '';
+    const categoryName = category?.name || '';
+
+    setFormData((prev) => ({
+      ...prev,
+      categoryId,
+      categoryName,
+      subcategoryId: '',
+      subcategoryName: ''
+    }));
+
+    setSubcategories([]);
+    setErrorMessage('');
+
+    if (categoryId) {
+      await fetchSubcategoriesList(categoryId);
+    }
+  };
+
+  const handleSubcategoryChange = (subcategory) => {
+    setFormData((prev) => ({
+      ...prev,
+      subcategoryId: subcategory?.id || '',
+      subcategoryName: subcategory?.name || ''
+    }));
+
+    setErrorMessage('');
+  };
+
+  const handleImageSelect = (event) => {
+    const files = Array.from(event.target.files || []);
+
+    if (!files.length) return;
+
+    const validFiles = files.filter((file) => {
+      if (!file.type.startsWith('image/')) return false;
+      if (file.size > 1024 * 1024) return false;
+      return true;
+    });
+
+    if (!validFiles.length) {
+      setErrorMessage('Please select a valid image under 1MB');
+      event.target.value = '';
+      return;
+    }
+
+    if (!editingProduct) {
+      const file = validFiles[0];
+
+      setFormData((prev) => ({
+        ...prev,
+        imageFile: file,
+        imageUrl: URL.createObjectURL(file)
+      }));
+
       setErrorMessage('');
-    };
-
-  const handleImageSelect =
-    (
-      event
-    ) => {
-      const files =
-        Array.from(
-          event.target.files ||
-            []
-        );
-
-      if (!files.length) {
-        return;
-      }
-
-      const validFiles =
-        files.filter(
-          (file) =>
-            file.type.startsWith(
-              'image/'
-            ) &&
-            file.size <=
-              1024 * 1024
-        );
-
-      if (
-        !validFiles.length
-      ) {
-        setErrorMessage(
-          'Please select a valid image up to 1MB'
-        );
-
-        event.target.value =
-          '';
-
-        return;
-      }
-
-      if (
-        validFiles.length !==
-        files.length
-      ) {
-        setErrorMessage(
-          'Only image files up to 1MB are allowed'
-        );
+    } else {
+      if (validFiles.length !== files.length) {
+        setErrorMessage('Some images were skipped. Only image files under 1MB are allowed.');
       } else {
         setErrorMessage('');
       }
 
-      if (!editingProduct) {
-        const file =
-          validFiles[0];
+      setSelectedImages((prev) => [...prev, ...validFiles]);
+    }
 
-        setFormData(
-          (prev) => ({
-            ...prev,
-            imageFile:
-              file,
-            imageUrl:
-              URL.createObjectURL(
-                file
-              )
-          })
-        );
-      } else {
-        setSelectedImages(
-          (prev) => [
-            ...prev,
-            ...validFiles
-          ]
-        );
-      }
-
-      event.target.value = '';
-    };
+    event.target.value = '';
+  };
 
   const handleProductImageUpload =
     async () => {
@@ -1456,10 +912,7 @@ export default function Products() {
         return;
       }
 
-      setImageUploading(
-        true
-      );
-
+      setImageUploading(true);
       setErrorMessage('');
 
       try {
@@ -1468,41 +921,25 @@ export default function Products() {
           selectedImages
         );
 
-        setSelectedImages(
-          []
-        );
+        setSelectedImages([]);
 
         await fetchProductImages(
           editingProduct
         );
       } catch (error) {
-        console.error(
-          'Failed to upload product images:',
-          error
-        );
-
         setErrorMessage(
-          getApiErrorMessage(
-            error,
+          error?.response?.data?.message ||
+            error?.message ||
             'Failed to upload product images'
-          )
         );
       } finally {
-        setImageUploading(
-          false
-        );
+        setImageUploading(false);
       }
     };
 
   const handleDeleteProductImage =
-    async (
-      image
-    ) => {
-      if (
-        !editingProduct
-      ) {
-        return;
-      }
+    async (image) => {
+      if (!editingProduct) return;
 
       const imageId =
         getImageId(image);
@@ -1511,7 +948,6 @@ export default function Products() {
         setErrorMessage(
           'Product image id not found'
         );
-
         return;
       }
 
@@ -1528,501 +964,262 @@ export default function Products() {
           editingProduct
         );
       } catch (error) {
-        console.error(
-          'Failed to delete product image:',
-          error
-        );
-
         setErrorMessage(
-          getApiErrorMessage(
-            error,
+          error?.response?.data?.message ||
+            error?.message ||
             'Failed to delete product image'
-          )
         );
 
-        setImageLoading(
-          false
+        setImageLoading(false);
+      }
+    };
+
+  const handleReorderProductImages =
+    async (images) => {
+      if (
+        !editingProduct ||
+        !Array.isArray(images)
+      ) {
+        return;
+      }
+
+      const imageIds = images
+        .map((image) =>
+          getImageId(image)
+        )
+        .filter(
+          (id) =>
+            id !== undefined &&
+            id !== null &&
+            id !== ''
+        );
+
+      if (!imageIds.length) return;
+
+      try {
+        await reorderProductImages(
+          editingProduct,
+          imageIds
+        );
+      } catch (error) {
+        setErrorMessage(
+          error?.response?.data?.message ||
+            error?.message ||
+            'Failed to reorder product images'
+        );
+
+        await fetchProductImages(
+          editingProduct
         );
       }
     };
 
-  const handleReorderProductImages = async (images) => {
-    if (!editingProduct || !Array.isArray(images) || images.length === 0) {
-      return false;
-    }
-
-    const imageIds = images
-      .map((image) => getImageId(image))
-      .filter(Boolean);
-
-    if (imageIds.length !== images.length) {
-      setErrorMessage('Unable to reorder images because an image ID is missing.');
-      return false;
-    }
-
-    try {
-      setImageLoading(true);
-
-      await reorderProductImages(editingProduct, imageIds);
-      await fetchProductImages(editingProduct);
-
-      return true;
-    } catch (error) {
-      setErrorMessage(
-        getApiErrorMessage(
-          error,
-          'Failed to reorder product images'
-        )
-      );
-
-      await fetchProductImages(editingProduct);
-      return false;
-    } finally {
-      setImageLoading(false);
-    }
-  };
-
-  const moveProductImage = async (index, direction) => {
-    const targetIndex = index + direction;
+  const moveProductImage = async (
+    index,
+    direction
+  ) => {
+    const targetIndex =
+      index + direction;
 
     if (
       targetIndex < 0 ||
-      targetIndex >= productImages.length ||
-      imageLoading
+      targetIndex >= productImages.length
     ) {
       return;
     }
 
-    const updatedImages = [...productImages];
+    const updatedImages = [
+      ...productImages
+    ];
 
-    [updatedImages[index], updatedImages[targetIndex]] = [
-      updatedImages[targetIndex],
+    [
       updatedImages[index],
+      updatedImages[targetIndex]
+    ] = [
+      updatedImages[targetIndex],
+      updatedImages[index]
     ];
 
     setProductImages(updatedImages);
 
-    const success = await handleReorderProductImages(updatedImages);
+    await handleReorderProductImages(
+      updatedImages
+    );
+  };
 
-    if (!success) {
-      await fetchProductImages(editingProduct);
+  const removeSelectedImage = (index) => {
+    setSelectedImages((prev) =>
+      prev.filter(
+        (_, imageIndex) =>
+          imageIndex !== index
+      )
+    );
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+
+    if (!formData.name.trim()) {
+      setErrorMessage('Product name is required');
+      return;
+    }
+
+    if (!formData.categoryId) {
+      setErrorMessage('Category is required');
+      return;
+    }
+
+    if (!formData.subcategoryId) {
+      setErrorMessage('Subcategory is required');
+      return;
+    }
+
+    if (!formData.price) {
+      setErrorMessage('Product price is required');
+      return;
+    }
+
+    if (!formData.unit.trim()) {
+      setErrorMessage('Product unit is required');
+      return;
+    }
+
+    if (!editingProduct && !formData.imageFile) {
+      setErrorMessage('Product image is required');
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage('');
+
+    const payload = {
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      categoryId: formData.categoryId,
+      subcategoryId: formData.subcategoryId,
+      price: parseFloat(formData.price) || 0,
+      originalPrice: parseFloat(formData.originalPrice) || 0,
+      unit: formData.unit.trim(),
+      discountPercent: parseFloat(formData.discountPercent) || 0,
+      active: Boolean(formData.active)
+    };
+
+    try {
+      if (editingProduct) {
+        await updateProduct(
+          editingProduct,
+          payload
+        );
+
+        if (selectedImages.length > 0) {
+          await addProductImages(
+            editingProduct,
+            selectedImages
+          );
+        }
+      } else {
+        await createProduct(
+          payload,
+          formData.imageFile
+        );
+      }
+
+      await fetchProducts();
+
+      setIsPanelOpen(false);
+      setEditingProduct(null);
+      setProductImages([]);
+      setSelectedImages([]);
+      resetForm();
+    } catch (error) {
+      console.error('Failed to save product:', error);
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to save product'
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
-  const removeSelectedImage =
-    (
-      index
-    ) => {
-      setSelectedImages(
-        (prev) =>
-          prev.filter(
-            (_, imageIndex) =>
-              imageIndex !==
-              index
-          )
-      );
-    };
+  const handleStatusChange = async (
+    product
+  ) => {
+    if (!product?.id) return;
 
-  const handleSave =
-    async (
-      e
-    ) => {
-      e.preventDefault();
+    setActionLoading(product.id);
+    setErrorMessage('');
 
-      setErrorMessage('');
-
-      if (
-        !formData.name.trim()
-      ) {
-        setErrorMessage(
-          'Product name is required'
-        );
-
-        return;
-      }
-
-      if (
-        !formData.categoryId
-      ) {
-        setErrorMessage(
-          'Please select a category'
-        );
-
-        return;
-      }
-
-      if (
-        !formData.subcategoryId
-      ) {
-        setErrorMessage(
-          'Please select a subcategory'
-        );
-
-        return;
-      }
-
-      if (
-        formData.price ===
-          '' ||
-        Number(
-          formData.price
-        ) < 0
-      ) {
-        setErrorMessage(
-          'Product price is required'
-        );
-
-        return;
-      }
-
-      if (
-        !formData.unit.trim()
-      ) {
-        setErrorMessage(
-          'Product unit is required'
-        );
-
-        return;
-      }
-
-      if (
-        !editingProduct &&
-        !formData.imageFile
-      ) {
-        setErrorMessage(
-          'Product image is required'
-        );
-
-        return;
-      }
-
-      const price =
-        Number(
-          formData.price
-        );
-
-      const originalPrice =
-        formData.originalPrice ===
-        ''
-          ? 0
-          : Number(
-              formData.originalPrice
-            );
-
-      const calculatedDiscount =
-        originalPrice > 0
-          ? Math.max(
-              0,
-              Math.round(
-                ((originalPrice - price) /
-                  originalPrice) *
-                  100
-              )
-            )
-          : 0;
-
-      const discountPercent =
-        calculatedDiscount;
-
-      if (
-        Number.isNaN(
-          price
-        ) ||
-        price < 0
-      ) {
-        setErrorMessage(
-          'Please enter a valid price'
-        );
-
-        return;
-      }
-
-      if (
-        Number.isNaN(
-          originalPrice
-        ) ||
-        originalPrice < 0
-      ) {
-        setErrorMessage(
-          'Please enter a valid original price'
-        );
-
-        return;
-      }
-
-      if (
-        Number.isNaN(
-          discountPercent
-        ) ||
-        discountPercent <
-          0 ||
-        discountPercent >
-          100
-      ) {
-        setErrorMessage(
-          'Discount must be between 0 and 100'
-        );
-
-        return;
-      }
-
-      if (
-        originalPrice >
-          0 &&
-        price >
-          originalPrice
-      ) {
-        setErrorMessage(
-          'Price cannot be greater than original price'
-        );
-
-        return;
-      }
-
-      const payload = {
-        name:
-          formData.name.trim(),
-        description:
-          formData.description.trim(),
-        categoryId:
-          formData.categoryId,
-        subcategoryId:
-          formData.subcategoryId,
-        price,
-        originalPrice,
-        unit:
-          formData.unit.trim(),
-        discountPercent,
-        active:
-          Boolean(
-            formData.active
-          )
-      };
-
-      setSaving(true);
-      setErrorMessage('');
-
-      try {
-        if (
-          editingProduct
-        ) {
-          await updateProduct(
-            editingProduct,
-            payload
-          );
-
-          if (
-            selectedImages.length >
-            0
-          ) {
-            await addProductImages(
-              editingProduct,
-              selectedImages
-            );
-          }
-
-          await fetchProducts();
-
-          setIsPanelOpen(
-            false
-          );
-
-          setEditingProduct(
-            null
-          );
-
-          setProductImages(
-            []
-          );
-
-          setSelectedImages(
-            []
-          );
-
-          resetForm();
-
-          setErrorMessage('');
-        } else {
-          const createPayload = {
-            name: payload.name,
-            description: payload.description,
-            categoryId: payload.categoryId,
-            subcategoryId: payload.subcategoryId,
-            price: payload.price,
-            originalPrice: payload.originalPrice,
-            unit: payload.unit
-          };
-
-          const response =
-            await createProduct(
-              createPayload,
-              formData.imageFile
-            );
-
-          const createdProduct =
-            response?.data
-              ?.product ||
-            response?.data ||
-            response?.product ||
-            response;
-
-          const createdProductId =
-            createdProduct?.id ||
-            createdProduct?.productId ||
-            response?.data?.id ||
-            response?.id;
-
-          if (
-            !createdProductId
-          ) {
-            throw new Error(
-              'Product created but product ID was not returned by the server'
-            );
-          }
-
-          await fetchProducts();
-
-          setIsPanelOpen(
-            false
-          );
-
-          setEditingProduct(
-            null
-          );
-
-          setProductImages(
-            []
-          );
-
-          setSelectedImages(
-            []
-          );
-
-          resetForm();
-
-          setErrorMessage('');
-        }
-      } catch (error) {
-        console.error(
-          'Product save error:',
-          error
-        );
-
-        setErrorMessage(
-          getApiErrorMessage(
-            error,
-            'Failed to save product'
-          )
-        );
-      } finally {
-        setSaving(false);
-      }
-    };
-
-  const handleStatusChange =
-    async (
-      product
-    ) => {
-      if (!product?.id) {
-        return;
-      }
-
-      setActionLoading(
-        product.id
-      );
-
-      setErrorMessage('');
-
-      try {
-        if (
-          product.active
-        ) {
-          await deactivateProduct(
-            product.id
-          );
-        } else {
-          await activateProduct(
-            product.id
-          );
-        }
-
-        await fetchProducts();
-
-        if (
-          editingProduct ===
+    try {
+      if (product.active) {
+        await deactivateProduct(
           product.id
-        ) {
-          closePanel();
-        }
-      } catch (error) {
-        console.error(
-          'Failed to change product status:',
-          error
         );
-
-        setErrorMessage(
-          getApiErrorMessage(
-            error,
-            'Failed to update product status'
-          )
-        );
-      } finally {
-        setActionLoading(
-          null
+      } else {
+        await activateProduct(
+          product.id
         );
       }
-    };
+
+      await fetchProducts();
+
+      if (
+        editingProduct === product.id
+      ) {
+        closePanel();
+      }
+    } catch (error) {
+      console.error(
+        'Failed to change product status:',
+        error
+      );
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Failed to update product status'
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const filteredProducts =
-    products.filter(
-      (prod) => {
-        const name =
-          String(
-            prod.name || ''
-          ).toLowerCase();
+    products.filter((prod) => {
+      const name = String(
+        prod.name || ''
+      ).toLowerCase();
 
-        const category =
-          String(
-            prod.categoryName ||
-              ''
-          ).toLowerCase();
+      const category = String(
+        prod.categoryName || ''
+      ).toLowerCase();
 
-        const subcategory =
-          String(
-            prod.subcategoryName ||
-              ''
-          ).toLowerCase();
+      const subcategory = String(
+        prod.subcategoryName || ''
+      ).toLowerCase();
 
-        const query =
-          searchQuery.toLowerCase();
+      const query =
+        searchQuery.toLowerCase();
 
-        const matchesSearch =
-          name.includes(
-            query
-          ) ||
-          category.includes(
-            query
-          ) ||
-          subcategory.includes(
-            query
-          );
+      const matchesSearch =
+        name.includes(query) ||
+        category.includes(query) ||
+        subcategory.includes(query);
 
-        const matchesStatus =
-          stockFilter ===
-            'All' ||
-          (stockFilter ===
-            'Active' &&
-            prod.active) ||
-          (stockFilter ===
-            'Inactive' &&
-            !prod.active);
+      const matchesStatus =
+        stockFilter === 'All' ||
+        (stockFilter === 'Active' &&
+          prod.active) ||
+        (stockFilter === 'Inactive' &&
+          !prod.active);
 
-        return (
-          matchesSearch &&
-          matchesStatus
-        );
-      }
-    );
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
+    });
 
   const totalProducts =
     products.length;
@@ -2039,8 +1236,7 @@ export default function Products() {
 
   const productStats = [
     {
-      label:
-        'Total Products',
+      label: 'Total Products',
       value: `${totalProducts}`,
       change: '+12.4%',
       up: true,
@@ -2051,12 +1247,10 @@ export default function Products() {
       tagColor:
         'text-emerald-700 bg-emerald-50/80 border-emerald-200/80',
       icon: Package,
-      suffix:
-        ' Products'
+      suffix: ' Products'
     },
     {
-      label:
-        'Active Products',
+      label: 'Active Products',
       value: `${activeProducts}`,
       change: '+8.2%',
       up: true,
@@ -2066,14 +1260,11 @@ export default function Products() {
         'bg-teal-50 text-teal-700',
       tagColor:
         'text-teal-700 bg-teal-50/80 border-teal-200/80',
-      icon:
-        CheckCircle2,
-      suffix:
-        ' Active'
+      icon: CheckCircle2,
+      suffix: ' Active'
     },
     {
-      label:
-        'Inactive Products',
+      label: 'Inactive Products',
       value: `${inactiveProducts}`,
       change: '-4.1%',
       up: false,
@@ -2083,14 +1274,11 @@ export default function Products() {
         'bg-amber-50 text-amber-700',
       tagColor:
         'text-amber-700 bg-amber-50/80 border-amber-200/80',
-      icon:
-        AlertTriangle,
-      suffix:
-        ' Inactive'
+      icon: AlertTriangle,
+      suffix: ' Inactive'
     },
     {
-      label:
-        'Available Products',
+      label: 'Available Products',
       value: `${activeProducts}`,
       change: '+2.8%',
       up: true,
@@ -2100,22 +1288,16 @@ export default function Products() {
         'bg-rose-50 text-rose-700',
       tagColor:
         'text-rose-700 bg-rose-50/80 border-rose-200/80',
-      icon:
-        CheckCircle2,
-      suffix:
-        ' Available'
+      icon: CheckCircle2,
+      suffix: ' Available'
     }
   ];
 
   return (
     <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
       <Sidebar
-        currentTab={
-          currentTab
-        }
-        setCurrentTab={
-          setCurrentTab
-        }
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
       />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
@@ -2175,9 +1357,7 @@ export default function Products() {
               whileTap={{
                 scale: 0.95
               }}
-              onClick={
-                openAddPanel
-              }
+              onClick={openAddPanel}
               className="px-4 py-2.5 bg-emerald-500/20 border border-emerald-700 rounded-2xl hover:bg-emerald-500/30 transition-all text-xs font-semibold text-emerald-100 flex items-center gap-2"
             >
               <Plus size={15} />
@@ -2194,11 +1374,9 @@ export default function Products() {
                 {new Date().toLocaleDateString(
                   'en-US',
                   {
-                    month:
-                      'short',
+                    month: 'short',
                     day: 'numeric',
-                    year:
-                      'numeric'
+                    year: 'numeric'
                   }
                 )}
               </span>
@@ -2211,12 +1389,8 @@ export default function Products() {
               whileTap={{
                 scale: 0.95
               }}
-              onClick={
-                fetchProducts
-              }
-              disabled={
-                isRefreshing
-              }
+              onClick={fetchProducts}
+              disabled={isRefreshing}
               className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner group/btn disabled:opacity-50"
               title="Refresh Data"
             >
@@ -2256,10 +1430,7 @@ export default function Products() {
 
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {productStats.map(
-            (
-              stat,
-              idx
-            ) => {
+            (stat, idx) => {
               const IconComponent =
                 stat.icon;
 
@@ -2276,9 +1447,7 @@ export default function Products() {
                   }}
                   transition={{
                     duration: 0.4,
-                    delay:
-                      idx *
-                      0.1
+                    delay: idx * 0.1
                   }}
                   whileHover={{
                     y: -6,
@@ -2297,9 +1466,7 @@ export default function Products() {
                   <div className="relative z-10">
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors duration-200">
-                        {
-                          stat.label
-                        }
+                        {stat.label}
                       </span>
 
                       <motion.div
@@ -2309,11 +1476,7 @@ export default function Products() {
                         }}
                         className={`${stat.iconBg} p-2.5 rounded-2xl transition-all shadow-xs`}
                       >
-                        <IconComponent
-                          size={
-                            18
-                          }
-                        />
+                        <IconComponent size={18} />
                       </motion.div>
                     </div>
 
@@ -2331,9 +1494,7 @@ export default function Products() {
                           />
 
                           <span className="text-base ml-1 font-sans">
-                            {
-                              stat.suffix
-                            }
+                            {stat.suffix}
                           </span>
                         </>
                       )}
@@ -2346,28 +1507,21 @@ export default function Products() {
                     >
                       {stat.up ? (
                         <ArrowUpRight
-                          size={
-                            13
-                          }
+                          size={13}
                           className="text-emerald-600"
                         />
                       ) : (
                         <ArrowDownRight
-                          size={
-                            13
-                          }
+                          size={13}
                           className="text-rose-600"
                         />
                       )}
 
-                      {
-                        stat.change
-                      }
+                      {stat.change}
                     </span>
 
                     <span className="text-[11px] text-black font-semibold">
-                      Monthly
-                      Period
+                      Monthly Period
                     </span>
                   </div>
                 </motion.div>
@@ -2395,22 +1549,16 @@ export default function Products() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-                  <Package
-                    size={18}
-                  />
+                  <Package size={18} />
                 </div>
 
                 <div>
                   <h2 className="text-lg font-semibold text-black tracking-tight">
-                    Product
-                    Records
+                    Product Records
                   </h2>
 
                   <p className="text-xs font-semibold text-black">
-                    Product
-                    catalog
-                    management
-                    directory
+                    Product catalog management directory
                   </p>
                 </div>
               </div>
@@ -2428,13 +1576,9 @@ export default function Products() {
                     value={
                       searchQuery
                     }
-                    onChange={(
-                      e
-                    ) =>
+                    onChange={(e) =>
                       setSearchQuery(
-                        e
-                          .target
-                          .value
+                        e.target.value
                       )
                     }
                     className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
@@ -2451,32 +1595,24 @@ export default function Products() {
                     'All',
                     'Active',
                     'Inactive'
-                  ].map(
-                    (
-                      status
-                    ) => (
-                      <button
-                        key={
+                  ].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() =>
+                        setStockFilter(
                           status
-                        }
-                        onClick={() =>
-                          setStockFilter(
-                            status
-                          )
-                        }
-                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
-                          stockFilter ===
-                          status
-                            ? 'bg-white text-emerald-700 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                      >
-                        {
-                          status
-                        }
-                      </button>
-                    )
-                  )}
+                        )
+                      }
+                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+                        stockFilter ===
+                        status
+                          ? 'bg-white text-emerald-700 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -2520,15 +1656,12 @@ export default function Products() {
                       >
                         <div className="flex flex-col items-center gap-3 text-slate-400">
                           <Loader2
-                            size={
-                              28
-                            }
+                            size={28}
                             className="animate-spin text-emerald-600"
                           />
 
                           <span className="text-xs font-semibold">
-                            Loading
-                            products...
+                            Loading products...
                           </span>
                         </div>
                       </td>
@@ -2541,9 +1674,7 @@ export default function Products() {
                         idx
                       ) => (
                         <motion.tr
-                          key={
-                            prod.id
-                          }
+                          key={prod.id}
                           initial={{
                             opacity: 0,
                             y: 10
@@ -2553,8 +1684,7 @@ export default function Products() {
                             y: 0
                           }}
                           transition={{
-                            duration:
-                              0.3,
+                            duration: 0.3,
                             delay:
                               0.3 +
                               idx *
@@ -2588,9 +1718,8 @@ export default function Products() {
 
                               <div className="flex flex-col">
                                 <span className="font-semibold text-black group-hover:text-emerald-700 transition-colors">
-                                  {
-                                    prod.name
-                                  }
+                                  {prod.name ||
+                                    '-'}
                                 </span>
 
                                 <span className="text-[10px] text-slate-500">
@@ -2605,17 +1734,13 @@ export default function Products() {
                           <td className="py-3.5 px-4">
                             <div className="flex flex-col">
                               <span className="text-[10px] text-slate-700 font-semibold">
-                                {
-                                  prod.categoryName ||
-                                  '-'
-                                }
+                                {prod.categoryName ||
+                                  '-'}
                               </span>
 
                               <span className="text-[10px] text-slate-400 font-normal">
-                                {
-                                  prod.subcategoryName ||
-                                  '-'
-                                }
+                                {prod.subcategoryName ||
+                                  '-'}
                               </span>
                             </div>
                           </td>
@@ -2655,10 +1780,8 @@ export default function Products() {
 
                           <td className="py-3.5 px-4">
                             <span className="text-[10px] font-semibold text-slate-600">
-                              {
-                                prod.unit ||
-                                '-'
-                              }
+                              {prod.unit ||
+                                '-'}
                             </span>
                           </td>
 
@@ -2771,15 +1894,12 @@ export default function Products() {
                         className="py-12 text-center"
                       >
                         <Package
-                          size={
-                            35
-                          }
+                          size={35}
                           className="mx-auto text-slate-300 mb-3"
                         />
 
                         <p className="text-xs font-semibold text-slate-400">
-                          No
-                          matching
+                          No matching
                           product
                           records
                           found.
@@ -2794,19 +1914,14 @@ export default function Products() {
             <div className="md:hidden space-y-3">
               {loading ? (
                 <div className="py-10 text-center text-xs font-semibold text-slate-400">
-                  Loading
-                  products...
+                  Loading products...
                 </div>
               ) : filteredProducts.length >
                 0 ? (
                 filteredProducts.map(
-                  (
-                    prod
-                  ) => (
+                  (prod) => (
                     <motion.div
-                      key={
-                        prod.id
-                      }
+                      key={prod.id}
                       whileHover={{
                         scale: 1.01
                       }}
@@ -2837,16 +1952,13 @@ export default function Products() {
 
                           <div>
                             <h4 className="font-semibold text-sm text-black group-hover:text-emerald-700 transition-colors">
-                              {
-                                prod.name
-                              }
+                              {prod.name ||
+                                '-'}
                             </h4>
 
                             <p className="text-[10px] text-slate-400">
-                              {
-                                prod.categoryName ||
-                                'Product'
-                              }
+                              {prod.categoryName ||
+                                'Product'}
                             </p>
                           </div>
                         </div>
@@ -2879,10 +1991,8 @@ export default function Products() {
                           </span>
 
                           <span className="text-slate-500 font-semibold">
-                            {
-                              prod.categoryName ||
-                              '-'
-                            }
+                            {prod.categoryName ||
+                              '-'}
                           </span>
                         </div>
 
@@ -2892,10 +2002,8 @@ export default function Products() {
                           </span>
 
                           <span className="text-slate-500 font-semibold">
-                            {
-                              prod.subcategoryName ||
-                              '-'
-                            }
+                            {prod.subcategoryName ||
+                              '-'}
                           </span>
                         </div>
 
@@ -2921,10 +2029,8 @@ export default function Products() {
                           </span>
 
                           <span className="font-semibold text-slate-500">
-                            {
-                              prod.unit ||
-                              '-'
-                            }
+                            {prod.unit ||
+                              '-'}
                           </span>
                         </div>
 
@@ -3032,15 +2138,12 @@ export default function Products() {
               ) : (
                 <div className="py-10 text-center">
                   <Package
-                    size={
-                      35
-                    }
+                    size={35}
                     className="mx-auto text-slate-300 mb-3"
                   />
 
                   <p className="text-xs font-semibold text-slate-400">
-                    No
-                    products
+                    No products
                     found.
                   </p>
                 </div>
@@ -3076,9 +2179,7 @@ export default function Products() {
             >
               <button
                 type="button"
-                onClick={
-                  closePanel
-                }
+                onClick={closePanel}
                 disabled={
                   saving ||
                   imageUploading
@@ -3091,20 +2192,15 @@ export default function Products() {
               <div className="flex items-center gap-3.5 mb-6 pr-8">
                 <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
                   {editingProduct ? (
-                    <Edit3
-                      size={20}
-                    />
+                    <Edit3 size={20} />
                   ) : (
-                    <Plus
-                      size={20}
-                    />
+                    <Plus size={20} />
                   )}
                 </div>
 
                 <div>
                   <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase">
-                    Product
-                    Management
+                    Product Management
                   </span>
 
                   <h3 className="text-lg font-bold text-black">
@@ -3116,35 +2212,24 @@ export default function Products() {
               </div>
 
               <form
-                onSubmit={
-                  handleSave
-                }
+                onSubmit={handleSave}
                 className="space-y-4"
               >
                 <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                    Product
-                    Title
+                    Product Title
                   </label>
 
                   <input
                     required
                     type="text"
                     placeholder="e.g. Crisp Romaine Lettuce"
-                    value={
-                      formData.name
-                    }
-                    onChange={(
-                      e
-                    ) =>
+                    value={formData.name}
+                    onChange={(e) =>
                       setFormData(
-                        (
-                          prev
-                        ) => ({
+                        (prev) => ({
                           ...prev,
-                          name: e
-                            .target
-                            .value
+                          name: e.target.value
                         })
                       )
                     }
@@ -3163,18 +2248,12 @@ export default function Products() {
                     value={
                       formData.description
                     }
-                    onChange={(
-                      e
-                    ) =>
+                    onChange={(e) =>
                       setFormData(
-                        (
-                          prev
-                        ) => ({
+                        (prev) => ({
                           ...prev,
                           description:
-                            e
-                              .target
-                              .value
+                            e.target.value
                         })
                       )
                     }
@@ -3189,24 +2268,11 @@ export default function Products() {
                     </label>
 
                     <SelectDropdown
-                      value={
-                        formData.categoryId
-                      }
-                      options={
-                        categories
-                      }
+                      value={formData.categoryId}
+                      options={categories}
                       placeholder="Select category"
-                      loading={
-                        categoriesLoading
-                      }
-                      disabled={
-                        categoriesLoading ||
-                        saving ||
-                        imageUploading
-                      }
-                      onChange={
-                        handleCategoryChange
-                      }
+                      onChange={handleCategoryChange}
+                      loading={categoriesLoading}
                     />
                   </div>
 
@@ -3216,29 +2282,16 @@ export default function Products() {
                     </label>
 
                     <SelectDropdown
-                      value={
-                        formData.subcategoryId
-                      }
-                      options={
-                        subcategories
-                      }
+                      value={formData.subcategoryId}
+                      options={subcategories}
                       placeholder={
                         formData.categoryId
                           ? 'Select subcategory'
                           : 'Select category first'
                       }
-                      loading={
-                        subcategoriesLoading
-                      }
-                      disabled={
-                        !formData.categoryId ||
-                        subcategoriesLoading ||
-                        saving ||
-                        imageUploading
-                      }
-                      onChange={
-                        handleSubcategoryChange
-                      }
+                      onChange={handleSubcategoryChange}
+                      disabled={!formData.categoryId}
+                      loading={subcategoriesLoading}
                     />
                   </div>
                 </div>
@@ -3246,8 +2299,7 @@ export default function Products() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                      Price
-                      (₹)
+                      Price (₹)
                     </label>
 
                     <input
@@ -3255,20 +2307,15 @@ export default function Products() {
                       type="number"
                       step="0.01"
                       min="0"
-                      placeholder="0.00"
+                      placeholder="Enter price"
                       value={
                         formData.price
                       }
-                      onChange={(
-                        e
-                      ) =>
+                      onChange={(e) =>
                         setFormData(
-                          (
-                            prev
-                          ) => ({
+                          (prev) => ({
                             ...prev,
-                            price: e
-                              .target
+                            price: e.target
                               .value
                           })
                         )
@@ -3279,30 +2326,23 @@ export default function Products() {
 
                   <div>
                     <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                      Original
-                      Price
+                      Original Price
                     </label>
 
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      placeholder="0.00"
+                      placeholder="Enter original price"
                       value={
                         formData.originalPrice
                       }
-                      onChange={(
-                        e
-                      ) =>
+                      onChange={(e) =>
                         setFormData(
-                          (
-                            prev
-                          ) => ({
+                          (prev) => ({
                             ...prev,
                             originalPrice:
-                              e
-                                .target
-                                .value
+                              e.target.value
                           })
                         )
                       }
@@ -3314,48 +2354,23 @@ export default function Products() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                      Unit
-                      Metric
+                      Unit Metric
                     </label>
 
-                    <UnitDropdown
-                      value={
-                        formData.unit
-                      }
-                      onChange={(
-                        unit
-                      ) =>
-                        setFormData(
-                          (
-                            prev
-                          ) => ({
-                            ...prev,
-                            unit
-                          })
-                        )
+                    <UnitInput
+                      value={formData.unit}
+                      onChange={(unit) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          unit
+                        }))
                       }
                     />
-
-                    {!UNIT_OPTIONS.some(
-                      (
-                        option
-                      ) =>
-                        option.value ===
-                        formData.unit
-                    ) &&
-                      formData.unit && (
-                        <span className="text-[10px] text-slate-400 mt-1 block">
-                          {
-                            formData.unit
-                          }
-                        </span>
-                      )}
                   </div>
 
                   <div>
                     <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                      Discount
-                      %
+                      Discount %
                     </label>
 
                     <input
@@ -3363,21 +2378,16 @@ export default function Products() {
                       step="0.01"
                       min="0"
                       max="100"
-                      placeholder="0"
+                      placeholder="Enter discount %"
                       value={
                         formData.discountPercent
                       }
-                      onChange={(
-                        e
-                      ) =>
+                      onChange={(e) =>
                         setFormData(
-                          (
-                            prev
-                          ) => ({
+                          (prev) => ({
                             ...prev,
                             discountPercent:
-                              e
-                                .target
+                              e.target
                                 .value
                           })
                         )
@@ -3390,8 +2400,7 @@ export default function Products() {
                 <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
                   <div>
                     <span className="text-[10px] font-bold text-black uppercase tracking-wider block">
-                      Product
-                      Status
+                      Product Status
                     </span>
 
                     <span className="text-[10px] text-slate-400">
@@ -3405,9 +2414,7 @@ export default function Products() {
                     type="button"
                     onClick={() =>
                       setFormData(
-                        (
-                          prev
-                        ) => ({
+                        (prev) => ({
                           ...prev,
                           active:
                             !prev.active
@@ -3433,207 +2440,94 @@ export default function Products() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-[10px] font-bold text-black uppercase tracking-wider">
-                      Product
-                      Images
+                      Product Images
                     </label>
 
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer">
-                      <Upload
-                        size={
-                          13
-                        }
-                      />
-
-                      {editingProduct ? 'Select Images' : 'Select Image'}
+                    <label
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                        saving || imageUploading
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer'
+                      }`}
+                    >
+                      <Upload size={13} />
+                      Select Images
 
                       <input
                         type="file"
                         accept="image/*"
-                        multiple={
-                          Boolean(
-                            editingProduct
-                          )
-                        }
-                        disabled={
-                          saving ||
-                          imageUploading
-                        }
-                        onChange={
-                          handleImageSelect
-                        }
+                        multiple={Boolean(editingProduct)}
+                        disabled={saving || imageUploading}
+                        onChange={handleImageSelect}
                         className="hidden"
                       />
                     </label>
                   </div>
 
-                  {!editingProduct &&
-                    formData.imageUrl && (
-                      <div className="mb-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-[10px] font-bold text-slate-700">
-                            Selected
-                            Image
-                          </span>
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-[10px] font-semibold text-emerald-700 mb-3">
+                    Select a product image here. For new products, the image is sent with the product create request.
+                  </div>
 
+                  {editingProduct && selectedImages.length > 0 && (
+                    <div className="mb-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[10px] font-bold text-slate-700">
+                          Selected Images ({selectedImages.length})
+                        </span>
+
+                        {editingProduct && (
                           <button
                             type="button"
-                            onClick={() =>
-                              setFormData(
-                                (
-                                  prev
-                                ) => ({
-                                  ...prev,
-                                  imageFile:
-                                    null,
-                                  imageUrl:
-                                    ''
-                                })
-                              )
-                            }
-                            disabled={
-                              saving
-                            }
-                            className="p-1 rounded-full bg-rose-500 text-white disabled:opacity-50"
-                          >
-                            <X
-                              size={
-                                10
-                              }
-                            />
-                          </button>
-                        </div>
-
-                        <div className="relative w-full h-44 rounded-xl overflow-hidden border border-emerald-100 bg-white">
-                          <img
-                            src={
-                              formData.imageUrl
-                            }
-                            alt="Product Preview"
-                            className="w-full h-full object-cover"
-                          />
-
-                          <div className="absolute left-2 bottom-2 px-2 py-1 rounded-lg bg-black/60 text-white text-[9px] font-semibold">
-                            Ready to upload
-                          </div>
-                        </div>
-
-                        {formData.imageFile && (
-                          <div className="mt-2 text-[10px] font-semibold text-emerald-700 truncate">
-                            {
-                              formData
-                                .imageFile
-                                .name
-                            }
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                  {editingProduct &&
-                    selectedImages.length >
-                      0 && (
-                      <div className="mb-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="text-[10px] font-bold text-slate-700">
-                            Selected
-                            Images
-                            (
-                            {
-                              selectedImages.length
-                            }
-                            )
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={
-                              handleProductImageUpload
-                            }
-                            disabled={
-                              imageUploading ||
-                              !editingProduct
-                            }
+                            onClick={handleProductImageUpload}
+                            disabled={imageUploading || saving}
                             className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1.5 disabled:opacity-50"
                           >
                             {imageUploading ? (
-                              <Loader2
-                                size={
-                                  12
-                                }
-                                className="animate-spin"
-                              />
+                              <Loader2 size={12} className="animate-spin" />
                             ) : (
-                              <Upload
-                                size={
-                                  12
-                                }
-                              />
+                              <Upload size={12} />
                             )}
-
-                            {imageUploading
-                              ? 'Uploading...'
-                              : 'Upload'}
+                            {imageUploading ? 'Uploading...' : 'Upload'}
                           </button>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-2">
-                          {selectedImages.map(
-                            (
-                              file,
-                              index
-                            ) => (
-                              <div
-                                key={`${file.name}-${index}`}
-                                className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white"
-                              >
-                                <img
-                                  src={URL.createObjectURL(
-                                    file
-                                  )}
-                                  alt={
-                                    file.name
-                                  }
-                                  className="w-full h-full object-cover"
-                                />
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    removeSelectedImage(
-                                      index
-                                    )
-                                  }
-                                  disabled={
-                                    imageUploading
-                                  }
-                                  className="absolute top-1 right-1 p-1 rounded-full bg-rose-500 text-white shadow disabled:opacity-50"
-                                >
-                                  <X
-                                    size={
-                                      10
-                                    }
-                                  />
-                                </button>
-                              </div>
-                            )
-                          )}
-                        </div>
+                        )}
                       </div>
-                    )}
+
+                      <div className="grid grid-cols-4 gap-2">
+                        {selectedImages.map((file, index) => (
+                          <div
+                            key={`${file.name}-${file.lastModified}-${index}`}
+                            className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white"
+                          >
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => removeSelectedImage(index)}
+                              disabled={imageUploading || saving}
+                              className="absolute top-1 right-1 p-1 rounded-full bg-rose-500 text-white shadow disabled:opacity-50"
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {editingProduct &&
                     (imageLoading ? (
                       <div className="py-8 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-200 rounded-xl">
                         <Loader2
-                          size={
-                            22
-                          }
+                          size={22}
                           className="animate-spin text-emerald-600"
                         />
 
                         <span className="text-[10px] font-semibold text-slate-400">
-                          Loading
-                          images...
+                          Loading images...
                         </span>
                       </div>
                     ) : productImages.length >
@@ -3766,16 +2660,12 @@ export default function Products() {
                     ) : (
                       <div className="py-8 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-200 rounded-xl">
                         <Image
-                          size={
-                            24
-                          }
+                          size={24}
                           className="text-slate-300"
                         />
 
                         <span className="text-[10px] font-semibold text-slate-400">
-                          No
-                          product
-                          images
+                          No product images
                         </span>
                       </div>
                     ))}
@@ -3784,9 +2674,7 @@ export default function Products() {
                 <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={
-                      closePanel
-                    }
+                    onClick={closePanel}
                     disabled={
                       saving ||
                       imageUploading
@@ -3806,17 +2694,11 @@ export default function Products() {
                   >
                     {saving ? (
                       <Loader2
-                        size={
-                          14
-                        }
+                        size={14}
                         className="animate-spin"
                       />
                     ) : (
-                      <Save
-                        size={
-                          14
-                        }
-                      />
+                      <Save size={14} />
                     )}
 
                     {saving
