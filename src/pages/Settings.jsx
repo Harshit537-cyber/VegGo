@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { motion } from 'framer-motion'
-
 import {
   Settings as SettingsIcon,
   Truck,
   Percent,
+  IndianRupee,
   Clock,
   RotateCcw,
   Save,
@@ -24,30 +24,75 @@ import {
   updatePlatformSettings
 } from '../Api/settingsService/settingsService'
 
-const Settings = () => {
-  const [settings, setSettings] = useState({
-    deliveryRadiusKm: '',
-    platformCommissionPercent: '',
-    vendorAcceptTimeoutSeconds: '',
-    deliveryAcceptTimeoutSeconds: '',
-    rebroadcastMaxRounds: '',
-    rebroadcastMaxElapsedMinutes: '',
-    otpExpiryMinutes: ''
-  })
+const DEFAULT_SETTINGS = {
+  deliveryRadiusKm: '',
+  platformCommissionPercent: '',
+  platformFeeAmount: 5,
+  deliveryFeeAmount: 25,
+  vendorAcceptTimeoutSeconds: '',
+  deliveryAcceptTimeoutSeconds: '',
+  rebroadcastMaxRounds: '',
+  rebroadcastMaxElapsedMinutes: '',
+  otpExpiryMinutes: ''
+}
 
-  const [ceilings, setCeilings] = useState({
-    maxDeliveryRadiusKm: null,
-    maxPlatformCommissionPercent: null,
-    maxAcceptTimeoutSeconds: null,
-    maxRebroadcastRounds: null,
-    maxRebroadcastElapsedMinutes: null
-  })
+const DEFAULT_CEILINGS = {
+  maxDeliveryRadiusKm: null,
+  maxPlatformCommissionPercent: null,
+  maxAcceptTimeoutSeconds: null,
+  maxRebroadcastRounds: null,
+  maxRebroadcastElapsedMinutes: null
+}
+
+const Settings = () => {
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS)
+  const [ceilings, setCeilings] = useState(DEFAULT_CEILINGS)
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+
+  const applyResponseData = (data) => {
+    if (!data) return
+
+    setSettings({
+      deliveryRadiusKm: data.deliveryRadiusKm ?? '',
+      platformCommissionPercent:
+        data.platformCommissionPercent ?? '',
+      platformFeeAmount:
+        data.platformFeeAmount ?? 5,
+      deliveryFeeAmount:
+        data.deliveryFeeAmount ?? 25,
+      vendorAcceptTimeoutSeconds:
+        data.vendorAcceptTimeoutSeconds ?? '',
+      deliveryAcceptTimeoutSeconds:
+        data.deliveryAcceptTimeoutSeconds ?? '',
+      rebroadcastMaxRounds:
+        data.rebroadcastMaxRounds ?? '',
+      rebroadcastMaxElapsedMinutes:
+        data.rebroadcastMaxElapsedMinutes ?? '',
+      otpExpiryMinutes:
+        data.otpExpiryMinutes ?? ''
+    })
+
+    if (data.ceilings) {
+      setCeilings({
+        maxDeliveryRadiusKm:
+          data.ceilings.maxDeliveryRadiusKm ?? null,
+        maxPlatformCommissionPercent:
+          data.ceilings.maxPlatformCommissionPercent ?? null,
+        maxAcceptTimeoutSeconds:
+          data.ceilings.maxAcceptTimeoutSeconds ?? null,
+        maxRebroadcastRounds:
+          data.ceilings.maxRebroadcastRounds ?? null,
+        maxRebroadcastElapsedMinutes:
+          data.ceilings.maxRebroadcastElapsedMinutes ?? null
+      })
+    }
+  }
 
   const loadSettings = async () => {
     try {
@@ -58,38 +103,7 @@ const Settings = () => {
       const response = await getPlatformSettings()
 
       if (response?.success && response?.data) {
-        const data = response.data
-
-        setSettings({
-          deliveryRadiusKm: data.deliveryRadiusKm ?? '',
-          platformCommissionPercent:
-            data.platformCommissionPercent ?? '',
-          vendorAcceptTimeoutSeconds:
-            data.vendorAcceptTimeoutSeconds ?? '',
-          deliveryAcceptTimeoutSeconds:
-            data.deliveryAcceptTimeoutSeconds ?? '',
-          rebroadcastMaxRounds:
-            data.rebroadcastMaxRounds ?? '',
-          rebroadcastMaxElapsedMinutes:
-            data.rebroadcastMaxElapsedMinutes ?? '',
-          otpExpiryMinutes:
-            data.otpExpiryMinutes ?? ''
-        })
-
-        if (data.ceilings) {
-          setCeilings({
-            maxDeliveryRadiusKm:
-              data.ceilings.maxDeliveryRadiusKm ?? null,
-            maxPlatformCommissionPercent:
-              data.ceilings.maxPlatformCommissionPercent ?? null,
-            maxAcceptTimeoutSeconds:
-              data.ceilings.maxAcceptTimeoutSeconds ?? null,
-            maxRebroadcastRounds:
-              data.ceilings.maxRebroadcastRounds ?? null,
-            maxRebroadcastElapsedMinutes:
-              data.ceilings.maxRebroadcastElapsedMinutes ?? null
-          })
-        }
+        applyResponseData(response.data)
       } else {
         setError(
           response?.message ||
@@ -113,6 +127,8 @@ const Settings = () => {
   }, [])
 
   const handleRefresh = async () => {
+    if (saving) return
+
     setRefreshing(true)
     await loadSettings()
   }
@@ -128,45 +144,40 @@ const Settings = () => {
   }
 
   const validateSettings = () => {
-    const values = {
-      deliveryRadiusKm: Number(
-        settings.deliveryRadiusKm
-      ),
-      platformCommissionPercent: Number(
-        settings.platformCommissionPercent
-      ),
-      vendorAcceptTimeoutSeconds: Number(
-        settings.vendorAcceptTimeoutSeconds
-      ),
-      deliveryAcceptTimeoutSeconds: Number(
-        settings.deliveryAcceptTimeoutSeconds
-      ),
-      rebroadcastMaxRounds: Number(
-        settings.rebroadcastMaxRounds
-      ),
-      rebroadcastMaxElapsedMinutes: Number(
-        settings.rebroadcastMaxElapsedMinutes
-      ),
-      otpExpiryMinutes: Number(
-        settings.otpExpiryMinutes
-      )
-    }
+    const fields = [
+      'deliveryRadiusKm',
+      'platformCommissionPercent',
+      'platformFeeAmount',
+      'deliveryFeeAmount',
+      'vendorAcceptTimeoutSeconds',
+      'deliveryAcceptTimeoutSeconds',
+      'rebroadcastMaxRounds',
+      'rebroadcastMaxElapsedMinutes',
+      'otpExpiryMinutes'
+    ]
 
-    if (
-      Object.values(settings).some(
-        (value) =>
-          value === '' ||
-          value === null ||
-          value === undefined
-      )
-    ) {
+    const hasEmptyValue = fields.some(
+      (field) =>
+        settings[field] === '' ||
+        settings[field] === null ||
+        settings[field] === undefined
+    )
+
+    if (hasEmptyValue) {
       return 'Please fill all platform settings fields.'
     }
+
+    const values = {}
+
+    fields.forEach((field) => {
+      values[field] = Number(settings[field])
+    })
 
     if (
       Object.values(values).some(
         (value) =>
-          !Number.isFinite(value) || value < 0
+          !Number.isFinite(value) ||
+          value < 0
       )
     ) {
       return 'Please enter valid positive values.'
@@ -244,6 +255,12 @@ const Settings = () => {
         platformCommissionPercent: Number(
           settings.platformCommissionPercent
         ),
+        platformFeeAmount: Number(
+          settings.platformFeeAmount
+        ),
+        deliveryFeeAmount: Number(
+          settings.deliveryFeeAmount
+        ),
         vendorAcceptTimeoutSeconds: Number(
           settings.vendorAcceptTimeoutSeconds
         ),
@@ -265,39 +282,7 @@ const Settings = () => {
         await updatePlatformSettings(payload)
 
       if (response?.success && response?.data) {
-        const data = response.data
-
-        setSettings({
-          deliveryRadiusKm:
-            data.deliveryRadiusKm ?? '',
-          platformCommissionPercent:
-            data.platformCommissionPercent ?? '',
-          vendorAcceptTimeoutSeconds:
-            data.vendorAcceptTimeoutSeconds ?? '',
-          deliveryAcceptTimeoutSeconds:
-            data.deliveryAcceptTimeoutSeconds ?? '',
-          rebroadcastMaxRounds:
-            data.rebroadcastMaxRounds ?? '',
-          rebroadcastMaxElapsedMinutes:
-            data.rebroadcastMaxElapsedMinutes ?? '',
-          otpExpiryMinutes:
-            data.otpExpiryMinutes ?? ''
-        })
-
-        if (data.ceilings) {
-          setCeilings({
-            maxDeliveryRadiusKm:
-              data.ceilings.maxDeliveryRadiusKm ?? null,
-            maxPlatformCommissionPercent:
-              data.ceilings.maxPlatformCommissionPercent ?? null,
-            maxAcceptTimeoutSeconds:
-              data.ceilings.maxAcceptTimeoutSeconds ?? null,
-            maxRebroadcastRounds:
-              data.ceilings.maxRebroadcastRounds ?? null,
-            maxRebroadcastElapsedMinutes:
-              data.ceilings.maxRebroadcastElapsedMinutes ?? null
-          })
-        }
+        applyResponseData(response.data)
 
         setMessage(
           response.message ||
@@ -348,24 +333,30 @@ const Settings = () => {
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
 
         <motion.header
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{
+            opacity: 0,
+            y: -20
+          }}
+          animate={{
+            opacity: 1,
+            y: 0
+          }}
           transition={{
             duration: 0.5,
             ease: 'easeOut'
           }}
           className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
         >
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
 
           <div className="space-y-2.5 z-10">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm backdrop-blur-md">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm">
                 <Zap
                   size={12}
-                  className="text-emerald-400 animate-bounce"
+                  className="text-emerald-400"
                 />
                 Platform Configuration
               </span>
@@ -384,37 +375,48 @@ const Settings = () => {
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
               Platform Settings
+
               <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </h1>
 
             <p className="text-xs sm:text-sm text-emerald-100/70 max-w-2xl">
-              Manage delivery radius, platform commission,
-              vendor acceptance, rebroadcast and OTP configuration.
+              Manage delivery radius, commission, platform fees,
+              delivery fees, acceptance, rebroadcast and OTP configuration.
             </p>
           </div>
 
           <div className="flex items-center gap-3 self-start lg:self-center z-10">
-            <div className="hidden sm:flex items-center gap-2 bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
+            <div className="hidden sm:flex items-center gap-2 bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 text-xs font-semibold text-emerald-100 shadow-inner">
               <ShieldCheck
                 size={14}
                 className="text-emerald-400"
               />
+
               <span>Live API Configuration</span>
             </div>
 
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{
+                scale: 1.05
+              }}
+              whileTap={{
+                scale: 0.95
+              }}
               onClick={handleRefresh}
-              disabled={refreshing || saving}
+              disabled={
+                refreshing ||
+                saving
+              }
               className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner disabled:opacity-60"
               title="Refresh Settings"
             >
               <RefreshCw
                 size={15}
-                className={`text-emerald-300 ${
-                  refreshing ? 'animate-spin' : ''
-                }`}
+                className={
+                  refreshing
+                    ? 'animate-spin text-emerald-300'
+                    : 'text-emerald-300'
+                }
               />
             </motion.button>
           </div>
@@ -422,8 +424,14 @@ const Settings = () => {
 
         {message && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{
+              opacity: 0,
+              y: 10
+            }}
+            animate={{
+              opacity: 1,
+              y: 0
+            }}
             className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-700 shadow-sm"
           >
             <div className="p-2 rounded-xl bg-emerald-100">
@@ -444,8 +452,14 @@ const Settings = () => {
 
         {error && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{
+              opacity: 0,
+              y: 10
+            }}
+            animate={{
+              opacity: 1,
+              y: 0
+            }}
             className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-rose-700 shadow-sm"
           >
             <div className="p-2 rounded-xl bg-rose-100">
@@ -473,8 +487,6 @@ const Settings = () => {
             suffix="KM"
             max={ceilings.maxDeliveryRadiusKm}
             step="0.1"
-            accent="bg-emerald-600"
-            iconBg="bg-emerald-50 text-emerald-700"
             onChange={(value) =>
               handleChange(
                 'deliveryRadiusKm',
@@ -486,12 +498,14 @@ const Settings = () => {
           <SettingCard
             icon={Percent}
             label="Platform Commission"
-            value={settings.platformCommissionPercent}
+            value={
+              settings.platformCommissionPercent
+            }
             suffix="%"
-            max={ceilings.maxPlatformCommissionPercent}
+            max={
+              ceilings.maxPlatformCommissionPercent
+            }
             step="0.01"
-            accent="bg-teal-600"
-            iconBg="bg-teal-50 text-teal-700"
             onChange={(value) =>
               handleChange(
                 'platformCommissionPercent',
@@ -501,14 +515,46 @@ const Settings = () => {
           />
 
           <SettingCard
+            icon={IndianRupee}
+            label="Platform Fee"
+            value={settings.platformFeeAmount}
+            suffix="₹"
+            max={null}
+            step="0.01"
+            onChange={(value) =>
+              handleChange(
+                'platformFeeAmount',
+                value
+              )
+            }
+          />
+
+          <SettingCard
+            icon={IndianRupee}
+            label="Delivery Fee"
+            value={settings.deliveryFeeAmount}
+            suffix="₹"
+            max={null}
+            step="0.01"
+            onChange={(value) =>
+              handleChange(
+                'deliveryFeeAmount',
+                value
+              )
+            }
+          />
+
+          <SettingCard
             icon={Clock}
             label="Vendor Accept Timeout"
-            value={settings.vendorAcceptTimeoutSeconds}
+            value={
+              settings.vendorAcceptTimeoutSeconds
+            }
             suffix="Seconds"
-            max={ceilings.maxAcceptTimeoutSeconds}
+            max={
+              ceilings.maxAcceptTimeoutSeconds
+            }
             step="1"
-            accent="bg-emerald-500"
-            iconBg="bg-emerald-50 text-emerald-700"
             onChange={(value) =>
               handleChange(
                 'vendorAcceptTimeoutSeconds',
@@ -520,12 +566,14 @@ const Settings = () => {
           <SettingCard
             icon={Clock}
             label="Delivery Accept Timeout"
-            value={settings.deliveryAcceptTimeoutSeconds}
+            value={
+              settings.deliveryAcceptTimeoutSeconds
+            }
             suffix="Seconds"
-            max={ceilings.maxAcceptTimeoutSeconds}
+            max={
+              ceilings.maxAcceptTimeoutSeconds
+            }
             step="1"
-            accent="bg-teal-600"
-            iconBg="bg-teal-50 text-teal-700"
             onChange={(value) =>
               handleChange(
                 'deliveryAcceptTimeoutSeconds',
@@ -537,12 +585,14 @@ const Settings = () => {
           <SettingCard
             icon={RotateCcw}
             label="Maximum Rebroadcast Rounds"
-            value={settings.rebroadcastMaxRounds}
+            value={
+              settings.rebroadcastMaxRounds
+            }
             suffix="Rounds"
-            max={ceilings.maxRebroadcastRounds}
+            max={
+              ceilings.maxRebroadcastRounds
+            }
             step="1"
-            accent="bg-green-700"
-            iconBg="bg-green-50 text-green-700"
             onChange={(value) =>
               handleChange(
                 'rebroadcastMaxRounds',
@@ -554,12 +604,14 @@ const Settings = () => {
           <SettingCard
             icon={RotateCcw}
             label="Maximum Rebroadcast Time"
-            value={settings.rebroadcastMaxElapsedMinutes}
+            value={
+              settings.rebroadcastMaxElapsedMinutes
+            }
             suffix="Minutes"
-            max={ceilings.maxRebroadcastElapsedMinutes}
+            max={
+              ceilings.maxRebroadcastElapsedMinutes
+            }
             step="1"
-            accent="bg-emerald-600"
-            iconBg="bg-emerald-50 text-emerald-700"
             onChange={(value) =>
               handleChange(
                 'rebroadcastMaxElapsedMinutes',
@@ -571,12 +623,12 @@ const Settings = () => {
           <SettingCard
             icon={Timer}
             label="OTP Expiry"
-            value={settings.otpExpiryMinutes}
+            value={
+              settings.otpExpiryMinutes
+            }
             suffix="Minutes"
             max={null}
             step="1"
-            accent="bg-teal-600"
-            iconBg="bg-teal-50 text-teal-700"
             onChange={(value) =>
               handleChange(
                 'otpExpiryMinutes',
@@ -588,11 +640,17 @@ const Settings = () => {
         </section>
 
         <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{
+            opacity: 0,
+            y: 20
+          }}
+          animate={{
+            opacity: 1,
+            y: 0
+          }}
           transition={{
             duration: 0.5,
-            delay: 0.35
+            delay: 0.2
           }}
           className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow overflow-hidden"
         >
@@ -616,6 +674,7 @@ const Settings = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold uppercase tracking-wider">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
               </span>
 
@@ -684,6 +743,7 @@ const Settings = () => {
             </motion.button>
           </div>
         </motion.section>
+
       </main>
     </div>
   )
@@ -696,8 +756,6 @@ const SettingCard = ({
   suffix,
   max,
   step,
-  accent,
-  iconBg,
   onChange
 }) => {
   return (
@@ -714,20 +772,19 @@ const SettingCard = ({
         duration: 0.4
       }}
       whileHover={{
-        y: -5,
+        y: -4,
         transition: {
           duration: 0.2
         }
       }}
       className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden group"
     >
-      <div
-        className={`absolute top-0 left-0 right-0 h-1.5 ${accent} transition-all duration-300 group-hover:h-2`}
-      />
+      <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-600 transition-all duration-300 group-hover:h-1.5" />
 
       <div className="absolute -right-8 -bottom-8 w-28 h-28 bg-emerald-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none group-hover:scale-125" />
 
       <div className="relative z-10">
+
         <div className="flex items-center justify-between mb-5">
           <div>
             <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors">
@@ -741,10 +798,10 @@ const SettingCard = ({
 
           <motion.div
             whileHover={{
-              rotate: 12,
-              scale: 1.1
+              rotate: 8,
+              scale: 1.05
             }}
-            className={`${iconBg} p-2.5 rounded-2xl shadow-xs`}
+            className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100"
           >
             <Icon size={18} />
           </motion.div>
@@ -774,11 +831,13 @@ const SettingCard = ({
           </span>
 
           <span className="text-[11px] text-emerald-700 font-bold">
-            {max !== null && max !== undefined
+            {max !== null &&
+            max !== undefined
               ? `${max} ${suffix}`
               : 'API limit unavailable'}
           </span>
         </div>
+
       </div>
     </motion.div>
   )
