@@ -1,3 +1,4 @@
+
 import apiClient from '../Interceptor/axiosInstance'
 
 export const getProducts = async (params = {}) => {
@@ -16,32 +17,50 @@ export const getProducts = async (params = {}) => {
   return response.data
 }
 
-export const createProduct = async (productData, image) => {
+export const createProduct = async (
+  productData,
+  images = []
+) => {
   const formData = new FormData()
 
-  formData.append('name', productData.name)
-  formData.append('description', productData.description)
-  formData.append('categoryId', productData.categoryId)
-  formData.append('subcategoryId', productData.subcategoryId)
-  formData.append('price', String(productData.price))
-  formData.append('originalPrice', String(productData.originalPrice))
-  formData.append('unit', productData.unit)
+  formData.append('name', productData.name || '')
+  formData.append('description', productData.description || '')
+  formData.append('categoryId', productData.categoryId || '')
+  formData.append('subcategoryId', productData.subcategoryId || '')
+  formData.append('price', String(productData.price ?? ''))
   formData.append(
-    'discountPercent',
-    String(productData.discountPercent)
+    'originalPrice',
+    String(productData.originalPrice ?? '')
   )
-  formData.append(
-    'active',
-    String(productData.active)
-  )
+  formData.append('unit', productData.unit || '')
 
-  if (image) {
+  if (
+    productData.discountPercent !== undefined &&
+    productData.discountPercent !== null &&
+    productData.discountPercent !== ''
+  ) {
     formData.append(
-      'images',
-      image,
-      image.name
+      'discountPercent',
+      String(productData.discountPercent)
     )
   }
+
+  formData.append(
+    'active',
+    String(productData.active ?? true)
+  )
+
+  const imageFiles = Array.isArray(images)
+    ? images
+    : images
+      ? [images]
+      : []
+
+  imageFiles.forEach((image) => {
+    if (image instanceof File || image instanceof Blob) {
+      formData.append('images', image)
+    }
+  })
 
   const response = await apiClient.post(
     '/api/admin/catalog/products',
@@ -105,13 +124,17 @@ export const addProductImages = async (
 ) => {
   const formData = new FormData()
 
-  if (Array.isArray(images)) {
-    images.forEach((image) => {
+  const imageFiles = Array.isArray(images)
+    ? images
+    : images
+      ? [images]
+      : []
+
+  imageFiles.forEach((image) => {
+    if (image instanceof File || image instanceof Blob) {
       formData.append('images', image)
-    })
-  } else if (images) {
-    formData.append('images', images)
-  }
+    }
+  })
 
   const response = await apiClient.post(
     `/api/admin/catalog/products/${productId}/images`,
@@ -174,3 +197,5 @@ export const getSubcategories = async (categoryId) => {
 
   return response.data
 }
+
+
