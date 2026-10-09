@@ -14,6 +14,7 @@ export default function RiderModal({
 }) {
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen || !rider) return null;
 
@@ -21,13 +22,14 @@ export default function RiderModal({
     try {
       setLoading(true);
       setAction('approve');
+      setErrorMsg('');
 
       await approveDeliveryKyc(rider.userId);
 
       onApprove(rider.userId);
     } catch (error) {
       console.error('Failed to approve delivery partner KYC:', error);
-      alert(
+      setErrorMsg(
         error?.response?.data?.message ||
         'Failed to approve delivery partner KYC'
       );
@@ -41,13 +43,14 @@ export default function RiderModal({
     try {
       setLoading(true);
       setAction('reject');
+      setErrorMsg('');
 
       await rejectDeliveryKyc(rider.userId);
 
       onReject(rider.userId);
     } catch (error) {
       console.error('Failed to reject delivery partner KYC:', error);
-      alert(
+      setErrorMsg(
         error?.response?.data?.message ||
         'Failed to reject delivery partner KYC'
       );
@@ -100,6 +103,12 @@ export default function RiderModal({
         </div>
 
         <div className="p-6 space-y-6">
+          {errorMsg && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-2xl">
+              {errorMsg}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3">
               <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">

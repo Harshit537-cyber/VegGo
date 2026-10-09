@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Mail,
@@ -13,42 +13,65 @@ import {
   Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import SuccessModal from '../Common/SuccessModal';
 import ForgotPasswordModal from '../Models/ForgotPasswordModal';
 import { adminLogin } from '../Api/authService/authService';
 
 export default function Login() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => {
+    return localStorage.getItem('remember_admin_email') || '';
+  });
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    return Boolean(localStorage.getItem('remember_admin_email'));
+  });
   const [isForgotOpen, setIsForgotOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  useEffect(() => {
+    const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+    if (token && token !== 'undefined' && token !== 'null') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) return;
+
     setErrorMessage('');
     setLoading(true);
 
     try {
-      const response = await adminLogin({ email, password });
+      const response = await adminLogin({ email: cleanEmail, password });
 
       if (response?.success && response?.data) {
         localStorage.setItem('token', response.data.accessToken);
         localStorage.setItem('accessToken', response.data.accessToken);
         localStorage.setItem('refreshToken', response.data.refreshToken);
 
-        setIsSuccess(true);
+        if (rememberMe) {
+          localStorage.setItem('remember_admin_email', cleanEmail);
+        } else {
+          localStorage.removeItem('remember_admin_email');
+        }
 
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 1500);
+        navigate('/dashboard', { replace: true });
+      } else {
+        setErrorMessage(
+          response?.message || 'Login failed. Please verify your credentials.'
+        );
       }
     } catch (error) {
-      setErrorMessage(error?.message || 'Invalid email or password');
+      setErrorMessage(
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Invalid email or password'
+      );
     } finally {
       setLoading(false);
     }
@@ -416,15 +439,18 @@ export default function Login() {
                 <motion.button
                   type="submit"
                   disabled={loading}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
+                  whileHover={{ scale: loading ? 1 : 1.01 }}
+                  whileTap={{ scale: loading ? 1 : 0.99 }}
                   className="w-full py-3.5 sm:py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 transition-all text-white font-bold text-sm sm:text-base rounded-xl sm:rounded-2xl shadow-xl shadow-emerald-600/15 flex items-center justify-center gap-2.5 group cursor-pointer disabled:cursor-not-allowed"
                 >
                   {loading ? (
-                    <Loader2
-                      size={19}
-                      className="animate-spin"
-                    />
+                    <>
+                      <Loader2
+                        size={19}
+                        className="animate-spin"
+                      />
+                      <span>Signing in...</span>
+                    </>
                   ) : (
                     <>
                       Sign In to Dashboard
@@ -440,12 +466,6 @@ export default function Login() {
           </div>
         </div>
       </motion.div>
-
-      <AnimatePresence>
-        {isSuccess && (
-          <SuccessModal isOpen={isSuccess} />
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {isForgotOpen && (

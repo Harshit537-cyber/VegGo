@@ -13,10 +13,10 @@ export default function Notifications() {
   ];
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 flex">
-      <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+    <div className="w-full min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
+      <Sidebar />
 
-      <main className="flex-1 min-h-screen p-8 lg:p-12 overflow-y-auto">
+      <main className="flex-1 min-h-screen p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto">
         <header className="mb-10">
           <span className="text-xs uppercase font-bold tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
             System Updates

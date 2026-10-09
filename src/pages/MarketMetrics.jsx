@@ -6,26 +6,26 @@ export default function MarketMetrics() {
   const [currentTab, setCurrentTab] = useState('analytics');
 
   const marketStats = [
-    { label: 'Weekly Gross Trade Value', value: '$84,290', change: '+14.2%', up: true },
-    { label: 'Average Wholesale Rate', value: '$2.48 / kg', change: '-1.8%', up: false },
+    { label: 'Weekly Gross Trade Value', value: '₹8,84,290', change: '+14.2%', up: true },
+    { label: 'Average Wholesale Rate', value: '₹42.50 / kg', change: '-1.8%', up: false },
     { label: 'Active Wholesale Demands', value: '41 Contracts', change: '+8.3%', up: true },
     { label: 'Export Fulfillment Margin', value: '94.6%', change: '+0.5%', up: true }
   ];
 
   const cropMarkets = [
-    { name: 'Fresh Spinach', rate: '$2.10/kg', weeklyVolume: '8,400 kg', demand: 'High', supply: 'Deficit', trendUp: true },
-    { name: 'Broccoli Heads', rate: '$3.40/kg', weeklyVolume: '4,100 kg', demand: 'Moderate', supply: 'Stable', trendUp: false },
-    { name: 'Sweet Potatoes', rate: '$1.15/kg', weeklyVolume: '14,800 kg', demand: 'High', supply: 'Surplus', trendUp: true },
-    { name: 'Avocados', rate: '$5.80/kg', weeklyVolume: '2,900 kg', demand: 'Extreme', supply: 'Deficit', trendUp: true },
-    { name: 'Red Tomatoes', rate: '$1.95/kg', weeklyVolume: '9,200 kg', demand: 'Moderate', supply: 'Stable', trendUp: false },
-    { name: 'Baby Carrots', rate: '$2.50/kg', weeklyVolume: '6,300 kg', demand: 'Stable', supply: 'Surplus', trendUp: false }
+    { name: 'Fresh Spinach', rate: '₹35.00/kg', weeklyVolume: '8,400 kg', demand: 'High', supply: 'Deficit', trendUp: true },
+    { name: 'Broccoli Heads', rate: '₹65.00/kg', weeklyVolume: '4,100 kg', demand: 'Moderate', supply: 'Stable', trendUp: false },
+    { name: 'Sweet Potatoes', rate: '₹28.00/kg', weeklyVolume: '14,800 kg', demand: 'High', supply: 'Surplus', trendUp: true },
+    { name: 'Avocados', rate: '₹140.00/kg', weeklyVolume: '2,900 kg', demand: 'Extreme', supply: 'Deficit', trendUp: true },
+    { name: 'Red Tomatoes', rate: '₹32.00/kg', weeklyVolume: '9,200 kg', demand: 'Moderate', supply: 'Stable', trendUp: false },
+    { name: 'Baby Carrots', rate: '₹45.00/kg', weeklyVolume: '6,300 kg', demand: 'Stable', supply: 'Surplus', trendUp: false }
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
-      <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
+      <Sidebar />
 
-      <main className="flex-1 p-8 lg:p-12 overflow-y-auto max-h-screen">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen">
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-6 border-b border-slate-200/60">
           <div>
             <span className="text-xs uppercase font-bold tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">

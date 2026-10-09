@@ -5,9 +5,10 @@ export default function OrderDetailModal({ order, isOpen, onClose, onAction }) {
   if (!isOpen || !order) return null;
 
   const mockPhone = '+91 99887 76655';
-  const parsedAmount = parseFloat(order.amount.replace(/[₹,]/g, ''));
+  const rawAmountStr = String(order?.amount ?? '0').replace(/[₹,]/g, '');
+  const parsedAmount = parseFloat(rawAmountStr) || 0;
   const deliveryCharge = 40.00;
-  const subtotal = parsedAmount - deliveryCharge;
+  const subtotal = Math.max(0, parsedAmount - deliveryCharge);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

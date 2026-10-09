@@ -23,18 +23,24 @@ function AnimatedValue({ value }) {
   const [displayValue, setDisplayValue] = useState('');
 
   useEffect(() => {
-    const match = value.match(/([₹\d,.]+)\s*(.*)/);
+    const stringValue = String(value ?? '');
+    const match = stringValue.match(/([₹\d,.]+)\s*(.*)/);
     if (!match) {
-      setDisplayValue(value);
+      setDisplayValue(stringValue);
       return;
     }
 
-    const isRupee = value.startsWith('₹');
+    const isRupee = stringValue.startsWith('₹');
     const rawNumberStr = match[1].replace(/[₹,]/g, '');
     const targetNum = parseFloat(rawNumberStr);
     const suffix = match[2] || '';
     const isDecimal = rawNumberStr.includes('.');
     const hasComma = match[1].includes(',');
+
+    if (Number.isNaN(targetNum)) {
+      setDisplayValue(stringValue);
+      return;
+    }
 
     const duration = 1000;
     const startTime = performance.now();
@@ -64,7 +70,7 @@ function AnimatedValue({ value }) {
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(updateCount);
       } else {
-        setDisplayValue(value);
+        setDisplayValue(stringValue);
       }
     };
 
@@ -149,8 +155,8 @@ export default function OrderStatistics() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
-      <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+      <Sidebar />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
         

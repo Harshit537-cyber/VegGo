@@ -223,14 +223,11 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
 
-      <Sidebar
-        currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
-      />
+      <Sidebar />
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen">
 
         <div className="space-y-6 sm:space-y-7">
 
@@ -301,7 +298,7 @@ export default function Dashboard() {
                   />
 
                   {new Date().toLocaleDateString(
-                    'en-US',
+                    'en-IN',
                     {
                       month: 'short',
                       day: 'numeric',

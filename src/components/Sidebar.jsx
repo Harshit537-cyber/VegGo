@@ -138,51 +138,70 @@ function Sidebar() {
 
   const handleConfirmLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
     setIsLogoutModalOpen(false);
     navigate("/login");
   };
 
   return (
     <>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-6 left-6 z-50 p-3 bg-emerald-900 text-white rounded-2xl shadow-lg border border-emerald-700/50 hover:bg-emerald-800 transition-all duration-300"
-      >
-        {isOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          aria-label="Open navigation menu"
+          className="lg:hidden fixed top-5 left-5 z-50 p-2.5 bg-emerald-950/90 backdrop-blur-md text-emerald-300 rounded-2xl shadow-xl border border-emerald-700/40 hover:bg-emerald-900 transition-all duration-300 cursor-pointer"
+        >
+          <Menu size={20} />
+        </button>
+      )}
 
       {isOpen && (
         <div
           onClick={() => setIsOpen(false)}
-          className="fixed inset-0 bg-slate-950/40 backdrop-blur-md z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-40 lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 w-80 h-screen p-6 flex flex-col justify-between transition-transform duration-500 ease-out lg:translate-x-0 ${
+        className={`fixed lg:sticky top-0 left-0 z-50 lg:z-40 w-72 sm:w-80 h-screen p-3 sm:p-4 lg:p-6 flex flex-col transition-transform duration-300 ease-out lg:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="absolute inset-y-6 left-6 right-0 bg-gradient-to-b from-emerald-950 via-emerald-900 to-slate-950 rounded-[2.5rem] border border-emerald-800/40 shadow-2xl shadow-emerald-950/20 pointer-events-none" />
+        <div className="flex flex-col h-full w-full bg-gradient-to-b from-emerald-950 via-emerald-900 to-slate-950 rounded-3xl lg:rounded-[2.5rem] border border-emerald-800/40 shadow-2xl shadow-emerald-950/30 overflow-hidden">
+          <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-emerald-800/30 shrink-0">
+            <div
+              onClick={() => {
+                setIsOpen(false);
+                navigate("/dashboard");
+              }}
+              className="flex items-center gap-3 cursor-pointer group select-none"
+            >
+              <div className="p-2.5 rounded-2xl bg-white/10 border border-white/10 shadow-inner group-hover:bg-emerald-500/20 group-hover:border-emerald-400/30 transition-all duration-300">
+                <Leaf
+                  size={22}
+                  className="text-emerald-400 group-hover:scale-110 transition-transform duration-300"
+                />
+              </div>
 
-        <div className="relative z-10 flex flex-col h-[calc(100vh-160px)] space-y-7 pl-6 pr-4 pt-4">
-          <div className="flex items-center gap-3.5 px-2 shrink-0">
-            <div className="p-2.5 rounded-2xl bg-white/10 border border-white/10 shadow-inner">
-              <Leaf
-                size={22}
-                className="text-emerald-400"
-              />
+              <span className="text-xl font-black tracking-tight text-white">
+                VegGo
+                <span className="text-emerald-400 font-medium">
+                  Fresh
+                </span>
+              </span>
             </div>
 
-            <span className="text-xl font-black tracking-tight text-white">
-              VegGo
-              <span className="text-emerald-400 font-medium">
-                Fresh
-              </span>
-            </span>
+            <button
+              onClick={() => setIsOpen(false)}
+              aria-label="Close navigation menu"
+              className="lg:hidden p-2 text-emerald-300/80 hover:text-white rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
           </div>
 
-          <nav className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+          <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5 scrollbar-thin scrollbar-thumb-emerald-800/60 scrollbar-track-transparent">
             {menuGroups.map((group) => {
               const isExpanded = expandedGroup === group.id;
 
@@ -195,19 +214,16 @@ function Sidebar() {
               const GroupIcon = group.icon;
 
               return (
-                <div
-                  key={group.id}
-                  className="space-y-1"
-                >
+                <div key={group.id} className="space-y-1">
                   <button
                     onClick={() => handleGroupToggle(group)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-300 ${
+                    className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-sm font-bold transition-all duration-200 cursor-pointer ${
                       isSelected || isExpanded
                         ? "bg-white/10 text-white shadow-inner border border-white/5"
-                        : "text-emerald-200/60 hover:text-white hover:bg-white/5"
+                        : "text-emerald-200/70 hover:text-white hover:bg-white/5"
                     }`}
                   >
-                    <div className="flex items-center gap-3.5">
+                    <div className="flex items-center gap-3">
                       <GroupIcon
                         size={18}
                         className={
@@ -223,63 +239,61 @@ function Sidebar() {
                     {group.subItems.length > 0 &&
                       (isExpanded ? (
                         <ChevronUp
-                          size={14}
+                          size={15}
                           className="text-emerald-400"
                         />
                       ) : (
                         <ChevronDown
-                          size={14}
-                          className="text-emerald-300/30"
+                          size={15}
+                          className="text-emerald-300/40"
                         />
                       ))}
                   </button>
 
-                  <div
-                    className={`pl-10 space-y-1 transition-all duration-300 ease-in-out overflow-hidden ${
-                      isExpanded
-                        ? "max-h-96 opacity-100 py-1"
-                        : "max-h-0 opacity-0 pointer-events-none"
-                    }`}
-                  >
-                    {group.subItems.map((subItem) => {
-                      const isSubSelected =
-                        location.pathname === subItem.path;
+                  {group.subItems.length > 0 && (
+                    <div
+                      className={`ml-5 pl-3 border-l border-emerald-500/20 space-y-1 my-1 transition-all duration-300 ease-in-out overflow-hidden ${
+                        isExpanded
+                          ? "max-h-96 opacity-100 py-1"
+                          : "max-h-0 opacity-0 pointer-events-none"
+                      }`}
+                    >
+                      {group.subItems.map((subItem) => {
+                        const isSubSelected =
+                          location.pathname === subItem.path;
 
-                      return (
-                        <button
-                          key={subItem.id}
-                          onClick={() =>
-                            handleSubItemClick(subItem.path)
-                          }
-                          className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold transition-all duration-300 relative ${
-                            isSubSelected
-                              ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
-                              : "text-emerald-300/50 hover:text-white hover:bg-white/5"
-                          }`}
-                        >
-                          {isSubSelected && (
-                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-white rounded-r-full" />
-                          )}
-
-                          {subItem.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                        return (
+                          <button
+                            key={subItem.id}
+                            onClick={() =>
+                              handleSubItemClick(subItem.path)
+                            }
+                            className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                              isSubSelected
+                                ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/25"
+                                : "text-emerald-200/60 hover:text-white hover:bg-white/5"
+                            }`}
+                          >
+                            {subItem.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </nav>
-        </div>
 
-        <div className="relative z-10 space-y-4 shrink-0 pl-6 pr-6 pb-9">
-          <button
-            onClick={handleLogoutClick}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-sm font-bold text-black bg-gray-300 hover:text-white hover:bg-gray-500 transition-all duration-300"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
+          <div className="p-4 border-t border-emerald-800/30 shrink-0">
+            <button
+              onClick={handleLogoutClick}
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-rose-300/90 bg-rose-500/10 hover:bg-rose-600 hover:text-white border border-rose-500/20 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-rose-600/20"
+            >
+              <LogOut size={18} />
+              Logout
+            </button>
+          </div>
         </div>
       </aside>
 

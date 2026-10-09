@@ -137,18 +137,11 @@ export default function Customer() {
     try {
       const [
         customerStatsResponse,
-        ,
         moderationStatsResponse,
         moderationLedgerResponse,
       ] = await Promise.all([
         getCustomerStats(),
-
-        search.trim()
-          ? searchCustomers(search.trim(), { page: 0, size: 20 })
-          : getCustomers({ page: 0, size: 20 }),
-
         getModerationStats(),
-
         search.trim()
           ? searchModerationCustomers(search.trim(), { page: 0, size: 20 })
           : getModerationCustomers({ page: 0, size: 20 }),
@@ -197,7 +190,8 @@ export default function Customer() {
   const getCustomerId = (customer) =>
     customer?.customerId ?? customer?.id ?? customer?._id;
 
-  const getCustomerUserId = (customer) => customer?.userId ?? null;
+  const getCustomerUserId = (customer) =>
+    customer?.userId ?? customer?.customerId ?? customer?.id ?? customer?._id ?? null;
 
   const isCustomerBlocked = (customer) => customer?.blocked === true;
 
@@ -406,10 +400,10 @@ export default function Customer() {
     : [];
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800">
-      <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+    <div className="min-h-screen w-full overflow-x-hidden bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
+      <Sidebar />
 
-      <main className="flex-1 min-w-0 w-full p-3 sm:p-5 lg:p-8 md:overflow-y-auto md:max-h-screen space-y-4 sm:space-y-6 lg:space-y-8">
+      <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 lg:overflow-y-auto lg:max-h-screen space-y-4 sm:space-y-6 lg:space-y-8">
         <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

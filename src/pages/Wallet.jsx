@@ -625,14 +625,10 @@ export default function Wallet() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+      <Sidebar />
 
-      <Sidebar
-        currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
-      />
-
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 w-full space-y-6 sm:space-y-8 md:max-h-screen md:overflow-y-auto">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 w-full space-y-6 sm:space-y-8 lg:max-h-screen lg:overflow-y-auto">
 
         <motion.header
           initial={{
@@ -708,7 +704,7 @@ export default function Wallet() {
 
               <span>
                 {new Date().toLocaleDateString(
-                  'en-US',
+                  'en-IN',
                   {
                     month: 'short',
                     day: 'numeric',

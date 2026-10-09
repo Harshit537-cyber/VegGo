@@ -513,7 +513,7 @@ export default function Categories() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col md:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
       <style>{`
         input.no-spinner::-webkit-outer-spin-button,
         input.no-spinner::-webkit-inner-spin-button {
@@ -525,9 +525,9 @@ export default function Categories() {
         }
       `}</style>
 
-      <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+      <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
         <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -578,7 +578,7 @@ export default function Categories() {
               <Calendar size={14} className="text-emerald-400" />
 
               <span>
-                {new Date().toLocaleDateString("en-US", {
+                {new Date().toLocaleDateString("en-IN", {
                   month: "short",
                   day: "numeric",
                   year: "numeric",

@@ -90,7 +90,7 @@ export default function ShopDetailModal({ isOpen, onClose, application }) {
 
             <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
               <Mail size={16} className="text-slate-400" />
-              <span>contact@{application.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com</span>
+              <span>contact@{String(application?.name || 'vendor').toLowerCase().replace(/[^a-z0-9]/g, '')}.com</span>
             </div>
           </div>
 
