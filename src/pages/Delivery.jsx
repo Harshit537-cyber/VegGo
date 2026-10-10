@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
+import PageHeader from "../Common/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
@@ -415,89 +416,18 @@ export default function Delivery() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
+    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
-        <motion.header
-          initial={{
-            opacity: 0,
-            y: -20,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          transition={{
-            duration: 0.5,
-          }}
-          className="relative overflow-hidden rounded-3xl bg-emerald-950 text-white p-6 sm:p-7 shadow-xl shadow-emerald-950/20 border border-emerald-900"
-        >
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800">
-                  <Bike size={12} />
-                  Delivery KYC Management
-                </span>
-
-                <span className="inline-flex items-center gap-2 bg-rose-950/80 border border-rose-900/80 px-3 py-1 rounded-full text-[10px] font-semibold tracking-widest uppercase">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
-                  </span>
-                  LIVE ADMIN VEG GO
-                </span>
-              </div>
-
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
-                Delivery 
-              </h1>
-
-              <p className="text-emerald-200 text-sm">
-                Review, approve and reject delivery
-                partner KYC applications.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold">
-                <Calendar
-                  size={14}
-                  className="text-emerald-400"
-                />
-
-                {new Date().toLocaleDateString(
-                  "en-IN",
-                  {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  }
-                )}
-              </div>
-
-              <button
-                onClick={handleRefresh}
-                disabled={
-                  isRefreshing || loading
-                }
-                className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all disabled:opacity-60"
-              >
-                <RefreshCw
-                  size={15}
-                  className={
-                    isRefreshing || loading
-                      ? "animate-spin text-emerald-300"
-                      : "text-emerald-300"
-                  }
-                />
-              </button>
-            </div>
-          </div>
-        </motion.header>
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh w-full space-y-6 sm:space-y-8">
+        <PageHeader
+          badge="Delivery Fleet"
+          badgeIcon={Bike}
+          title="Delivery Partner Directory"
+          subtitle="Review rider onboarding, verify license and vehicle documents, and manage active courier accounts."
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing || loading}
+        />
 
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {stats.map((stat, index) => {
@@ -899,13 +829,14 @@ export default function Delivery() {
                 }
                 className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden"
               >
-                <div className="p-5 bg-emerald-950 text-white flex items-center justify-between">
+                <div className="p-5 bg-white text-slate-900 border-b border-slate-100 flex items-center justify-between relative">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
                   <div>
-                    <h2 className="text-lg font-semibold">
+                    <h2 className="text-lg font-bold text-slate-900">
                       Delivery KYC Details
                     </h2>
 
-                    <p className="text-xs text-emerald-200 mt-1">
+                    <p className="text-xs text-slate-500 mt-1">
                       User ID:{" "}
                       {selectedPartner.id}
                     </p>
@@ -916,7 +847,7 @@ export default function Delivery() {
                       setSelectedPartner(null);
                       setDetails(null);
                     }}
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20"
+                    className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
                   >
                     <X size={18} />
                   </button>

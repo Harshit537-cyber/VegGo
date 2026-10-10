@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,42 +7,51 @@ import {
 } from "react-router-dom";
 
 import ProtectedRoute from "./components/ProtectedRoute";
-import Dashboard from "./components/Dashboard";
+const Dashboard = lazy(() => import("./components/Dashboard"));
 
 import Login from "./pages/Login";
-import Orders from "./pages/Orders";
-import ColdChain from "./pages/ColdChain";
-import MarketMetrics from "./pages/MarketMetrics";
-import OperatorRoles from "./pages/OperatorRoles";
-import Notifications from "./pages/Notifications";
-import Settings from "./pages/Settings";
-import RevenueOverview from "./pages/RevenueOverview";
-import OrderStatistics from "./pages/OrderStatistics";
-import VendorStatistics from "./pages/VendorStatistics";
+const Orders = lazy(() => import("./pages/Orders"));
+const ColdChain = lazy(() => import("./pages/ColdChain"));
+const MarketMetrics = lazy(() => import("./pages/MarketMetrics"));
+const OperatorRoles = lazy(() => import("./pages/OperatorRoles"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const Settings = lazy(() => import("./pages/Settings"));
+const RevenueOverview = lazy(() => import("./pages/RevenueOverview"));
+const OrderStatistics = lazy(() => import("./pages/OrderStatistics"));
+const VendorStatistics = lazy(() => import("./pages/VendorStatistics"));
 
-import Customer from "./pages/Customer";
-import Delivery from "./pages/Delivery";
-import Vendor from "./pages/Vendor";
+const Customer = lazy(() => import("./pages/Customer"));
+const Delivery = lazy(() => import("./pages/Delivery"));
+const Vendor = lazy(() => import("./pages/Vendor"));
 
-import PushNotifications from "./pages/PushNotifications";
-import PromotionalNotifications from "./pages/PromotionalNotifications";
+const PushNotifications = lazy(() => import("./pages/PushNotifications"));
+const PromotionalNotifications = lazy(() => import("./pages/PromotionalNotifications"));
 
-import Categories from "./pages/Categories";
-import Subcategories from "./pages/Subcategories";
-import Products from "./pages/Products";
+const Categories = lazy(() => import("./pages/Categories"));
+const Subcategories = lazy(() => import("./pages/Subcategories"));
+const Products = lazy(() => import("./pages/Products"));
 
-import OrderMonitoring from "./pages/OrderMonitoring";
+const OrderMonitoring = lazy(() => import("./pages/OrderMonitoring"));
 
-import RevenueReports from "./pages/RevenueReports";
-import VendorReports from "./pages/VendorReports";
-import DeliveryReports from "./pages/DeliveryReports";
+const RevenueReports = lazy(() => import("./pages/RevenueReports"));
+const VendorReports = lazy(() => import("./pages/VendorReports"));
+const DeliveryReports = lazy(() => import("./pages/DeliveryReports"));
 
-import Wallet from "./pages/Wallet";
-import Payouts from "./pages/Payouts";
+const Wallet = lazy(() => import("./pages/Wallet"));
+const Payouts = lazy(() => import("./pages/Payouts"));
+
+function PageLoader() {
+  return (
+    <div className="min-h-[100dvh] w-full flex items-center justify-center bg-slate-100/70">
+      <div className="h-10 w-10 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin" />
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <Router>
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -175,6 +184,7 @@ export default function App() {
           element={<Navigate to="/dashboard" replace />}
         />
       </Routes>
+      </Suspense>
     </Router>
   );
 }

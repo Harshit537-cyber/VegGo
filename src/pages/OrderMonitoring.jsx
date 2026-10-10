@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import PageHeader from '../Common/PageHeader';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import {
@@ -301,110 +301,20 @@ export default function OrderMonitoring() {
     });
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
 
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh w-full space-y-6 sm:space-y-8">
 
-        <motion.header
-          initial={{
-            opacity: 0,
-            y: -20
-          }}
-          animate={{
-            opacity: 1,
-            y: 0
-          }}
-          transition={{
-            duration: 0.5,
-            ease: 'easeOut'
-          }}
-          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
-        >
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
-
-          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="absolute inset-0 opacity-[0.025] pointer-events-none bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] bg-[size:18px_18px]" />
-
-          <div className="space-y-2.5 z-10">
-
-            <div className="flex flex-wrap items-center gap-2.5">
-
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm backdrop-blur-md">
-                <Zap
-                  size={12}
-                  className="text-emerald-400 animate-bounce"
-                />
-                Operations Logistics Center
-              </span>
-
-              <div className="flex items-center gap-2 bg-rose-950/80 border border-rose-900/80 px-3 py-1 rounded-full text-rose-300 shadow-sm">
-
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
-                </span>
-
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-white">
-                  LIVE ADMIN VEG GO
-                </span>
-              </div>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
-              Logistics & Order Monitoring
-
-              <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-3 self-start lg:self-center z-10">
-
-            <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
-
-              <Calendar
-                size={14}
-                className="text-emerald-400"
-              />
-
-              <span>
-                {new Date().toLocaleDateString(
-                  'en-IN',
-                  {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  }
-                )}
-              </span>
-            </div>
-
-            <motion.button
-              whileHover={{
-                scale: 1.05
-              }}
-              whileTap={{
-                scale: 0.95
-              }}
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner group/btn disabled:opacity-50"
-              title="Refresh Monitoring"
-            >
-              <RefreshCw
-                size={15}
-                className={`text-emerald-300 transition-transform duration-700 ${
-                  isRefreshing
-                    ? 'rotate-180'
-                    : 'group-hover/btn:rotate-45'
-                }`}
-              />
-            </motion.button>
-          </div>
-        </motion.header>
+        <PageHeader
+          badge="Logistics & Dispatch"
+          badgeIcon={Truck}
+          title="Order & Cold-Chain Monitoring"
+          subtitle="Real-time order lifecycle tracking, delivery stage metrics, SLA breaches, and driver dispatch."
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
 
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
 
@@ -1138,18 +1048,15 @@ export default function OrderMonitoring() {
               className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
             >
 
-              <div className="p-6 bg-emerald-950 text-white relative overflow-hidden">
-
-                <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
-
+              <div className="p-6 bg-white border-b border-slate-100 text-slate-900 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
                 <div className="relative z-10 flex items-center justify-between">
-
                   <div>
-                    <span className="text-[10px] uppercase tracking-widest font-semibold text-emerald-300">
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
                       Monitoring Details
                     </span>
 
-                    <h3 className="text-xl font-semibold mt-1">
+                    <h3 className="text-xl font-bold mt-1.5 text-slate-900">
                       {selectedOrder.id}
                     </h3>
                   </div>
@@ -1158,9 +1065,9 @@ export default function OrderMonitoring() {
                     onClick={() =>
                       setSelectedOrder(null)
                     }
-                    className="w-9 h-9 rounded-xl bg-emerald-900 border border-emerald-800 hover:bg-emerald-800 flex items-center justify-center text-white text-xl"
+                    className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
                   >
-                    ×
+                    <X size={18} />
                   </button>
                 </div>
               </div>

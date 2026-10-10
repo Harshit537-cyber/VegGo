@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
+import PageHeader from '../Common/PageHeader';
 import { Calendar, RefreshCw, ShieldAlert, Thermometer, Droplet, Wind, CheckCircle2 } from 'lucide-react';
 
 export default function ColdChain() {
@@ -22,27 +23,17 @@ export default function ColdChain() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
+    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen">
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-6 border-b border-slate-200/60">
-          <div>
-            <span className="text-xs uppercase font-bold tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-              Environmental Auditing
-            </span>
-            <h1 className="text-3xl font-black text-slate-900 mt-2">Cold Chain Telemetry</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-sm text-sm font-semibold text-slate-600">
-              <Calendar size={18} className="text-slate-400" />
-              <span>Oct 12, 2026</span>
-            </div>
-            <button className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm text-slate-600">
-              <RefreshCw size={18} />
-            </button>
-          </div>
-        </header>
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh space-y-6 sm:space-y-8">
+        <PageHeader 
+          badge="Environmental Auditing"
+          badgeIcon={Thermometer}
+          title="Cold Chain Telemetry"
+          subtitle="Real-time thermal tracking, refrigeration chambers, and transit cargo environmental status."
+          onRefresh={() => window.location.reload()}
+        />
 
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           {coreMetrics.map((metric, idx) => (

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
+import PageHeader from '../Common/PageHeader';
 import { 
   Users, 
   Search, 
@@ -94,30 +95,23 @@ export default function OperatorRoles() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
+    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen">
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 pb-8 border-b border-slate-200/60">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="text-xs uppercase font-bold tracking-widest text-emerald-600 bg-emerald-50/80 px-2.5 py-1 rounded-md">
-                Access Management
-              </span>
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 mt-3">
-              Operator Roles & Security
-            </h1>
-          </div>
-          <button className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-emerald-700/10 transition-all">
-            <Plus size={16} />
-            <span>Provision New Role</span>
-          </button>
-        </header>
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh space-y-6 sm:space-y-8">
+        <PageHeader 
+          badge="Access Management"
+          badgeIcon={Shield}
+          title="Operator Roles & Security"
+          subtitle="Provision admin accounts, manage credential tiers, and govern permission boundaries."
+          onRefresh={() => window.location.reload()}
+          actions={
+            <button className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all">
+              <Plus size={16} />
+              <span>Provision New Role</span>
+            </button>
+          }
+        />
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm flex items-center justify-between">

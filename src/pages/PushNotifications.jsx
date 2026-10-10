@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
+import PageHeader from '../Common/PageHeader';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import {
@@ -160,11 +161,11 @@ export default function PushNotifications() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
 
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8 relative">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh w-full space-y-6 sm:space-y-8 relative">
 
         <AnimatePresence>
           {showNotification && (
@@ -200,127 +201,14 @@ export default function PushNotifications() {
           )}
         </AnimatePresence>
 
-        <motion.header
-          initial={{
-            opacity: 0,
-            y: -20
-          }}
-          animate={{
-            opacity: 1,
-            y: 0
-          }}
-          transition={{
-            duration: 0.5,
-            ease: 'easeOut'
-          }}
-          className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
-        >
-
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse duration-1000" />
-
-          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="absolute inset-0 opacity-[0.025] pointer-events-none">
-            <div
-              className="w-full h-full"
-              style={{
-                backgroundImage:
-                  'linear-gradient(to right,#ffffff 1px,transparent 1px),linear-gradient(to bottom,#ffffff 1px,transparent 1px)',
-                backgroundSize: '24px 24px'
-              }}
-            />
-          </div>
-
-          <div className="space-y-2.5 z-10">
-
-            <div className="flex flex-wrap items-center gap-2.5">
-
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm backdrop-blur-md">
-
-                <Zap
-                  size={12}
-                  className="text-emerald-400"
-                />
-
-                Communication Management Directory
-
-              </span>
-
-              <div className="flex items-center gap-2 bg-rose-950/80 border border-rose-900/80 px-3 py-1 rounded-full text-rose-300 shadow-sm">
-
-                <span className="relative flex h-2 w-2">
-
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
-
-                </span>
-
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-white">
-                  LIVE ADMIN VEG GO
-                </span>
-
-              </div>
-
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
-
-              Push Notifications
-
-              <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            </h1>
-
-            <p className="text-xs sm:text-sm text-emerald-200/80 max-w-2xl font-medium">
-              Create, manage, and monitor real-time push notifications across customers, vendors, riders, and platform users.
-            </p>
-
-          </div>
-
-          <div className="flex items-center gap-3 self-start lg:self-center z-10">
-
-            <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 flex items-center gap-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
-
-              <Calendar
-                size={14}
-                className="text-emerald-400"
-              />
-
-              <span>
-                {new Date().toLocaleDateString(
-                  'en-IN',
-                  {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  }
-                )}
-              </span>
-
-            </div>
-
-            <motion.button
-              whileHover={{
-                scale: 1.05
-              }}
-              whileTap={{
-                scale: 0.95
-              }}
-              type="button"
-              onClick={() => window.location.reload()}
-              className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white shadow-inner"
-              title="Refresh"
-            >
-              <RefreshCw
-                size={15}
-                className="text-emerald-300"
-              />
-            </motion.button>
-
-          </div>
-
-        </motion.header>
+        {/* Modern Executive Header */}
+        <PageHeader 
+          badge="Communication Center"
+          badgeIcon={Radio}
+          title="Push Notifications"
+          subtitle="Create, target, and dispatch real-time alerts across customers, vendors, and delivery fleets."
+          onRefresh={() => window.location.reload()}
+        />
 
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
+import PageHeader from "../Common/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
@@ -546,97 +547,18 @@ export default function Payouts() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
       <Sidebar />
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 w-full space-y-6 sm:space-y-8 lg:max-h-screen lg:overflow-y-auto">
-        <motion.header
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.5,
-            ease: "easeOut",
-          }}
-          className="group relative overflow-hidden rounded-3xl border border-emerald-900 bg-emerald-950 p-6 text-white shadow-xl shadow-emerald-950/20 sm:p-7"
-        >
-          <div className="pointer-events-none absolute -right-10 -top-24 h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl" />
-
-          <div className="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-teal-500/10 blur-3xl" />
-
-          <div className="relative z-10 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-            <div className="space-y-2.5">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-800 bg-emerald-900/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-emerald-300">
-                  <Zap
-                    size={12}
-                    className="text-emerald-400"
-                  />
-                  Finance Control
-                </span>
-
-                <div className="flex items-center gap-2 rounded-full border border-rose-900/80 bg-rose-950/80 px-3 py-1 text-rose-300">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
-                  </span>
-
-                  <span className="text-[10px] font-semibold uppercase tracking-widest text-white">
-                    LIVE ADMIN VEG GO
-                  </span>
-                </div>
-              </div>
-
-              <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl lg:text-4xl">
-                Payout Management
-
-                <Sparkles className="h-6 w-6 text-emerald-400 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-              </h1>
-
-              <p className="max-w-xl text-xs font-medium text-emerald-200/80 sm:text-sm">
-                Manage vendor and delivery
-                payout requests from one
-                finance control center.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 self-start lg:self-center">
-              <div className="flex items-center gap-2 rounded-2xl border border-emerald-800 bg-emerald-900/60 px-4 py-2 text-xs font-semibold text-emerald-100 shadow-inner backdrop-blur-sm">
-                <Calendar
-                  size={14}
-                  className="text-emerald-400"
-                />
-
-                <span>
-                  {new Date().toLocaleDateString(
-                    "en-IN",
-                    {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    }
-                  )}
-                </span>
-              </div>
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="rounded-2xl border border-emerald-800 bg-emerald-900/60 p-2.5 text-white shadow-inner transition-all hover:bg-emerald-800 disabled:opacity-50"
-              >
-                <RefreshCw
-                  size={15}
-                  className={
-                    isRefreshing
-                      ? "animate-spin text-emerald-300"
-                      : "text-emerald-300"
-                  }
-                />
-              </motion.button>
-            </div>
-          </div>
-        </motion.header>
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 w-full space-y-6 sm:space-y-8 lg:max-h-dvh lg:overflow-y-auto">
+        <PageHeader
+          badge="Finance Control"
+          badgeIcon={WalletIcon}
+          title="Payout Management"
+          subtitle="Manage vendor and delivery payout requests, review withdrawal batches, and reconcile bank transfers."
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
 
         <AnimatePresence>
           {errorMessage && (
@@ -1501,7 +1423,7 @@ export default function Payouts() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/60 p-4 backdrop-blur-sm"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
               onClick={closeDetails}
             >
               <motion.div
@@ -1528,20 +1450,19 @@ export default function Payouts() {
                 }
                 className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl"
               >
-                <div className="relative overflow-hidden rounded-t-3xl bg-emerald-950 px-5 py-5 text-white">
-                  <div className="absolute -right-10 -top-16 h-40 w-40 rounded-full bg-emerald-500/10 blur-2xl" />
-
+                <div className="relative overflow-hidden rounded-t-3xl bg-white border-b border-slate-100 px-5 py-5 text-slate-900">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
                   <div className="relative z-10 flex items-center justify-between">
                     <div>
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-300">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
                         Finance Control
                       </span>
 
-                      <h3 className="mt-1 text-lg font-bold">
+                      <h3 className="mt-1.5 text-lg font-bold text-slate-900">
                         Payout Details
                       </h3>
 
-                      <p className="mt-1 text-[10px] font-semibold text-emerald-200/70">
+                      <p className="mt-1 text-[11px] font-semibold text-slate-500">
                         {isVendor(
                           selectedPayout
                         )
@@ -1552,7 +1473,7 @@ export default function Payouts() {
 
                     <button
                       onClick={closeDetails}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-white transition hover:bg-white/20"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-700 transition hover:bg-slate-100 cursor-pointer"
                     >
                       <X size={18} />
                     </button>

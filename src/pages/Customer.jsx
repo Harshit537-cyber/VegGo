@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "../components/Sidebar";
 import ConfirmModal from "../Common/ConfirmModal";
+import PageHeader from "../Common/PageHeader";
 
 import {
   getCustomerStats,
@@ -400,75 +401,18 @@ export default function Customer() {
     : [];
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
+    <div className="min-h-dvh w-full overflow-x-hidden bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
       <Sidebar />
 
-      <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 lg:overflow-y-auto lg:max-h-screen space-y-4 sm:space-y-6 lg:space-y-8">
-        <motion.header
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-emerald-950 text-white p-4 sm:p-6 lg:p-7 shadow-xl shadow-emerald-950/20 border border-emerald-900"
-        >
-          <div className="absolute top-0 right-0 w-56 h-56 sm:w-96 sm:h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-1/3 w-40 h-40 sm:w-64 sm:h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-4 sm:gap-5">
-            <div className="space-y-2 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-2.5 sm:px-3 py-1 rounded-full border border-emerald-800">
-                  <Users size={12} />
-                  Customer Management
-                </span>
-
-                <span className="inline-flex items-center gap-2 bg-rose-950/80 border border-rose-900/80 px-2.5 sm:px-3 py-1 rounded-full text-[9px] sm:text-[10px] font-semibold tracking-widest uppercase">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
-                  </span>
-                  LIVE ADMIN VEG GO
-                </span>
-              </div>
-
-              <h1 className="text-xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
-                Customer
-              </h1>
-
-              <p className="text-emerald-200 text-xs sm:text-sm">
-                Review customer accounts and manage access status.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <div className="bg-emerald-900/60 border border-emerald-800 rounded-2xl px-3 sm:px-4 py-2 flex items-center gap-2 text-[11px] sm:text-xs font-semibold">
-                <Calendar size={14} className="text-emerald-400" />
-                {new Date().toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </div>
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all disabled:opacity-60"
-                title="Refresh Data"
-              >
-                <RefreshCw
-                  size={15}
-                  className={
-                    isRefreshing
-                      ? "animate-spin text-emerald-300"
-                      : "text-emerald-300"
-                  }
-                />
-              </motion.button>
-            </div>
-          </div>
-        </motion.header>
+      <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 lg:overflow-y-auto lg:max-h-dvh space-y-4 sm:space-y-6 lg:space-y-8">
+        <PageHeader
+          badge="Customer Management"
+          badgeIcon={Users}
+          title="Customer Directory"
+          subtitle="Review customer accounts, monitor spending, and manage access privileges."
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
 
         <AnimatePresence>
           {errorMessage && (
@@ -960,23 +904,26 @@ export default function Customer() {
               onClick={(e) => e.stopPropagation()}
               className="w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200"
             >
-              <div className="p-4 sm:p-5 bg-emerald-950 text-white flex items-center justify-between gap-3 shrink-0">
+              <div className="p-4 sm:p-5 bg-white text-slate-900 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0 relative">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <Users size={17} className="text-emerald-300 shrink-0" />
-                    <h3 className="text-base sm:text-lg font-semibold">
+                    <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+                      <Users size={17} className="shrink-0" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900">
                       Customer Details
                     </h3>
                   </div>
 
-                  <p className="text-xs text-emerald-200">
-                    Live customer information
+                  <p className="text-xs text-slate-500 font-medium">
+                    Account profile and activity metrics
                   </p>
                 </div>
 
                 <button
                   onClick={closeDetails}
-                  className="p-2 rounded-xl bg-emerald-900 hover:bg-emerald-800 transition-colors shrink-0"
+                  className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors shrink-0 cursor-pointer"
                 >
                   <X size={18} />
                 </button>

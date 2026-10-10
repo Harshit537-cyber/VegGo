@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from './Sidebar'
+import PageHeader from '../Common/PageHeader'
 import { getAdminDashboard } from '../Api/dashboardService/dashboardService'
 import { motion } from 'framer-motion'
 import {
@@ -223,120 +224,22 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
 
       <Sidebar />
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh">
 
         <div className="space-y-6 sm:space-y-7">
 
-          <motion.header
-            initial={{
-              opacity: 0,
-              y: -20
-            }}
-            animate={{
-              opacity: 1,
-              y: 0
-            }}
-            transition={{
-              duration: 0.5,
-              ease: 'easeOut'
-            }}
-            className="relative overflow-hidden rounded-3xl bg-emerald-950 text-white p-5 sm:p-7 lg:p-8 shadow-xl shadow-emerald-950/20 border border-emerald-900"
-          >
-
-            <div className="absolute -top-32 -right-20 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-
-            <div className="absolute -bottom-32 left-1/3 w-80 h-80 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
-
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-
-              <div className="space-y-3">
-
-                <div className="flex flex-wrap items-center gap-2">
-
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-900/90 border border-emerald-800 text-emerald-300 text-[10px] font-bold tracking-widest uppercase">
-                    <Activity size={11} />
-                    Operations Center
-                  </span>
-
-                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-950/80 border border-rose-900 text-white text-[10px] font-bold tracking-widest uppercase">
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-rose-400 animate-ping opacity-75" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
-                    </span>
-
-                    LIVE ADMIN VEG GO
-                  </span>
-
-                </div>
-
-                <div>
-
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
-                    Platform Dashboard
-                  </h1>
-
-                  <p className="mt-1.5 max-w-2xl text-xs sm:text-sm text-emerald-100/60">
-                    Monitor customers, users and
-                    platform health from one place.
-                  </p>
-
-                </div>
-
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5">
-
-                <div className="flex items-center gap-2 bg-emerald-900/70 border border-emerald-800 rounded-2xl px-3.5 py-2.5 text-xs font-semibold text-emerald-100">
-
-                  <Calendar
-                    size={14}
-                    className="text-emerald-400"
-                  />
-
-                  {new Date().toLocaleDateString(
-                    'en-IN',
-                    {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    }
-                  )}
-
-                </div>
-
-                <motion.button
-                  whileHover={{
-                    scale: 1.05
-                  }}
-                  whileTap={{
-                    scale: 0.95
-                  }}
-                  onClick={
-                    fetchDashboardData
-                  }
-                  disabled={isRefreshing}
-                  className="p-2.5 rounded-2xl bg-emerald-900/70 border border-emerald-800 hover:bg-emerald-800 transition-all disabled:opacity-50"
-                  title="Refresh Dashboard"
-                >
-                  <RefreshCw
-                    size={15}
-                    className={`text-emerald-300 ${
-                      isRefreshing
-                        ? 'animate-spin'
-                        : ''
-                    }`}
-                  />
-                </motion.button>
-
-              </div>
-
-            </div>
-
-          </motion.header>
+          <PageHeader
+            badge="Operations Center"
+            badgeIcon={Activity}
+            title="Platform Dashboard"
+            subtitle="Monitor customers, vendors, and core platform infrastructure from one central console."
+            onRefresh={fetchDashboardData}
+            isRefreshing={isRefreshing}
+          />
 
           {error && (
             <motion.div
@@ -410,34 +313,32 @@ export default function Dashboard() {
                         index * 0.08
                     }}
                     whileHover={{
-                      y: -5
+                      y: -3
                     }}
-                    className="relative overflow-hidden bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-200 transition-all duration-300 p-5 sm:p-6 group"
+                    className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 p-5 group"
                   >
 
                     <div
-                      className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accent}`}
+                      className={`absolute top-0 left-0 right-0 h-1 ${stat.accent}`}
                     />
-
-                    <div className="absolute -right-10 -bottom-10 w-32 h-32 rounded-full bg-emerald-50 opacity-0 group-hover:opacity-100 group-hover:scale-125 transition-all duration-500 pointer-events-none" />
 
                     <div className="relative z-10">
 
                       <div className="flex items-center justify-between gap-3">
 
-                        <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 tracking-wider uppercase">
+                        <span className="text-[11px] font-bold text-slate-500 tracking-wider uppercase">
                           {stat.label}
                         </span>
 
                         <div
-                          className={`p-2.5 rounded-2xl ${stat.iconBg} border border-slate-100`}
+                          className={`p-2.5 rounded-xl ${stat.iconBg} border border-slate-100`}
                         >
                           <Icon size={18} />
                         </div>
 
                       </div>
 
-                      <h3 className="mt-6 text-2xl sm:text-3xl font-semibold tracking-tight text-slate-900">
+                      <h3 className="mt-4 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
 
                         {loading ? (
                           <span className="text-slate-300 animate-pulse">
@@ -458,9 +359,9 @@ export default function Dashboard() {
 
                       </h3>
 
-                      <div className="mt-5 pt-3.5 border-t border-slate-100">
+                      <div className="mt-4 pt-3 border-t border-slate-100">
 
-                        <span className="text-[10px] sm:text-[11px] text-slate-400 font-semibold">
+                        <span className="text-xs text-slate-400 font-medium">
                           {stat.description}
                         </span>
 

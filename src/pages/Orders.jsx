@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
+import PageHeader from '../Common/PageHeader';
 import { Calendar, RefreshCw, Search, Filter, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
 
 export default function OrderStatus() {
@@ -8,10 +9,10 @@ export default function OrderStatus() {
   const [statusFilter, setStatusFilter] = useState('All');
 
   const orderStats = [
-    { label: 'Active Shipments', value: '18 Batches' },
-    { label: 'Pending Processing', value: '1,350 kg' },
-    { label: 'Completed Today', value: '12 Deliveries' },
-    { label: 'Delayed Units', value: '1 Alerted' }
+    { label: 'Active Shipments', value: '18 Batches', accent: 'bg-emerald-500' },
+    { label: 'Pending Processing', value: '1,350 kg', accent: 'bg-amber-500' },
+    { label: 'Completed Today', value: '12 Deliveries', accent: 'bg-sky-500' },
+    { label: 'Delayed Units', value: '1 Alerted', accent: 'bg-rose-500' }
   ];
 
   const initialOrders = [
@@ -34,35 +35,23 @@ export default function OrderStatus() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
+    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen">
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-6 border-b border-slate-200/60">
-          <div>
-            <span className="text-xs uppercase font-bold tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
-              Consignment Ledger
-            </span>
-            <h1 className="text-3xl font-black text-slate-900 mt-2">Order Status Tracking</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 flex items-center gap-2 shadow-sm text-sm font-semibold text-slate-600">
-              <Calendar size={18} className="text-slate-400" />
-              <span>Oct 12, 2026</span>
-            </div>
-            <button className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm text-slate-600">
-              <RefreshCw size={18} />
-            </button>
-          </div>
-        </header>
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh space-y-6 sm:space-y-8">
+        <PageHeader
+          badge="Consignment Ledger"
+          badgeIcon={Layers}
+          title="Order Status Tracking"
+          subtitle="Real-time shipment ledger, temperature compliance, and regional distribution hub telemetry."
+        />
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {orderStats.map((stat, idx) => (
-            <div key={idx} className="bg-white p-6 rounded-[24px] border border-slate-200/60 shadow-sm flex flex-col justify-between">
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                <h3 className="text-2xl font-black text-slate-900 mt-3">{stat.value}</h3>
-              </div>
+            <div key={idx} className="relative overflow-hidden bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
+              <div className={`absolute top-0 left-0 right-0 h-1 ${stat.accent}`} />
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{stat.label}</p>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-3 tracking-tight">{stat.value}</h3>
             </div>
           ))}
         </section>

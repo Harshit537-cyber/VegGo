@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
+import PageHeader from '../Common/PageHeader'
 import { motion } from 'framer-motion'
 import {
   Settings as SettingsIcon,
@@ -31,6 +32,22 @@ const KNOWN_FIELDS = {
     step: '0.1',
     ceilingKey: 'maxDeliveryRadiusKm',
     description: 'Maximum delivery coverage radius from store'
+  },
+  platformFeeAmount: {
+    label: 'Platform Fee',
+    suffix: '₹',
+    icon: IndianRupee,
+    step: '0.01',
+    ceilingKey: 'maxPlatformFeeAmount',
+    description: 'Fixed platform service fee charged per order'
+  },
+  deliveryFeeAmount: {
+    label: 'Delivery Fee',
+    suffix: '₹',
+    icon: IndianRupee,
+    step: '0.01',
+    ceilingKey: 'maxDeliveryFeeAmount',
+    description: 'Base customer delivery fee charged per order'
   },
   vendorAcceptTimeoutSeconds: {
     label: 'Vendor Accept Timeout',
@@ -71,27 +88,13 @@ const KNOWN_FIELDS = {
     step: '1',
     ceilingKey: null,
     description: 'Time-to-live for customer and delivery OTP codes'
-  },
-  platformFeeAmount: {
-    label: 'Platform Fee',
-    suffix: '₹',
-    icon: IndianRupee,
-    step: '0.01',
-    ceilingKey: null,
-    description: 'Fixed platform service fee charged per order'
-  },
-  deliveryFeeAmount: {
-    label: 'Delivery Fee',
-    suffix: '₹',
-    icon: IndianRupee,
-    step: '0.01',
-    ceilingKey: null,
-    description: 'Base customer delivery fee charged per order'
   }
 }
 
 const DEFAULT_CEILINGS = {
   maxDeliveryRadiusKm: null,
+  maxPlatformFeeAmount: null,
+  maxDeliveryFeeAmount: null,
   maxAcceptTimeoutSeconds: null,
   maxRebroadcastRounds: null,
   maxRebroadcastElapsedMinutes: null
@@ -112,9 +115,11 @@ const Settings = () => {
   const applyResponseData = (data) => {
     if (!data || typeof data !== 'object') return
 
-    // 1. Ceilings extraction (excluding unsupported platform commission ceiling)
+    // 1. Ceilings extraction
     setCeilings({
       maxDeliveryRadiusKm: data.ceilings?.maxDeliveryRadiusKm ?? null,
+      maxPlatformFeeAmount: data.ceilings?.maxPlatformFeeAmount ?? null,
+      maxDeliveryFeeAmount: data.ceilings?.maxDeliveryFeeAmount ?? null,
       maxAcceptTimeoutSeconds: data.ceilings?.maxAcceptTimeoutSeconds ?? null,
       maxRebroadcastRounds: data.ceilings?.maxRebroadcastRounds ?? null,
       maxRebroadcastElapsedMinutes:
@@ -122,7 +127,7 @@ const Settings = () => {
     })
 
     // 2. Identify and populate only supported fields from API data
-    // Explicitly exclude metadata and unsupported fields like platformCommissionPercent
+    // Explicitly exclude metadata and unsupported extra fields
     const ignoredKeys = new Set([
       'ceilings',
       'id',
@@ -244,6 +249,22 @@ const Settings = () => {
     }
 
     if (
+      ceilings.maxPlatformFeeAmount !== null &&
+      supportedKeys.includes('platformFeeAmount') &&
+      Number(settings.platformFeeAmount) > ceilings.maxPlatformFeeAmount
+    ) {
+      return `Platform fee cannot exceed ₹${ceilings.maxPlatformFeeAmount}.`
+    }
+
+    if (
+      ceilings.maxDeliveryFeeAmount !== null &&
+      supportedKeys.includes('deliveryFeeAmount') &&
+      Number(settings.deliveryFeeAmount) > ceilings.maxDeliveryFeeAmount
+    ) {
+      return `Delivery fee cannot exceed ₹${ceilings.maxDeliveryFeeAmount}.`
+    }
+
+    if (
       ceilings.maxAcceptTimeoutSeconds !== null &&
       supportedKeys.includes('vendorAcceptTimeoutSeconds') &&
       Number(settings.vendorAcceptTimeoutSeconds) >
@@ -295,7 +316,7 @@ const Settings = () => {
       setMessage('')
       setError('')
 
-      // Build PUT payload containing ONLY supported fields from the API
+      // Build payload containing ONLY supported fields from the API
       const payload = {}
       supportedKeys.forEach((key) => {
         payload[key] = Number(settings[key])
@@ -327,7 +348,7 @@ const Settings = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
+      <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
         <Sidebar />
 
         <main className="flex-1 flex items-center justify-center p-6">
@@ -347,74 +368,18 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-screen w-full space-y-6 sm:space-y-8">
-        <motion.header
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 p-6 sm:p-7 rounded-3xl bg-emerald-950 text-white shadow-xl shadow-emerald-950/20 border border-emerald-900 relative overflow-hidden group"
-        >
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="space-y-2.5 z-10">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold tracking-widest uppercase text-emerald-300 bg-emerald-900/90 px-3 py-1 rounded-full border border-emerald-800 shadow-sm">
-                <Zap size={12} className="text-emerald-400" />
-                Platform Configuration
-              </span>
-
-              <div className="flex items-center gap-2 bg-rose-950/80 border border-rose-900/80 px-3 py-1 rounded-full text-rose-300 shadow-sm">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
-                </span>
-
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-white">
-                  LIVE ADMIN VEG GO
-                </span>
-              </div>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-white flex items-center gap-3">
-              Platform Settings
-              <Sparkles className="w-6 h-6 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </h1>
-
-            <p className="text-xs sm:text-sm text-emerald-100/70 max-w-2xl">
-              Configure delivery radius, acceptance timeout thresholds, dispatch
-              rebroadcast cycles, and OTP verification parameters.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 self-start lg:self-center z-10">
-            <div className="hidden sm:flex items-center gap-2 bg-emerald-900/60 border border-emerald-800 rounded-2xl px-4 py-2 text-xs font-semibold text-emerald-100 shadow-inner">
-              <ShieldCheck size={14} className="text-emerald-400" />
-              <span>Live API Configuration</span>
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleRefresh}
-              disabled={refreshing || saving}
-              className="p-2.5 bg-emerald-900/60 border border-emerald-800 rounded-2xl hover:bg-emerald-800 transition-all text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner disabled:opacity-60 cursor-pointer"
-              title="Refresh Settings"
-            >
-              <RefreshCw
-                size={15}
-                className={
-                  refreshing
-                    ? 'animate-spin text-emerald-300'
-                    : 'text-emerald-300'
-                }
-              />
-            </motion.button>
-          </div>
-        </motion.header>
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh w-full space-y-6 sm:space-y-8">
+        <PageHeader
+          badge="Platform Configuration"
+          badgeIcon={Zap}
+          title="Platform Settings"
+          subtitle="Configure delivery radius, acceptance timeout thresholds, dispatch rebroadcast cycles, and OTP parameters."
+          onRefresh={handleRefresh}
+          isRefreshing={refreshing || saving}
+        />
 
         {message && (
           <motion.div

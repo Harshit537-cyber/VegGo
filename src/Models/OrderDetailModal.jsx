@@ -18,23 +18,24 @@ export default function OrderDetailModal({ order, isOpen, onClose, onAction }) {
       />
       
       <div className="relative bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden border border-slate-100 transform transition-all animate-in fade-in zoom-in-95 duration-200">
-        <div className="relative p-6 bg-gradient-to-r from-emerald-800 to-teal-850 text-white">
+        <div className="relative p-6 bg-white border-b border-slate-100 text-slate-900">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400" />
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+            className="absolute top-5 right-5 p-2 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-700 cursor-pointer"
           >
             <X size={18} />
           </button>
           
-          <div className="flex items-center gap-4 mt-2">
-            <div className="p-3 bg-white/10 rounded-2xl border border-white/10">
-              <ShoppingBag size={28} className="text-emerald-100" />
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100">
+              <ShoppingBag size={26} className="text-emerald-600" />
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-200 bg-white/10 px-2.5 py-1 rounded-md">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/60">
                 {order.id}
               </span>
-              <h3 className="text-xl font-extrabold text-white mt-1">Live Order Status</h3>
+              <h3 className="text-xl font-extrabold text-slate-900 mt-1">Live Order Status</h3>
             </div>
           </div>
         </div>
