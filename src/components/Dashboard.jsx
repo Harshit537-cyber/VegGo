@@ -228,7 +228,7 @@ export default function Dashboard() {
 
       <Sidebar />
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh">
+      <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh">
 
         <div className="space-y-6 sm:space-y-7">
 

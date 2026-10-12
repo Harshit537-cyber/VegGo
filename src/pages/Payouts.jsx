@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import PageHeader from "../Common/PageHeader";
+import SegmentedTabs from "../Common/SegmentedTabs";
+import StatusFilterPills from "../Common/StatusFilterPills";
+import WorkflowRulesBar from "../Common/WorkflowRulesBar";
+import EmptyState from "../Common/EmptyState";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
@@ -23,6 +27,7 @@ import {
   Zap,
   Loader2,
   AlertCircle,
+  FileSpreadsheet,
 } from "lucide-react";
 
 import {
@@ -546,251 +551,98 @@ export default function Payouts() {
     },
   ];
 
+  const payoutTabs = [
+    { id: "vendor", label: "Vendor Payouts", icon: Store, count: vendorPayouts.length },
+    { id: "delivery", label: "Delivery Partner Payouts", icon: Truck, count: deliveryPayouts.length },
+    { id: "reports", label: "Reconciliation Ledger", icon: FileSpreadsheet }
+  ];
+
+  const filterPills = [
+    { id: "All", label: "All Requests", count: currentList.length },
+    { id: "Pending", label: "Pending (Needs Review)", count: pendingCount },
+    { id: "Approved", label: "Approved (Settled)", count: approvedCount },
+    { id: "Rejected", label: "Rejected", count: rejectedCount }
+  ];
+
   return (
     <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
       <Sidebar />
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 w-full space-y-6 sm:space-y-8 lg:max-h-dvh lg:overflow-y-auto">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 w-full space-y-5 sm:space-y-6 lg:max-h-dvh lg:overflow-y-auto">
+        {/* Top Executive Header */}
         <PageHeader
-          badge="Finance Control"
-          badgeIcon={WalletIcon}
-          title="Payout Management"
+          icon={WalletIcon}
+          title="Payout Administration"
           subtitle="Manage vendor and delivery payout requests, review withdrawal batches, and reconcile bank transfers."
+          stats={[
+            { label: "Total Requests", value: (vendorPayouts.length + deliveryPayouts.length) },
+            { label: "Needs Review", value: pendingCount, alert: pendingCount > 0 }
+          ]}
+          actionButtonText="Process Payouts Batch"
+          actionButtonIcon={Zap}
+          onActionClick={() => alert("Batch payout processing initiated.")}
           onRefresh={handleRefresh}
-          isRefreshing={isRefreshing}
+          isRefreshing={isRefreshing || loading}
         />
 
+        {/* Global Error Banner */}
         <AnimatePresence>
           {errorMessage && (
             <motion.div
-              initial={{
-                opacity: 0,
-                y: -10,
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              exit={{
-                opacity: 0,
-                y: -10,
-              }}
-              className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-xs font-semibold text-rose-700"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs"
             >
-              <AlertCircle size={15} />
-              {errorMessage}
+              <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+              <span>{errorMessage}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map((stat, idx) => {
-            const Icon = stat.icon;
+        {/* Primary Segmented Tabs Navigation */}
+        <SegmentedTabs
+          tabs={payoutTabs}
+          activeTab={currentTab}
+          onTabChange={handleTabChange}
+        />
 
-            return (
-              <motion.div
-                key={`${stat.label}-${refreshKey}`}
-                initial={{
-                  opacity: 0,
-                  y: 20,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                transition={{
-                  duration: 0.4,
-                  delay: idx * 0.08,
-                }}
-                whileHover={{ y: -6 }}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all duration-300 hover:border-emerald-300/80 hover:shadow-xl sm:p-6"
-              >
-                <div
-                  className={`absolute left-0 right-0 top-0 h-1.5 ${stat.accent}`}
-                />
+        {currentTab === "reports" ? (
+          <EmptyState
+            icon={FileSpreadsheet}
+            title="Reconciliation reports clean"
+            description="All approved merchant and courier payout batches have been successfully reconciled with the bank escrow account."
+          />
+        ) : (
+          <>
+            {/* Secondary Status Filter Pills */}
+            <StatusFilterPills
+              filters={filterPills}
+              activeFilter={activeFilter}
+              onFilterChange={setActiveFilter}
+            />
 
-                <div className="absolute -bottom-8 -right-8 h-28 w-28 rounded-full bg-emerald-50 opacity-0 transition-all duration-500 group-hover:scale-125 group-hover:opacity-100" />
+            {/* Workflow Rules Information Bar */}
+            <WorkflowRulesBar
+              rulesText="Automated NEFT/IMPS settlement rules: Dual-admin verification required for disbursements above ₹10,000."
+              showingCount={filteredList.length}
+              totalCount={currentList.length}
+              itemLabel="requests"
+            />
 
-                <div className="relative z-10">
-                  <div className="mb-4 flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                      {stat.label}
-                    </span>
-
-                    <div
-                      className={`rounded-2xl p-2.5 shadow-sm ${stat.iconBg}`}
-                    >
-                      <Icon size={18} />
-                    </div>
-                  </div>
-
-                  <h3 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-                    {loading ? (
-                      <span className="text-slate-300">
-                        ...
-                      </span>
-                    ) : (
-                      <>
-                        <AnimatedValue
-                          value={stat.value}
-                          prefix={stat.prefix || ""}
-                        />
-
-                        <span className="ml-1 font-sans text-sm text-slate-400">
-                          {stat.amount
-                            ? ""
-                            : "Records"}
-                        </span>
-                      </>
-                    )}
-                  </h3>
-                </div>
-
-                <div className="relative z-10 mt-5 flex items-center justify-between border-t border-slate-100 pt-3.5">
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold ${stat.tag}`}
-                  >
-                    <Icon size={12} />
-                    {stat.status}
-                  </span>
-
-                  <span className="text-[10px] font-semibold text-slate-400">
-                    {stat.amount
-                      ? formatAmount(
-                          stat.value
-                        )
-                      : stat.footer}
-                  </span>
-                </div>
-              </motion.div>
-            );
-          })}
-        </section>
-
-        <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6">
-          <div className="mb-5 flex flex-col gap-4 border-b border-slate-100 pb-5">
-            <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-2.5 text-emerald-700">
-                  <WalletIcon size={18} />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-semibold tracking-tight text-slate-900">
-                    Payout Records
-                  </h2>
-
-                  <p className="text-xs font-semibold text-slate-400">
-                    Manage vendor and delivery
-                    payout requests
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex w-fit rounded-2xl border border-slate-200 bg-slate-50 p-1">
-                <button
-                  onClick={() =>
-                    handleTabChange("vendor")
-                  }
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                    currentTab === "vendor"
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <Store size={14} />
-                  Vendor
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[9px] ${
-                      currentTab === "vendor"
-                        ? "bg-white/20"
-                        : "bg-white"
-                    }`}
-                  >
-                    {vendorPayouts.length}
-                  </span>
-                </button>
-
-                <button
-                  onClick={() =>
-                    handleTabChange("delivery")
-                  }
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                    currentTab === "delivery"
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <Truck size={14} />
-                  Delivery
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[9px] ${
-                      currentTab === "delivery"
-                        ? "bg-white/20"
-                        : "bg-white"
-                    }`}
-                  >
-                    {deliveryPayouts.length}
-                  </span>
-                </button>
-              </div>
+            {/* Unified Search Input Bar */}
+            <div className="relative w-full">
+              <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder={`Search ${currentTab === "vendor" ? "vendor" : "delivery"} payouts by request ID, user ID, bank account, or status...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-2xs"
+              />
             </div>
 
-            <div className="flex flex-col gap-3 xl:flex-row">
-              <div className="relative min-w-0 flex-1">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={16}
-                />
-
-                <input
-                  type="text"
-                  placeholder={`Search ${
-                    currentTab === "vendor"
-                      ? "vendor"
-                      : "delivery"
-                  } payouts...`}
-                  value={searchQuery}
-                  onChange={(e) =>
-                    setSearchQuery(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-                />
-              </div>
-
-              <div className="flex shrink-0 items-center gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1">
-                <Filter
-                  size={14}
-                  className="ml-2 shrink-0 text-slate-400"
-                />
-
-                {[
-                  "All",
-                  "Pending",
-                  "Approved",
-                  "Rejected",
-                ].map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() =>
-                      setActiveFilter(
-                        filter
-                      )
-                    }
-                    className={`whitespace-nowrap rounded-lg px-3 py-2 text-[10px] font-bold transition-all ${
-                      activeFilter === filter
-                        ? "bg-white text-emerald-700 shadow-sm"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    {filter}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+            <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-2xs sm:p-6">
 
           <div className="hidden w-full md:block">
             <table className="w-full table-fixed border-collapse text-left">
@@ -1414,6 +1266,8 @@ export default function Payouts() {
               </div>
             )}
         </section>
+        </>
+        )}
       </main>
 
       <AnimatePresence>

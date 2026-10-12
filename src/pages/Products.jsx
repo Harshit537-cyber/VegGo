@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../Common/PageHeader';
+import SegmentedTabs from '../Common/SegmentedTabs';
+import StatusFilterPills from '../Common/StatusFilterPills';
+import WorkflowRulesBar from '../Common/WorkflowRulesBar';
+import EmptyState from '../Common/EmptyState';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import {
@@ -29,7 +33,9 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
-  Eye
+  Eye,
+  Tag,
+  Layers
 } from 'lucide-react';
 
 import {
@@ -1095,491 +1101,405 @@ export default function Products() {
   const priceInputClass =
     'w-full h-[38px] px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] disabled:opacity-60 disabled:cursor-not-allowed';
 
+  const productTabs = [
+    { id: 'products', label: 'Product Catalog', icon: Package, count: totalProducts },
+    { id: 'categories', label: 'Categories & Groups', icon: Layers, count: categories.length },
+    { id: 'units', label: 'Wholesale Units', icon: Zap, count: UNIT_OPTIONS.length }
+  ];
+
+  const filterPills = [
+    { id: 'All', label: 'All Products', count: totalProducts },
+    { id: 'Active', label: 'Active (In Stock)', count: activeProducts },
+    { id: 'Inactive', label: 'Inactive (Hidden)', count: inactiveProducts }
+  ];
+
   return (
     <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh w-full space-y-6 sm:space-y-8">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-5 sm:space-y-6">
+        {/* Top Executive Header */}
         <PageHeader
-          badge="Product Management"
-          badgeIcon={Package}
-          title="Product Catalog"
-          subtitle="Manage inventory items, pricing tiers, stock levels, and product availability."
+          icon={Package}
+          title="Product Administration"
+          subtitle="Manage catalog inventory items, pricing tiers, stock levels, and real-time availability."
+          stats={[
+            { label: 'Total Products', value: totalProducts },
+            { label: 'Inactive / Hidden', value: inactiveProducts, alert: inactiveProducts > 0 }
+          ]}
+          actionButtonText="Add Product"
+          actionButtonIcon={Plus}
+          onActionClick={openAddPanel}
           onRefresh={fetchProducts}
-          isRefreshing={isRefreshing}
-          rightActions={
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={openAddPanel}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
-            >
-              <Plus size={15} />
-              Add Product
-            </motion.button>
-          }
+          isRefreshing={isRefreshing || loading}
         />
 
+        {/* Global Error Banner */}
         <AnimatePresence>
           {errorMessage && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="px-5 py-3.5 rounded-2xl border text-xs font-semibold bg-rose-50 border-rose-200 text-rose-700"
+              className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs"
             >
-              {errorMessage}
+              <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+              <span>{errorMessage}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          {productStats.map((stat, idx) => {
-            const IconComponent = stat.icon;
+        {/* Primary Segmented Tabs Navigation */}
+        <SegmentedTabs
+          tabs={productTabs}
+          activeTab={currentTab}
+          onTabChange={setCurrentTab}
+        />
 
-            return (
-              <motion.div
-                key={`${idx}-${refreshKey}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: idx * 0.1 }}
-                whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group cursor-pointer"
-              >
-                <div
-                  className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor} transition-all duration-300 group-hover:h-2`}
-                />
+        {/* Tab 1: Product Catalog View */}
+        {currentTab === 'products' && (
+          <>
+            {/* Secondary Status Filter Pills */}
+            <StatusFilterPills
+              filters={filterPills}
+              activeFilter={stockFilter}
+              onFilterChange={setStockFilter}
+            />
 
-                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none group-hover:scale-125" />
+            {/* Workflow Rules Information Bar */}
+            <WorkflowRulesBar
+              rulesText="Live catalog inventory management with category taxonomy, real-time pricing, and one-click stock availability toggle."
+              showingCount={filteredProducts.length}
+              totalCount={products.length}
+              itemLabel="products"
+            />
 
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors duration-200">
-                      {stat.label}
-                    </span>
-
-                    <motion.div
-                      whileHover={{ rotate: 12, scale: 1.1 }}
-                      className={`${stat.iconBg} p-2.5 rounded-2xl transition-all shadow-xs`}
-                    >
-                      <IconComponent size={18} />
-                    </motion.div>
-                  </div>
-
-                  <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono group-hover:text-emerald-800 transition-colors duration-200">
-                    {loading ? (
-                      <span className="text-slate-300">...</span>
-                    ) : (
-                      <>
-                        <AnimatedValue value={stat.value} />
-                        <span className="text-base ml-1 font-sans">{stat.suffix}</span>
-                      </>
-                    )}
-                  </h3>
-                </div>
-
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between relative z-10">
-                  <span
-                    className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-transform duration-300 group-hover:scale-105 ${stat.tagColor}`}
-                  >
-                    {stat.up ? (
-                      <ArrowUpRight size={13} className="text-emerald-600" />
-                    ) : (
-                      <ArrowDownRight size={13} className="text-rose-600" />
-                    )}
-                    {stat.change}
-                  </span>
-
-                  <span className="text-[11px] text-black font-semibold">
-                    Monthly Period
-                  </span>
-                </div>
-              </motion.div>
-            );
-          })}
-        </section>
-
-        <section className="w-full">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-                  <Package size={18} />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-semibold text-black tracking-tight">
-                    Product Records
-                  </h2>
-
-                  <p className="text-xs font-semibold text-black">
-                    Product catalog management directory
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative flex-1 sm:w-72">
-                  <Search className="absolute left-3 top-2.5 text-slate-400" size={15} />
-
-                  <input
-                    type="text"
-                    placeholder="Search products..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
-                  />
-                </div>
-
-                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-0.5">
-                  <Filter size={13} className="text-slate-400 ml-2" />
-
-                  {['All', 'Active', 'Inactive'].map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => setStockFilter(status)}
-                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
-                        stockFilter === status
-                          ? 'bg-white text-emerald-700 shadow-sm'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* Unified Search Input Bar */}
+            <div className="relative w-full">
+              <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder="Search products by item name, category, or subcategory..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-2xs"
+              />
             </div>
 
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
-                    <th className="py-3.5 px-4 rounded-l-xl">Product</th>
-                    <th className="py-3.5 px-4">Category</th>
-                    <th className="py-3.5 px-4">Unit Rate</th>
-                    <th className="py-3.5 px-4">Unit</th>
-                    <th className="py-3.5 px-4 text-center">Availability</th>
-                    <th className="py-3.5 px-4 text-right rounded-r-xl">Actions</th>
-                  </tr>
-                </thead>
+            {/* Data Table or Empty State Card */}
+            {filteredProducts.length === 0 && !loading ? (
+              <EmptyState
+                icon={Package}
+                title="No products found"
+                description={`There are currently no products in the selected "${stockFilter}" category or matching your search.`}
+                actionText="Add New Product"
+                onAction={openAddPanel}
+              />
+            ) : (
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden">
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-[11px] uppercase font-semibold tracking-wider text-slate-600 bg-slate-50/80">
+                        <th className="py-4 px-5">Product Details</th>
+                        <th className="py-4 px-5">Taxonomy / Category</th>
+                        <th className="py-4 px-5">Pricing</th>
+                        <th className="py-4 px-5">Unit Standard</th>
+                        <th className="py-4 px-5 text-center">Status</th>
+                        <th className="py-4 px-5 text-right">Actions</th>
+                      </tr>
+                    </thead>
 
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="6" className="py-12 text-center">
-                        <div className="flex flex-col items-center gap-3 text-slate-400">
-                          <Loader2 size={28} className="animate-spin text-emerald-600" />
-                          <span className="text-xs font-semibold">Loading products...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredProducts.length > 0 ? (
-                    filteredProducts.map((prod, idx) => (
-                      <motion.tr
-                        key={prod.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.3 + idx * 0.05 }}
-                        className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group"
-                      >
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:border-emerald-300 transition-colors overflow-hidden">
-                              {prod.imageUrl ? (
-                                <img
-                                  src={prod.imageUrl}
-                                  alt={prod.name || 'Product'}
-                                  className="w-full h-full object-cover"
+                    <tbody className="divide-y divide-slate-100">
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="py-16 text-center">
+                            <div className="flex flex-col items-center gap-3 text-slate-400">
+                              <Loader2 size={32} className="animate-spin text-emerald-600" />
+                              <span className="text-xs font-semibold">Loading product catalog...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredProducts.map((prod, idx) => (
+                          <motion.tr
+                            key={prod.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, delay: idx * 0.02 }}
+                            className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group"
+                          >
+                            <td className="py-4 px-5">
+                              <div className="flex items-center gap-3.5">
+                                <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:border-emerald-300 transition-colors overflow-hidden">
+                                  {prod.imageUrl ? (
+                                    <img
+                                      src={prod.imageUrl}
+                                      alt={prod.name || 'Product'}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <Package size={20} className="text-emerald-600" />
+                                  )}
+                                </div>
+
+                                <div className="flex flex-col">
+                                  <span className="font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm">
+                                    {prod.name || '-'}
+                                  </span>
+
+                                  <span className="text-[11px] text-slate-500 line-clamp-1">
+                                    {prod.description || prod.subcategoryName || prod.categoryName || 'No description'}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="py-4 px-5">
+                              <div className="flex flex-col">
+                                <span className="text-xs text-slate-800 font-semibold">
+                                  {prod.categoryName || '-'}
+                                </span>
+
+                                <span className="text-[11px] text-slate-500 font-normal">
+                                  {prod.subcategoryName || '-'}
+                                </span>
+                              </div>
+                            </td>
+
+                            <td className="py-4 px-5">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-semibold text-slate-900 font-mono">
+                                  ₹{prod.price || 0}
+                                </span>
+
+                                {prod.originalPrice > prod.price && (
+                                  <span className="text-[10px] text-slate-400 line-through font-mono">
+                                    ₹{prod.originalPrice}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="py-4 px-5">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">
+                                {prod.unit || '-'}
+                              </span>
+                            </td>
+
+                            <td className="py-4 px-5 text-center">
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
+                                  prod.active
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                                }`}
+                              >
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    prod.active ? 'bg-emerald-500' : 'bg-rose-500'
+                                  }`}
                                 />
-                              ) : (
-                                <Package size={17} className="text-emerald-600" />
-                              )}
-                            </div>
-
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-black group-hover:text-emerald-700 transition-colors">
-                                {prod.name || '-'}
+                                {prod.active ? 'In Stock' : 'Inactive'}
                               </span>
+                            </td>
 
-                              <span className="text-[10px] text-slate-500">
-                                {prod.subcategoryName || prod.categoryName || 'Product'}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
+                            <td className="py-4 px-5 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => openEditPanel(prod, true)}
+                                  className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
+                                  title="View Details"
+                                >
+                                  <Eye size={16} />
+                                </button>
 
-                        <td className="py-3.5 px-4">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-slate-700 font-semibold">
-                              {prod.categoryName || '-'}
-                            </span>
+                                <button
+                                  onClick={() => openEditPanel(prod, false)}
+                                  className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
+                                  title="Edit Product"
+                                >
+                                  <Edit3 size={16} />
+                                </button>
 
-                            <span className="text-[10px] text-slate-400 font-normal">
-                              {prod.subcategoryName || '-'}
-                            </span>
-                          </div>
-                        </td>
+                                <button
+                                  onClick={() => handleToggleStatus(prod)}
+                                  disabled={actionLoading === prod.id}
+                                  className={`p-2 rounded-xl transition-all cursor-pointer ${
+                                    prod.active
+                                      ? 'text-rose-500 hover:text-rose-700 hover:bg-rose-50'
+                                      : 'text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
+                                  }`}
+                                  title={prod.active ? 'Deactivate Product' : 'Activate Product'}
+                                >
+                                  {actionLoading === prod.id ? (
+                                    <Loader2 size={16} className="animate-spin" />
+                                  ) : prod.active ? (
+                                    <PowerOff size={16} />
+                                  ) : (
+                                    <Power size={16} />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                          </motion.tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-                        <td className="py-3.5 px-4">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-black">
-                              ₹{Number(prod.price || 0).toFixed(2)}
-                            </span>
-
-                            {Number(prod.originalPrice || 0) > Number(prod.price || 0) && (
-                              <span className="text-[10px] text-slate-400 line-through">
-                                ₹{Number(prod.originalPrice || 0).toFixed(2)}
-                              </span>
+                {/* Mobile Cards List */}
+                <div className="md:hidden p-4 space-y-3">
+                  {filteredProducts.map((prod) => (
+                    <div
+                      key={prod.id}
+                      className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all space-y-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center overflow-hidden shrink-0">
+                            {prod.imageUrl ? (
+                              <img
+                                src={prod.imageUrl}
+                                alt={prod.name || 'Product'}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Package size={18} />
                             )}
                           </div>
-                        </td>
 
-                        <td className="py-3.5 px-4">
-                          <span className="text-[10px] font-semibold text-slate-600">
-                            {prod.unit || '-'}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-center">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border transition-all duration-300 group-hover:scale-105 ${
-                              prod.active
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
-                                : 'bg-rose-50 text-rose-700 border-rose-200/80'
-                            }`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                prod.active ? 'bg-emerald-500' : 'bg-rose-500'
-                              }`}
-                            />
-                            {prod.active ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => openViewPanel(prod)}
-                              disabled={actionLoading === prod.id}
-                              className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-40"
-                              title="View Product"
-                            >
-                              {actionLoading === prod.id ? (
-                                <Loader2 size={15} className="animate-spin" />
-                              ) : (
-                                <Eye size={15} />
-                              )}
-                            </button>
-
-                            <button
-                              onClick={() => openEditPanel(prod)}
-                              disabled={actionLoading === prod.id}
-                              className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-40"
-                              title="Edit Product"
-                            >
-                              {actionLoading === prod.id ? (
-                                <Loader2 size={15} className="animate-spin" />
-                              ) : (
-                                <Edit3 size={15} />
-                              )}
-                            </button>
-
-                            <button
-                              onClick={() => handleStatusChange(prod)}
-                              disabled={actionLoading === prod.id}
-                              className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
-                                prod.active
-                                  ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
-                                  : 'text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
-                              }`}
-                              title={prod.active ? 'Deactivate Product' : 'Activate Product'}
-                            >
-                              {actionLoading === prod.id ? (
-                                <Loader2 size={15} className="animate-spin" />
-                              ) : prod.active ? (
-                                <PowerOff size={15} />
-                              ) : (
-                                <Power size={15} />
-                              )}
-                            </button>
+                          <div>
+                            <h4 className="font-semibold text-sm text-slate-900">
+                              {prod.name || '-'}
+                            </h4>
+                            <p className="text-[11px] text-slate-500">
+                              {prod.categoryName || 'Catalog Item'}
+                            </p>
                           </div>
-                        </td>
-                      </motion.tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="6" className="py-12 text-center">
-                        <Package size={35} className="mx-auto text-slate-300 mb-3" />
-                        <p className="text-xs font-semibold text-slate-400">
-                          No matching product records found.
-                        </p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="md:hidden space-y-3">
-              {loading ? (
-                <div className="py-10 text-center text-xs font-semibold text-slate-400">
-                  Loading products...
-                </div>
-              ) : filteredProducts.length > 0 ? (
-                filteredProducts.map((prod) => (
-                  <motion.div
-                    key={prod.id}
-                    whileHover={{ scale: 1.01 }}
-                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3 group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center overflow-hidden">
-                          {prod.imageUrl ? (
-                            <img
-                              src={prod.imageUrl}
-                              alt={prod.name || 'Product'}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Package size={16} />
-                          )}
                         </div>
 
-                        <div>
-                          <h4 className="font-semibold text-sm text-black group-hover:text-emerald-700 transition-colors">
-                            {prod.name || '-'}
-                          </h4>
-
-                          <p className="text-[10px] text-slate-400">
-                            {prod.categoryName || 'Product'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                          prod.active
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-rose-50 text-rose-700 border-rose-200'
-                        }`}
-                      >
                         <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            prod.active ? 'bg-emerald-500' : 'bg-rose-500'
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                            prod.active
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
                           }`}
-                        />
-                        {prod.active ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <span className="text-[10px] uppercase font-semibold text-black block">
-                          Category
-                        </span>
-                        <span className="text-slate-500 font-semibold">
-                          {prod.categoryName || '-'}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] uppercase font-semibold text-black block">
-                          Subcategory
-                        </span>
-                        <span className="text-slate-500 font-semibold">
-                          {prod.subcategoryName || '-'}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] uppercase font-semibold text-black block">
-                          Unit Rate
-                        </span>
-                        <span className="font-semibold text-black">
-                          ₹{Number(prod.price || 0).toFixed(2)}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] uppercase font-semibold text-black block">
-                          Unit
-                        </span>
-                        <span className="font-semibold text-slate-500">
-                          {prod.unit || '-'}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] uppercase font-semibold text-black block">
-                          Availability
-                        </span>
-                        <span className="font-semibold text-slate-500">
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              prod.active ? 'bg-emerald-500' : 'bg-rose-500'
+                            }`}
+                          />
                           {prod.active ? 'Active' : 'Inactive'}
                         </span>
                       </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-medium">Price</span>
+                          <span className="font-semibold text-slate-900 font-mono">₹{prod.price || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-medium">Unit</span>
+                          <span className="font-semibold text-slate-700">{prod.unit || '-'}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button
+                          onClick={() => openEditPanel(prod, true)}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5"
+                        >
+                          <Eye size={14} /> View
+                        </button>
+                        <button
+                          onClick={() => openEditPanel(prod, false)}
+                          className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-semibold flex items-center gap-1.5"
+                        >
+                          <Edit3 size={14} /> Edit
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="flex justify-end gap-1 pt-2 border-t border-slate-200/60">
-                      <button
-                        onClick={() => openViewPanel(prod)}
-                        disabled={actionLoading === prod.id}
-                        className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
-                        title="View Product"
-                      >
-                        {actionLoading === prod.id ? (
-                          <Loader2 size={15} className="animate-spin" />
-                        ) : (
-                          <Eye size={15} />
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => openEditPanel(prod)}
-                        disabled={actionLoading === prod.id}
-                        className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
-                        title="Edit Product"
-                      >
-                        {actionLoading === prod.id ? (
-                          <Loader2 size={15} className="animate-spin" />
-                        ) : (
-                          <Edit3 size={15} />
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => handleStatusChange(prod)}
-                        disabled={actionLoading === prod.id}
-                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
-                        title={prod.active ? 'Deactivate Product' : 'Activate Product'}
-                      >
-                        {actionLoading === prod.id ? (
-                          <Loader2 size={15} className="animate-spin" />
-                        ) : prod.active ? (
-                          <PowerOff size={15} />
-                        ) : (
-                          <Power size={15} />
-                        )}
-                      </button>
-                    </div>
-                  </motion.div>
-                ))
-              ) : (
-                <div className="py-10 text-center">
-                  <Package size={35} className="mx-auto text-slate-300 mb-3" />
-                  <p className="text-xs font-semibold text-slate-400">No products found.</p>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Tab 2: Categories & Taxonomy View */}
+        {currentTab === 'categories' && (
+          <div className="space-y-4">
+            <WorkflowRulesBar
+              rulesText="Configured parent product categories and associated subcategory groupings."
+              showingCount={categories.length}
+              totalCount={categories.length}
+              itemLabel="categories"
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {categories.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-md transition-all space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                        <Layers size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900">{cat.name}</h3>
+                        <span className="text-[11px] text-slate-400 font-mono">ID: {cat.id}</span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      {products.filter((p) => p.categoryId === cat.id).length} Products
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-500 line-clamp-2">
+                    {cat.description || 'Standard platform product taxonomy category.'}
+                  </p>
+                </div>
+              ))}
             </div>
-          </motion.div>
-        </section>
+          </div>
+        )}
+
+        {/* Tab 3: Wholesale Units View */}
+        {currentTab === 'units' && (
+          <div className="space-y-4">
+            <WorkflowRulesBar
+              rulesText="Standard metric and packaging measurement units supported across store catalogs."
+              showingCount={UNIT_OPTIONS.length}
+              totalCount={UNIT_OPTIONS.length}
+              itemLabel="units"
+            />
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {UNIT_OPTIONS.map((unit) => (
+                <div
+                  key={unit.id}
+                  className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between hover:border-emerald-300 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-semibold text-xs">
+                      {unit.id.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-xs text-slate-900 block">{unit.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{unit.id}</span>
+                    </div>
+                  </div>
+                  <CheckCircle2 size={16} className="text-emerald-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
 
       <AnimatePresence>

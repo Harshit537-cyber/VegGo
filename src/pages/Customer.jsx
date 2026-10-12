@@ -1,8 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "../components/Sidebar";
 import ConfirmModal from "../Common/ConfirmModal";
 import PageHeader from "../Common/PageHeader";
+import SegmentedTabs from "../Common/SegmentedTabs";
+import StatusFilterPills from "../Common/StatusFilterPills";
+import WorkflowRulesBar from "../Common/WorkflowRulesBar";
+import EmptyState from "../Common/EmptyState";
 
 import {
   getCustomerStats,
@@ -33,6 +37,10 @@ import {
   Eye,
   Trash2,
   X,
+  Plus,
+  Send,
+  Wallet,
+  ShoppingBag,
 } from "lucide-react";
 
 function AnimatedValue({ value }) {
@@ -400,33 +408,76 @@ export default function Customer() {
       ]
     : [];
 
+  const [activeCustomerTab, setActiveCustomerTab] = useState("roster");
+  const [activeFilterTab, setActiveFilterTab] = useState("all");
+
+  const customerTabs = [
+    { id: "roster", label: "Customers Roster", icon: Users },
+    { id: "wallet", label: "Wallet & Balances", icon: Wallet },
+    { id: "orders", label: "Order Histories", icon: ShoppingBag },
+    { id: "moderation", label: "Moderation & Flags", icon: Flag },
+  ];
+
+  const blockedCount = accounts.filter((a) => isCustomerBlocked(a)).length;
+  const activeCount = Math.max(0, accounts.length - blockedCount);
+  const flaggedCount = accounts.filter((a) => Number(getFlagsRaised(a)) > 0).length;
+
+  const customerFilterPills = [
+    { id: "all", label: "All Customers", count: accounts.length },
+    { id: "active", label: "Verified Active", count: activeCount },
+    { id: "flagged", label: "Flagged Accounts (Needs Review)", count: flaggedCount },
+    { id: "blocked", label: "Suspended / Blocked", count: blockedCount },
+  ];
+
+  const filteredAccounts = useMemo(() => {
+    let list = accounts;
+
+    if (activeFilterTab === "active") {
+      list = list.filter((a) => !isCustomerBlocked(a));
+    } else if (activeFilterTab === "flagged") {
+      list = list.filter((a) => Number(getFlagsRaised(a)) > 0);
+    } else if (activeFilterTab === "blocked") {
+      list = list.filter((a) => isCustomerBlocked(a));
+    }
+
+    return list;
+  }, [accounts, activeFilterTab]);
+
   return (
     <div className="min-h-dvh w-full overflow-x-hidden bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
       <Sidebar />
 
-      <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 lg:overflow-y-auto lg:max-h-dvh space-y-4 sm:space-y-6 lg:space-y-8">
+      <main className="flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 lg:overflow-y-auto lg:max-h-dvh space-y-4 sm:space-y-5">
+        {/* Top Executive Page Header */}
         <PageHeader
-          badge="Customer Management"
-          badgeIcon={Users}
-          title="Customer Directory"
-          subtitle="Review customer accounts, monitor spending, and manage access privileges."
+          icon={Users}
+          title="Customer Administration"
+          subtitle="Manage customer profiles, verify consumer accounts, monitor spending, and regulate access."
+          stats={[
+            { label: "Total Customers", value: accounts.length },
+            { label: "Need Review", value: flaggedCount, alert: flaggedCount > 0 },
+          ]}
+          actionButtonText="Broadcast to Customers"
+          actionButtonIcon={Send}
+          onActionClick={() => alert("Broadcast notification to active customers")}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
         />
 
+        {/* Global Error Banner */}
         <AnimatePresence>
           {errorMessage && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="px-3 sm:px-5 py-3 sm:py-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold flex items-start sm:items-center gap-3 shadow-sm"
+              className="px-4 py-3.5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 text-xs sm:text-sm font-semibold flex items-center gap-3 shadow-2xs"
             >
-              <AlertCircle size={18} className="text-rose-600 flex-shrink-0" />
+              <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
               <span className="min-w-0 break-words">{errorMessage}</span>
               <button
                 onClick={() => setErrorMessage("")}
-                className="ml-auto p-1 rounded-lg hover:bg-rose-100 shrink-0"
+                className="ml-auto p-1 rounded-lg hover:bg-amber-100 shrink-0 cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -434,123 +485,75 @@ export default function Customer() {
           )}
         </AnimatePresence>
 
-        <section className="grid grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-5">
-          {moderationCards.map((stat, index) => {
-            const Icon = stat.icon;
+        {/* Primary Segmented Tabs Navigation */}
+        <SegmentedTabs
+          tabs={customerTabs}
+          activeTab={activeCustomerTab}
+          onTabChange={setActiveCustomerTab}
+        />
 
-            return (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.08 }}
-                whileHover={{ y: -4 }}
-                className="relative overflow-hidden min-w-0 bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl transition-all"
-              >
-                <div
-                  className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor}`}
-                />
+        {/* Secondary Status Filter Pills */}
+        <StatusFilterPills
+          filters={customerFilterPills}
+          activeFilter={activeFilterTab}
+          onFilterChange={setActiveFilterTab}
+        />
 
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-black truncate">
-                    {stat.label}
-                  </span>
+        {/* Workflow Rules Information Bar */}
+        <WorkflowRulesBar
+          rulesText="All consumer accounts across registration, moderation, wallet standing, and access permissions."
+          showingCount={filteredAccounts.length}
+          itemLabel="customers"
+        />
 
-                  <div className={`${stat.iconBg} p-2 sm:p-2.5 rounded-2xl shrink-0`}>
-                    <Icon size={18} />
-                  </div>
-                </div>
+        {/* Unified Full-Width Search Input Bar */}
+        <div className="relative w-full">
+          <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+          <input
+            type="text"
+            placeholder="Search customers by name, phone, email, customer ID, or city..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-2xs"
+          />
+        </div>
 
-                <h3 className="mt-3 sm:mt-4 text-xl sm:text-2xl xl:text-3xl font-semibold text-black font-mono break-words">
-                  {loading ? (
-                    <span className="text-slate-300 animate-pulse">...</span>
-                  ) : (
-                    <AnimatedValue value={stat.value} />
-                  )}
-                </h3>
-
-                <div className="mt-4 sm:mt-5 pt-3 border-t border-slate-100 text-[11px] font-semibold text-slate-400">
-                  Live API Data
-                </div>
-              </motion.div>
-            );
-          })}
-        </section>
-
-        <section>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-3 sm:p-5 lg:p-6"
-          >
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 shrink-0">
-                  <Users size={18} />
-                </div>
-
-                <div className="min-w-0">
-                  <h2 className="text-base sm:text-lg font-semibold text-black">
-                    Customer Moderation
-                  </h2>
-
-                  <p className="text-[11px] sm:text-xs font-semibold text-slate-500">
-                    Review flagged accounts and manage access status
-                  </p>
-                </div>
-              </div>
-
-              <div className="relative w-full md:w-64 shrink-0">
-                <Search
-                  className="absolute left-3 top-2.5 text-slate-400"
-                  size={15}
-                />
-
-                <input
-                  type="text"
-                  placeholder="Search customers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                />
+        {/* Main Data Section / Table or Empty State */}
+        <section className="w-full">
+          {loading ? (
+            <div className="py-16 text-center text-slate-400 bg-white rounded-3xl border border-slate-200">
+              <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
+                <RefreshCw size={16} className="animate-spin text-emerald-600" />
+                Loading customer records...
               </div>
             </div>
-
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
-                    <th className="py-3.5 px-4 rounded-l-xl">
-                      Customer Details
-                    </th>
-                    <th className="py-3.5 px-4">Flags</th>
-                    <th className="py-3.5 px-4">Primary Infraction</th>
-                    <th className="py-3.5 px-4 text-center">Current Status</th>
-                    <th className="py-3.5 px-4 text-center rounded-r-xl">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
-                    <tr>
-                      <td
-                        colSpan="5"
-                        className="py-12 text-center text-slate-400 text-xs"
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <RefreshCw
-                            size={15}
-                            className="animate-spin text-emerald-600"
-                          />
-                          Loading customer records...
-                        </div>
-                      </td>
+          ) : filteredAccounts.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No customers found"
+              description={`There are currently no customers in the selected "${customerFilterPills.find(f => f.id === activeFilterTab)?.label || 'All'}" category.`}
+            />
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-4 sm:p-6 overflow-hidden"
+            >
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="w-full min-w-[760px] text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-[11px] uppercase font-bold tracking-wider text-slate-500 bg-slate-50/80">
+                      <th className="py-3.5 px-4 rounded-l-xl">Customer Details</th>
+                      <th className="py-3.5 px-4">Flags</th>
+                      <th className="py-3.5 px-4">Primary Infraction</th>
+                      <th className="py-3.5 px-4 text-center">Current Status</th>
+                      <th className="py-3.5 px-4 text-center rounded-r-xl">Actions</th>
                     </tr>
-                  ) : accounts.length > 0 ? (
-                    accounts.map((account, index) => {
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredAccounts.length > 0 ? (
+                      filteredAccounts.map((account, index) => {
                       const name = getCustomerName(account);
                       const email = getCustomerEmail(account);
                       const flags = getFlagsRaised(account);
@@ -563,8 +566,8 @@ export default function Customer() {
                           key={getCustomerId(account) || index}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: index * 0.04 }}
-                          className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors"
+                          transition={{ duration: 0.2, delay: index * 0.03 }}
+                          className="text-xs font-semibold text-slate-800 hover:bg-emerald-50/40 transition-colors"
                         >
                           <td className="py-4 px-4">
                             <div className="flex items-center gap-3">
@@ -844,6 +847,7 @@ export default function Customer() {
               )}
             </div>
           </motion.div>
+          )}
         </section>
       </main>
 

@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import ForgotPasswordModal from '../Models/ForgotPasswordModal'
 import { adminLogin } from '../Api/authService/authService'
+import { isTokenUsable, clearAuthSession } from '../components/ProtectedRoute'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -32,8 +33,12 @@ export default function Login() {
   useEffect(() => {
     const token =
       localStorage.getItem('token') || localStorage.getItem('accessToken')
-    if (token && token !== 'undefined' && token !== 'null') {
-      navigate('/dashboard', { replace: true })
+    if (token) {
+      if (isTokenUsable(token)) {
+        navigate('/dashboard', { replace: true })
+      } else {
+        clearAuthSession()
+      }
     }
   }, [navigate])
 

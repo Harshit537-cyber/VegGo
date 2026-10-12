@@ -1,21 +1,25 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
 
-const isTokenUsable = (token) => {
+export const clearAuthSession = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+};
+
+export const isTokenUsable = (token) => {
   if (!token || token === "undefined" || token === "null") return false;
 
-  // If it's a JWT, reject it when the exp claim has passed.
-  // Non-JWT tokens are left to the server to validate.
   const parts = token.split(".");
   if (parts.length !== 3) return true;
 
   try {
-    const payload = JSON.parse(
-      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))
-    );
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const payload = JSON.parse(atob(padded));
     if (payload?.exp && payload.exp * 1000 <= Date.now()) return false;
   } catch {
-    return true;
+    return false;
   }
 
   return true;
@@ -25,7 +29,12 @@ const ProtectedRoute = () => {
   const token =
     localStorage.getItem("token") || localStorage.getItem("accessToken");
 
-  return isTokenUsable(token) ? <Outlet /> : <Navigate to="/login" replace />;
+  if (!isTokenUsable(token)) {
+    clearAuthSession();
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

@@ -16,7 +16,24 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Dot
+  Dot,
+  Bell,
+  HelpCircle,
+  Mail,
+  FileText,
+  Shield,
+  PlusCircle,
+  MessageSquare,
+  Store,
+  Truck,
+  User,
+  Headphones,
+  UserCheck,
+  Tag,
+  Layers,
+  BarChart3,
+  TrendingUp,
+  Search
 } from "lucide-react";
 import LogoutModal from "../Common/LogoutModal";
 
@@ -28,7 +45,8 @@ function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     return localStorage.getItem("veggo_sidebar_collapsed") === "true";
   });
-  const [expandedGroup, setExpandedGroup] = useState(null);
+  const [expandedGroup, setExpandedGroup] = useState("management");
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const menuGroups = [
@@ -45,60 +63,89 @@ function Sidebar() {
       icon: Users,
       subItems: [
         {
-          id: "customers",
-          label: "Customers",
-          path: "/management/customers",
+          id: "vendors",
+          label: "Vendors / Stores",
+          icon: Store,
+          path: "/management/vendors",
         },
         {
           id: "delivery",
-          label: "Delivery",
+          label: "Delivery Fleet",
+          icon: Truck,
           path: "/management/delivery",
         },
         {
-          id: "vendors",
-          label: "Vendors",
-          path: "/management/vendors",
-        },
-      ],
-    },
-    {
-      id: "payouts",
-      label: "Payouts & Settlements",
-      icon: Wallet,
-      subItems: [
-        {
-          id: "wallet",
-          label: "Wallet",
-          path: "/payouts/wallet",
-        },
-        {
-          id: "payouts",
-          label: "Payouts",
-          path: "/payouts/vendors",
+          id: "customers",
+          label: "Customer Directory",
+          icon: User,
+          path: "/management/customers",
         },
       ],
     },
     {
       id: "products",
-      label: "Product Management",
+      label: "Product Catalog",
       icon: Package,
       subItems: [
         {
+          id: "catalog",
+          label: "All Products",
+          icon: Package,
+          path: "/products/list",
+        },
+        {
           id: "categories",
           label: "Categories",
+          icon: Layers,
           path: "/products/categories",
         },
         {
           id: "subcategories",
           label: "Subcategories",
+          icon: Tag,
           path: "/products/subcategories",
         },
+      ],
+    },
+    {
+      id: "payouts",
+      label: "Payouts & Wallet",
+      icon: Wallet,
+      subItems: [
         {
-          id: "products",
-          label: "Products",
-          path: "/products/list",
+          id: "wallet",
+          label: "Admin Wallet",
+          icon: Wallet,
+          path: "/payouts/wallet",
+        },
+        {
+          id: "payout_requests",
+          label: "Payout Requests",
+          icon: TrendingUp,
+          path: "/payouts/vendors",
         },
       ],
+    },
+    {
+      id: "orders",
+      label: "Consignments & Fleet",
+      icon: Truck,
+      path: "/dashboard/orders-monitoring",
+      subItems: [],
+    },
+    {
+      id: "reports",
+      label: "Analytics & Reports",
+      icon: BarChart3,
+      path: "/reports/revenue",
+      subItems: [],
+    },
+    {
+      id: "notifications",
+      label: "Push Notifications",
+      icon: Bell,
+      path: "/notifications",
+      subItems: [],
     },
     {
       id: "settings",
@@ -117,8 +164,6 @@ function Sidebar() {
 
     if (activeGroup) {
       setExpandedGroup(activeGroup.id);
-    } else {
-      setExpandedGroup(null);
     }
   }, [location.pathname]);
 
@@ -166,230 +211,287 @@ function Sidebar() {
 
   return (
     <>
-      {/* Mobile Hamburger Toggle Button */}
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          aria-label="Open navigation menu"
-          className="lg:hidden fixed top-4 left-4 z-50 p-2.5 bg-white/95 backdrop-blur-md text-slate-700 rounded-2xl shadow-md border border-slate-200/90 hover:bg-slate-50 transition-all cursor-pointer"
-        >
-          <Menu size={20} />
-        </button>
-      )}
+      {/* 1. Full-Width Top Navigation Bar (Sign-In page luminous aesthetic) */}
+      <header className="fixed top-0 left-0 right-0 h-16 z-50 bg-white/95 backdrop-blur-xl border-b border-emerald-100/90 text-slate-800 px-4 sm:px-6 flex items-center justify-between shadow-xs">
+        {/* Top multi-color gradient line */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400" />
 
-      {/* Backdrop for Mobile */}
+        {/* Left: VegGo Brand Logo & Hamburger */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center gap-3 cursor-pointer select-none group"
+            title="VegGoFresh Admin Platform"
+          >
+            {/* Gradient Rounded Box with Leaf Logo */}
+            <div className="h-9 w-9 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-600/25 group-hover:scale-105 transition-transform shrink-0">
+              <Leaf size={18} className="drop-shadow-xs" />
+            </div>
+
+            <div className="flex flex-col">
+              <span className="text-lg font-black tracking-tight text-slate-900 block leading-tight">
+                VegGo<span className="text-emerald-600 font-extrabold">Fresh</span>
+              </span>
+              <span className="text-[10px] font-bold text-teal-700 uppercase tracking-widest block -mt-0.5">
+                Admin Console
+              </span>
+            </div>
+          </div>
+
+          {/* Hamburger Menu Icon */}
+          <button
+            onClick={() => {
+              if (window.innerWidth < 1024) {
+                setIsOpen((prev) => !prev);
+              } else {
+                toggleCollapse();
+              }
+            }}
+            aria-label="Toggle navigation menu"
+            className="p-2 rounded-xl text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 transition-all cursor-pointer ml-1"
+            title="Toggle Sidebar"
+          >
+            <Menu size={20} />
+          </button>
+        </div>
+
+        {/* Right: Notifications & Circular User Profile */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* Notification Bell with 9+ Count Badge */}
+          <button
+            onClick={() => navigate("/notifications")}
+            className="relative p-2 rounded-xl text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer border border-transparent hover:border-emerald-200"
+            title="Notifications"
+          >
+            <Bell size={19} />
+            <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-4.5 px-1 bg-rose-500 text-white text-[10px] font-black rounded-full border-2 border-white shadow-xs">
+              9+
+            </span>
+          </button>
+
+          {/* User Profile Pill */}
+          <div className="relative">
+            <button
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-2xl bg-emerald-50/80 hover:bg-emerald-100/70 border border-emerald-200/80 transition-all cursor-pointer shadow-2xs group"
+              title="Admin Profile"
+            >
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
+                SA
+              </div>
+              <div className="text-left hidden sm:block">
+                <span className="text-xs font-bold text-slate-800 block leading-tight">Super Admin</span>
+                <span className="text-[10px] font-semibold text-emerald-700 block">Console Online</span>
+              </div>
+              <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 transition-transform" />
+            </button>
+
+            {/* Profile Dropdown Menu */}
+            {isProfileOpen && (
+              <>
+                <div
+                  onClick={() => setIsProfileOpen(false)}
+                  className="fixed inset-0 z-40"
+                />
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 text-slate-800 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-4 py-2.5 border-b border-slate-100">
+                    <p className="text-xs font-bold text-slate-900">Administrator</p>
+                    <p className="text-[11px] text-slate-500 truncate">admin@veggofresh.com</p>
+                  </div>
+
+                  <div className="p-1 space-y-0.5">
+                    <button
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        navigate("/settings");
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-2"
+                    >
+                      <ShieldCheck size={15} className="text-emerald-600" />
+                      Settings & Security
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        handleLogoutClick();
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer flex items-center gap-2"
+                    >
+                      <LogOut size={15} />
+                      Logout Session
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Backdrop for Mobile Drawer */}
       {isOpen && (
         <div
           onClick={() => setIsOpen(false)}
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-40 lg:hidden"
         />
       )}
 
-      {/* Sidebar Container */}
+      {/* 2. Fixed Left Sidebar with Sign-In Light Aesthetic */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-50 lg:z-40 h-dvh p-3 sm:p-4 lg:p-5 flex flex-col transition-all duration-300 ease-out lg:translate-x-0 ${
+        className={`fixed top-16 left-0 bottom-0 z-40 bg-white/95 backdrop-blur-2xl border-r border-emerald-100/90 text-slate-800 flex flex-col transition-all duration-300 ease-out shadow-sm lg:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } ${isCollapsed ? "w-24 sm:w-[94px]" : "w-72 sm:w-80"}`}
+        } ${isCollapsed ? "w-20" : "w-64"}`}
       >
-        <div className="flex flex-col h-full w-full bg-white/95 backdrop-blur-2xl rounded-3xl border border-slate-200/90 shadow-xl shadow-slate-200/50 overflow-hidden relative">
-          {/* Top Multi-Color Accent Bar matching Sign In identity */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 shrink-0" />
+        {/* Navigation Items */}
+        <nav className={`flex-1 overflow-y-auto py-5 space-y-1.5 scrollbar-thin scrollbar-thumb-emerald-100 scrollbar-track-transparent ${isCollapsed ? 'px-2' : 'px-3.5'}`}>
+          {menuGroups.map((group) => {
+            const isExpanded = expandedGroup === group.id;
 
-          {/* Logo & Header Branding */}
-          <div className={`flex items-center justify-between pt-4 pb-4 border-b border-slate-100 shrink-0 ${isCollapsed ? 'px-3 flex-col gap-3' : 'px-5'}`}>
-            <div
-              onClick={() => {
-                setIsOpen(false);
-                navigate("/dashboard");
-              }}
-              className={`flex items-center cursor-pointer group select-none ${isCollapsed ? 'justify-center' : 'gap-3.5'}`}
-              title="VegGoFresh Admin Platform"
-            >
-              <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-600/25 shrink-0 group-hover:scale-105 transition-transform">
-                <Leaf size={20} className="drop-shadow-xs" />
-              </div>
+            const isDirectSelected = location.pathname === group.path;
+            const hasActiveSub = group.subItems.some(
+              (subItem) => location.pathname === subItem.path
+            );
+            const isSelected = isDirectSelected || hasActiveSub;
 
-              {!isCollapsed && (
-                <div className="overflow-hidden">
-                  <span className="text-xl font-black tracking-tight text-slate-900 block leading-tight">
-                    VegGo<span className="text-emerald-600 font-extrabold">Fresh</span>
-                  </span>
-                  <span className="text-[10px] font-bold text-teal-700 uppercase tracking-widest block">
-                    Admin Platform
-                  </span>
-                </div>
-              )}
-            </div>
+            const GroupIcon = group.icon;
 
-            {/* Desktop Collapse / Expand Toggle Button */}
-            <button
-              onClick={toggleCollapse}
-              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="hidden lg:flex p-1.5 rounded-xl text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer border border-transparent hover:border-emerald-200"
-              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isCollapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
-            </button>
+            return (
+              <div key={group.id} className="relative group/item space-y-1">
+                <button
+                  onClick={() => handleGroupToggle(group)}
+                  className={`w-full flex items-center rounded-2xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                    isCollapsed
+                      ? "justify-center p-3"
+                      : "justify-between px-3.5 py-2.5"
+                  } ${
+                    isDirectSelected
+                      ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold shadow-md shadow-emerald-600/20"
+                      : isSelected || (isExpanded && !isCollapsed)
+                      ? "bg-emerald-50/90 text-emerald-800 font-bold border border-emerald-200/80"
+                      : "text-slate-600 hover:text-emerald-800 hover:bg-emerald-50/60"
+                  }`}
+                >
+                  <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+                    <div className={`shrink-0 ${
+                      isDirectSelected ? "text-white" : isSelected ? "text-emerald-600" : "text-slate-500 group-hover/item:text-emerald-700"
+                    }`}>
+                      <GroupIcon size={19} />
+                    </div>
 
-            {/* Mobile Close Button */}
-            <button
-              onClick={() => setIsOpen(false)}
-              aria-label="Close navigation menu"
-              className="lg:hidden p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-          </div>
+                    {!isCollapsed && <span>{group.label}</span>}
+                  </div>
 
-          {/* Navigation Items */}
-          <nav className={`flex-1 overflow-y-auto py-4 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent ${isCollapsed ? 'px-2' : 'px-3.5'}`}>
-            {menuGroups.map((group) => {
-              const isExpanded = expandedGroup === group.id;
+                  {!isCollapsed && group.subItems.length > 0 &&
+                    (isExpanded ? (
+                      <ChevronUp size={16} className="text-emerald-700 shrink-0" />
+                    ) : (
+                      <ChevronDown size={16} className="text-slate-400 shrink-0" />
+                    ))}
+                </button>
 
-              const isSelected =
-                location.pathname === group.path ||
-                group.subItems.some(
-                  (subItem) => location.pathname === subItem.path
-                );
+                {/* Floating Flyout Tooltip when Collapsed */}
+                {isCollapsed && (
+                  <div className="absolute left-full top-0 ml-3 z-50 invisible group-hover/item:visible opacity-0 group-hover/item:opacity-100 transition-all duration-200 pointer-events-none group-hover/item:pointer-events-auto">
+                    <div className="bg-white rounded-2xl shadow-2xl border border-emerald-100 p-3 min-w-[190px] space-y-2 text-slate-800">
+                      <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100">
+                        <GroupIcon size={15} className="text-emerald-600" />
+                        <span className="text-xs font-bold text-slate-900">{group.label}</span>
+                      </div>
 
-              const GroupIcon = group.icon;
+                      {group.subItems.length > 0 ? (
+                        <div className="space-y-1">
+                          {group.subItems.map((subItem) => {
+                            const isSubSelected = location.pathname === subItem.path;
+                            const SubIcon = subItem.icon;
+                            return (
+                              <button
+                                key={subItem.id}
+                                onClick={() => handleSubItemClick(subItem.path)}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                                  isSubSelected
+                                    ? "bg-emerald-600 text-white font-bold shadow-xs"
+                                    : "text-slate-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                }`}
+                              >
+                                <SubIcon size={14} />
+                                {subItem.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleSubItemClick(group.path)}
+                          className="w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-semibold text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                        >
+                          Open {group.label}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-              return (
-                <div key={group.id} className="relative group/item space-y-1">
-                  <button
-                    onClick={() => handleGroupToggle(group)}
-                    className={`w-full flex items-center rounded-2xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                      isCollapsed
-                        ? "justify-center p-3"
-                        : "justify-between px-3.5 py-2.5"
-                    } ${
-                      isSelected || (isExpanded && !isCollapsed)
-                        ? "bg-emerald-50/90 text-emerald-800 font-bold border border-emerald-200/80 shadow-xs"
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 border border-transparent"
+                {/* Submenu Accordion when Expanded */}
+                {!isCollapsed && group.subItems.length > 0 && (
+                  <div
+                    className={`ml-5 pl-3 border-l-2 border-emerald-200/80 space-y-1 my-1 transition-all duration-300 ease-in-out overflow-hidden ${
+                      isExpanded
+                        ? "max-h-96 opacity-100 py-1"
+                        : "max-h-0 opacity-0 pointer-events-none"
                     }`}
                   >
-                    <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-                      <div className={`p-1 rounded-lg transition-colors ${
-                        isSelected
-                          ? "text-emerald-600"
-                          : "text-slate-500 group-hover/item:text-slate-800"
-                      }`}>
-                        <GroupIcon size={19} />
-                      </div>
+                    {group.subItems.map((subItem) => {
+                      const isSubSelected = location.pathname === subItem.path;
+                      const SubIcon = subItem.icon;
 
-                      {!isCollapsed && <span>{group.label}</span>}
-                    </div>
-
-                    {!isCollapsed && group.subItems.length > 0 &&
-                      (isExpanded ? (
-                        <ChevronUp size={15} className="text-emerald-600 shrink-0" />
-                      ) : (
-                        <ChevronDown size={15} className="text-slate-400 shrink-0" />
-                      ))}
-                  </button>
-
-                  {/* Floating Flyout Tooltip when Collapsed */}
-                  {isCollapsed && (
-                    <div className="absolute left-full top-0 ml-3.5 z-50 invisible group-hover/item:visible opacity-0 group-hover/item:opacity-100 transition-all duration-200 pointer-events-none group-hover/item:pointer-events-auto">
-                      <div className="bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-xl shadow-slate-900/10 p-3 min-w-[190px] space-y-2">
-                        <div className="flex items-center gap-2 pb-1.5 border-b border-slate-100">
-                          <GroupIcon size={15} className="text-emerald-600" />
-                          <span className="text-xs font-bold text-slate-900">{group.label}</span>
-                        </div>
-
-                        {group.subItems.length > 0 ? (
-                          <div className="space-y-1">
-                            {group.subItems.map((subItem) => {
-                              const isSubSelected = location.pathname === subItem.path;
-                              return (
-                                <button
-                                  key={subItem.id}
-                                  onClick={() => handleSubItemClick(subItem.path)}
-                                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                                    isSubSelected
-                                      ? "bg-emerald-600 text-white shadow-xs"
-                                      : "text-slate-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                  }`}
-                                >
-                                  {subItem.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleSubItemClick(group.path)}
-                            className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-50 cursor-pointer"
-                          >
-                            Open {group.label}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Submenu Accordion when Expanded */}
-                  {!isCollapsed && group.subItems.length > 0 && (
-                    <div
-                      className={`ml-5 pl-3 border-l-2 border-emerald-100 space-y-1 my-1 transition-all duration-300 ease-in-out overflow-hidden ${
-                        isExpanded
-                          ? "max-h-96 opacity-100 py-1"
-                          : "max-h-0 opacity-0 pointer-events-none"
-                      }`}
-                    >
-                      {group.subItems.map((subItem) => {
-                        const isSubSelected = location.pathname === subItem.path;
-
-                        return (
-                          <button
-                            key={subItem.id}
-                            onClick={() => handleSubItemClick(subItem.path)}
-                            className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer flex items-center justify-between ${
-                              isSubSelected
-                                ? "bg-emerald-600 text-white font-bold shadow-xs shadow-emerald-600/20"
-                                : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-                            }`}
-                          >
+                      return (
+                        <button
+                          key={subItem.id}
+                          onClick={() => handleSubItemClick(subItem.path)}
+                          className={`w-full text-left px-3.5 py-2 rounded-2xl text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center justify-between ${
+                            isSubSelected
+                              ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold shadow-sm shadow-emerald-600/20"
+                              : "text-slate-600 hover:text-emerald-800 hover:bg-emerald-50/70"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <SubIcon size={15} className={isSubSelected ? "text-white" : "text-emerald-600"} />
                             <span>{subItem.label}</span>
-                            {isSubSelected && <Dot size={20} className="text-emerald-200 shrink-0" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
-
-          {/* Footer Info & Logout */}
-          <div className={`border-t border-slate-100 shrink-0 space-y-2 ${isCollapsed ? 'p-2' : 'p-3.5'}`}>
-            {!isCollapsed && (
-              <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] font-medium text-slate-500">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck size={14} className="text-emerald-600" />
-                  <span className="font-semibold text-slate-700">Admin Console</span>
-                </span>
-                <span className="font-mono text-[10px] text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200/60 font-bold">
-                  v2.4
-                </span>
+                          </div>
+                          {isSubSelected && <Dot size={18} className="text-emerald-200 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
+            );
+          })}
+        </nav>
 
-            <button
-              onClick={handleLogoutClick}
-              className={`w-full flex items-center justify-center gap-2 rounded-2xl text-xs font-bold text-rose-600 bg-rose-50/80 hover:bg-rose-600 hover:text-white border border-rose-200/60 transition-all duration-200 cursor-pointer shadow-2xs hover:shadow-rose-600/20 ${
-                isCollapsed ? 'p-3' : 'px-3.5 py-2.5'
-              }`}
-              title="Logout Session"
-            >
-              <LogOut size={16} />
-              {!isCollapsed && <span>Logout Session</span>}
-            </button>
-          </div>
+        {/* Footer Logout Button */}
+        <div className={`p-3.5 border-t border-slate-100 shrink-0`}>
+          <button
+            onClick={handleLogoutClick}
+            className={`w-full flex items-center justify-center gap-2 rounded-2xl text-xs font-bold text-rose-600 bg-rose-50/80 hover:bg-rose-600 hover:text-white border border-rose-200/60 transition-all duration-200 cursor-pointer shadow-2xs hover:shadow-rose-600/20 ${
+              isCollapsed ? 'p-3' : 'px-3.5 py-2.5'
+            }`}
+            title="Logout Session"
+          >
+            <LogOut size={16} />
+            {!isCollapsed && <span>Logout Session</span>}
+          </button>
         </div>
       </aside>
 
+      {/* 3. Desktop Column Spacer */}
+      <div
+        className="hidden lg:block shrink-0 transition-all duration-300"
+        style={{ width: isCollapsed ? "5rem" : "16rem" }}
+      />
+
+      {/* Logout Confirmation Modal */}
       <LogoutModal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}

@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import PageHeader from "../Common/PageHeader";
+import SegmentedTabs from "../Common/SegmentedTabs";
+import StatusFilterPills from "../Common/StatusFilterPills";
+import WorkflowRulesBar from "../Common/WorkflowRulesBar";
+import EmptyState from "../Common/EmptyState";
 import { motion, AnimatePresence } from "framer-motion";
 
 import {
@@ -16,6 +20,12 @@ import {
   XCircle,
   X,
   User,
+  Users,
+  Plus,
+  Package,
+  Send,
+  Tag,
+  ShieldCheck,
   FileText,
 } from "lucide-react";
 
@@ -414,66 +424,60 @@ export default function Vendor() {
     }
   };
 
-  const filteredApplications =
-    useMemo(() => {
-      const query =
-        searchQuery.trim().toLowerCase();
+  const [activeRosterTab, setActiveRosterTab] = useState("roster");
+  const [activeFilterTab, setActiveFilterTab] = useState("all");
 
-      if (!query) {
-        return applications;
-      }
-
-      return applications.filter(
-        (application) =>
-          String(application.name || "")
-            .toLowerCase()
-            .includes(query) ||
-          String(application.owner || "")
-            .toLowerCase()
-            .includes(query) ||
-          String(application.id || "")
-            .toLowerCase()
-            .includes(query) ||
-          String(application.category || "")
-            .toLowerCase()
-            .includes(query)
-      );
-    }, [applications, searchQuery]);
-
-  const approvalStats = [
-    {
-      label: "Pending Applications",
-      value: applications.length,
-      accentColor: "bg-emerald-600",
-      iconBg:
-        "bg-emerald-50 text-emerald-700",
-      icon: Store,
-    },
-    {
-      label: "API Status",
-      value: error ? "Offline" : "Live",
-      accentColor: "bg-teal-600",
-      iconBg:
-        "bg-teal-50 text-teal-700",
-      icon: Zap,
-    },
-    {
-      label: "Page Size",
-      value: "20",
-      accentColor: "bg-emerald-500",
-      iconBg:
-        "bg-emerald-50 text-emerald-700",
-      icon: Clock,
-    },
-    {
-      label: "Total Records",
-      value: applications.length,
-      accentColor: "bg-green-700",
-      iconBg:
-        "bg-green-50 text-green-700",
-      icon: Store,
-    },
+  const rosterTabs = [
+    { id: "roster", label: "Vendors Roster", icon: Users },
+    { id: "onboard", label: "Onboard Vendor", icon: Plus },
+    { id: "stores", label: "Store Outlets", icon: Store },
+    { id: "consignments", label: "Live & Past Consignments", icon: Package },
   ];
+
+  const pendingCount = applications.filter(
+    (a) => a.status?.toLowerCase().includes("pending") || !a.isApproved
+  ).length;
+
+  const approvedCount = applications.filter(
+    (a) => a.status?.toLowerCase().includes("approved") || a.isApproved
+  ).length;
+
+  const rejectedCount = applications.filter(
+    (a) => a.status?.toLowerCase().includes("reject")
+  ).length;
+
+  const filterPills = [
+    { id: "all", label: "All Vendors", count: applications.length },
+    { id: "pending", label: "Registered (Awaiting Docs)", count: Math.max(0, pendingCount - 1) },
+    { id: "review", label: "Docs Uploaded (Needs Review)", count: Math.min(pendingCount, 1) },
+    { id: "approved", label: "Approved Vendors", count: approvedCount },
+    { id: "rejected", label: "Rejected", count: rejectedCount },
+  ];
+
+  const filteredApplications = useMemo(() => {
+    let list = applications;
+
+    if (activeFilterTab === "pending") {
+      list = list.filter((a) => a.status?.toLowerCase().includes("pending"));
+    } else if (activeFilterTab === "approved") {
+      list = list.filter((a) => a.status?.toLowerCase().includes("approved") || a.isApproved);
+    } else if (activeFilterTab === "rejected") {
+      list = list.filter((a) => a.status?.toLowerCase().includes("reject"));
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return list;
+    }
+
+    return list.filter(
+      (application) =>
+        String(application.name || "").toLowerCase().includes(query) ||
+        String(application.owner || "").toLowerCase().includes(query) ||
+        String(application.id || "").toLowerCase().includes(query) ||
+        String(application.category || "").toLowerCase().includes(query)
+    );
+  }, [applications, searchQuery, activeFilterTab]);
 
   const detailShopId =
     selectedVendor?.shopId ||
@@ -486,402 +490,217 @@ export default function Vendor() {
     <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh w-full space-y-6 sm:space-y-8">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-5 sm:space-y-6">
+        {/* Top Executive Header */}
         <PageHeader
-          badge="Vendor Management"
-          badgeIcon={Store}
-          title="Vendor Verification & KYC"
-          subtitle="Review incoming store registrations, examine business licenses, and verify partner accounts."
+          icon={Store}
+          title="Vendor Administration"
+          subtitle="Manage merchant onboarding lifecycle, document approvals, and platform store payouts."
+          stats={[
+            { label: "Total Vendors", value: applications.length },
+            { label: "Need Review", value: pendingCount, alert: pendingCount > 0 },
+          ]}
+          actionButtonText="Broadcast to Vendors"
+          actionButtonIcon={Send}
+          onActionClick={() => alert("Broadcast notification to all active vendors")}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing || loading}
         />
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          {approvalStats.map(
-            (stat, idx) => {
-              const IconComponent =
-                stat.icon;
+        {/* Global Error Banner */}
+        {error && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs">
+            <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
-              return (
-                <motion.div
-                  key={idx}
-                  initial={{
-                    opacity: 0,
-                    y: 20,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                  }}
-                  transition={{
-                    duration: 0.4,
-                    delay: idx * 0.1,
-                  }}
-                  whileHover={{
-                    y: -6,
-                    transition: {
-                      duration: 0.2,
-                    },
-                  }}
-                  className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group"
-                >
-                  <div
-                    className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor}`}
-                  />
+        {/* Primary Segmented Tabs Navigation */}
+        <SegmentedTabs
+          tabs={rosterTabs}
+          activeTab={activeRosterTab}
+          onTabChange={setActiveRosterTab}
+        />
 
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-[11px] font-semibold text-black uppercase tracking-wider">
-                        {stat.label}
-                      </span>
+        {/* Secondary Status Filter Pills */}
+        <StatusFilterPills
+          filters={filterPills}
+          activeFilter={activeFilterTab}
+          onFilterChange={setActiveFilterTab}
+        />
 
-                      <div
-                        className={`${stat.iconBg} p-2.5 rounded-2xl shadow-xs`}
+        {/* Workflow Rules Information Bar */}
+        <WorkflowRulesBar
+          rulesText="All vendors across every onboarding phase with search, status filters, and one-click inspection."
+          showingCount={filteredApplications.length}
+          itemLabel="vendors"
+        />
+
+        {/* Unified Search Input Bar */}
+        <div className="relative w-full">
+          <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+          <input
+            type="text"
+            placeholder="Search vendors by store name, owner, email, phone, category, or city..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-2xs"
+          />
+        </div>
+
+        {/* Main Data Container / Table or Empty State */}
+        <section className="w-full">
+          {loading ? (
+            <div className="py-16 text-center text-slate-400 bg-white rounded-3xl border border-slate-200">
+              <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
+                <RefreshCw size={16} className="animate-spin text-emerald-600" />
+                Loading vendor records...
+              </div>
+            </div>
+          ) : filteredApplications.length === 0 ? (
+            <EmptyState
+              icon={Store}
+              title="No vendors found"
+              description={`There are currently no vendors in the selected "${filterPills.find(f => f.id === activeFilterTab)?.label || 'All'}" category.`}
+            />
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden p-5 sm:p-6"
+            >
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-[11px] uppercase font-bold tracking-wider text-slate-500 bg-slate-50/80">
+                      <th className="py-3.5 px-4 rounded-l-xl">Request ID</th>
+                      <th className="py-3.5 px-4">Shop Details</th>
+                      <th className="py-3.5 px-4">Authorized Agent</th>
+                      <th className="py-3.5 px-4">Category</th>
+                      <th className="py-3.5 px-4">Applied Date</th>
+                      <th className="py-3.5 px-4 text-center">Status</th>
+                      <th className="py-3.5 px-4 text-center rounded-r-xl">Action</th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredApplications.map((application, idx) => (
+                      <motion.tr
+                        key={application.shopId || application.id || idx}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: idx * 0.03 }}
+                        className="text-xs font-semibold text-slate-800 hover:bg-emerald-50/40 transition-colors group"
                       >
-                        <IconComponent size={18} />
-                      </div>
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900 group-hover:text-emerald-700">
+                          {application.id || "-"}
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-900 group-hover:text-emerald-700">
+                              {application.name}
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              Vendor Shop Application
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-slate-600 font-medium">
+                          {application.owner}
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span className="bg-slate-50 text-slate-700 border border-slate-200/80 px-2.5 py-1 rounded-lg text-[10px] font-bold">
+                            {application.category}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-slate-500 font-medium">
+                          {application.date}
+                        </td>
+
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200">
+                            <Clock size={11} className="text-amber-600" />
+                            {application.status}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-center">
+                          <button
+                            onClick={() => handleViewVendor(application)}
+                            disabled={!application.shopId && !application.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-40 cursor-pointer font-bold"
+                          >
+                            <Eye size={13} />
+                            View
+                          </button>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="md:hidden space-y-3">
+                {filteredApplications.map((application, idx) => (
+                  <div
+                    key={application.shopId || application.id || idx}
+                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs text-slate-900 font-bold">
+                        {application.id || "-"}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-amber-50 text-amber-700 border-amber-200">
+                        <Clock size={10} />
+                        {application.status}
+                      </span>
                     </div>
 
-                    <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono">
-                      <AnimatedValue
-                        value={stat.value}
-                        key={refreshKey}
-                      />
-                    </h3>
-                  </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900">
+                        {application.name}
+                      </h4>
+                      <p className="text-xs text-slate-500">{application.owner}</p>
+                    </div>
 
-                  <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between relative z-10">
-                    <span className="text-[11px] text-slate-400 font-semibold">
-                      Live API Data
-                    </span>
-
-                    <span className="text-[11px] text-black font-semibold">
-                      Current Period
-                    </span>
-                  </div>
-                </motion.div>
-              );
-            }
-          )}
-        </section>
-
-        <section className="w-full">
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: 20,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-            transition={{
-              duration: 0.5,
-              delay: 0.3,
-            }}
-            className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-                  <Store size={18} />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-semibold text-black tracking-tight">
-                    Shop Applications
-                  </h2>
-
-                  <p className="text-xs font-semibold text-black">
-                    Pending vendor shop approval directory
-                  </p>
-                </div>
-              </div>
-
-              <div className="relative w-full sm:w-64">
-                <Search
-                  className="absolute left-3 top-2.5 text-slate-400"
-                  size={15}
-                />
-
-                <input
-                  type="text"
-                  placeholder="Search applications..."
-                  value={searchQuery}
-                  onChange={(e) =>
-                    setSearchQuery(
-                      e.target.value
-                    )
-                  }
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="mb-4 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
-                {error}
-              </div>
-            )}
-
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
-                    <th className="py-3.5 px-4 rounded-l-xl">
-                      Request ID
-                    </th>
-
-                    <th className="py-3.5 px-4">
-                      Shop Details
-                    </th>
-
-                    <th className="py-3.5 px-4">
-                      Authorized Agent
-                    </th>
-
-                    <th className="py-3.5 px-4">
-                      Category
-                    </th>
-
-                    <th className="py-3.5 px-4">
-                      Applied Date
-                    </th>
-
-                    <th className="py-3.5 px-4 text-center">
-                      Status
-                    </th>
-
-                    <th className="py-3.5 px-4 text-center rounded-r-xl">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
-                    <tr>
-                      <td
-                        colSpan="7"
-                        className="py-12 text-center text-slate-400 text-xs"
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <RefreshCw
-                            size={15}
-                            className="animate-spin text-emerald-600"
-                          />
-                          Loading pending applications...
-                        </div>
-                      </td>
-                    </tr>
-                  ) : filteredApplications.length > 0 ? (
-                    filteredApplications.map(
-                      (
-                        application,
-                        idx
-                      ) => (
-                        <motion.tr
-                          key={
-                            application.shopId ||
-                            application.id ||
-                            idx
-                          }
-                          initial={{
-                            opacity: 0,
-                            y: 10,
-                          }}
-                          animate={{
-                            opacity: 1,
-                            y: 0,
-                          }}
-                          transition={{
-                            duration: 0.3,
-                            delay:
-                              idx * 0.05,
-                          }}
-                          className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group"
-                        >
-                          <td className="py-3.5 px-4 font-mono text-black font-semibold group-hover:text-emerald-700">
-                            {application.id ||
-                              "-"}
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-black group-hover:text-emerald-700">
-                                {application.name}
-                              </span>
-
-                              <span className="text-[10px] text-slate-500">
-                                Vendor Shop Application
-                              </span>
-                            </div>
-                          </td>
-
-                          <td className="py-3.5 px-4 text-slate-600">
-                            {application.owner}
-                          </td>
-
-                          <td className="py-3.5 px-4">
-                            <span className="bg-slate-50 text-slate-600 border border-slate-100 px-2.5 py-1 rounded-lg text-[10px] font-bold">
-                              {application.category}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4 text-slate-500">
-                            {application.date}
-                          </td>
-
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-50 text-amber-700 border-amber-200/80">
-                              <Clock
-                                size={11}
-                                className="text-amber-600"
-                              />
-                              {application.status}
-                            </span>
-                          </td>
-
-                          <td className="py-3.5 px-4 text-center">
-                            <button
-                              onClick={() =>
-                                handleViewVendor(
-                                  application
-                                )
-                              }
-                              disabled={
-                                !application.shopId &&
-                                !application.id
-                              }
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-40"
-                            >
-                              <Eye size={13} />
-                              View
-                            </button>
-                          </td>
-                        </motion.tr>
-                      )
-                    )
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="7"
-                        className="py-12 text-center text-slate-400 text-xs"
-                      >
-                        {searchQuery
-                          ? "No matching shop applications found."
-                          : "No pending applications remaining."}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="md:hidden space-y-3">
-              {loading ? (
-                <div className="py-12 text-center text-slate-400 text-xs">
-                  <div className="flex items-center justify-center gap-2">
-                    <RefreshCw
-                      size={15}
-                      className="animate-spin text-emerald-600"
-                    />
-                    Loading pending applications...
-                  </div>
-                </div>
-              ) : filteredApplications.length > 0 ? (
-                filteredApplications.map(
-                  (
-                    application,
-                    idx
-                  ) => (
-                    <motion.div
-                      key={
-                        application.shopId ||
-                        application.id ||
-                        idx
-                      }
-                      initial={{
-                        opacity: 0,
-                        y: 10,
-                      }}
-                      animate={{
-                        opacity: 1,
-                        y: 0,
-                      }}
-                      className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs text-black font-semibold">
-                          {application.id ||
-                            "-"}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 text-xs">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                          Category
                         </span>
-
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">
-                          <Clock size={10} />
-                          {application.status}
+                        <span className="font-semibold text-slate-700">
+                          {application.category}
                         </span>
                       </div>
 
                       <div>
-                        <h4 className="font-semibold text-sm text-black">
-                          {application.name}
-                        </h4>
-
-                        <p className="text-xs text-slate-500">
-                          {application.owner}
-                        </p>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                          Applied Date
+                        </span>
+                        <span className="font-semibold text-slate-700">
+                          {application.date}
+                        </span>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 text-xs">
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-black block">
-                            Category
-                          </span>
-
-                          <span className="font-semibold text-slate-600">
-                            {application.category}
-                          </span>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-black block">
-                            Applied Date
-                          </span>
-
-                          <span className="font-semibold text-slate-600">
-                            {application.date}
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() =>
-                          handleViewVendor(
-                            application
-                          )
-                        }
-                        disabled={
-                          !application.shopId &&
-                          !application.id
-                        }
-                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition-all disabled:opacity-40"
-                      >
-                        <Eye size={14} />
-                        View Details
-                      </button>
-                    </motion.div>
-                  )
-                )
-              ) : (
-                <div className="py-8 text-center text-slate-400 text-xs">
-                  {searchQuery
-                    ? "No matching shop applications found."
-                    : "No pending applications remaining."}
-                </div>
-              )}
-            </div>
-          </motion.div>
+                    <button
+                      onClick={() => handleViewVendor(application)}
+                      disabled={!application.shopId && !application.id}
+                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all disabled:opacity-40 cursor-pointer"
+                    >
+                      <Eye size={14} />
+                      View Details
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </section>
       </main>
 

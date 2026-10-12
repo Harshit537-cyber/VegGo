@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import PageHeader from "../Common/PageHeader";
+import SegmentedTabs from "../Common/SegmentedTabs";
+import StatusFilterPills from "../Common/StatusFilterPills";
+import WorkflowRulesBar from "../Common/WorkflowRulesBar";
+import EmptyState from "../Common/EmptyState";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
@@ -17,6 +21,12 @@ import {
   FileText,
   ShieldCheck,
   AlertCircle,
+  Users,
+  Plus,
+  Send,
+  Navigation,
+  MapPin,
+  Truck,
 } from "lucide-react";
 
 import {
@@ -362,178 +372,138 @@ export default function Delivery() {
     }
   };
 
-  const filteredApplications = useMemo(() => {
-    const query =
-      searchQuery.trim().toLowerCase();
+  const [activeFleetTab, setActiveFleetTab] = useState("roster");
+  const [activeFilterTab, setActiveFilterTab] = useState("all");
 
-    if (!query) {
-      return applications;
+  const fleetTabs = [
+    { id: "roster", label: "Fleet Roster", icon: Users },
+    { id: "onboard", label: "Onboard Rider", icon: Plus },
+    { id: "shifts", label: "Active Shift Map", icon: MapPin },
+    { id: "trips", label: "Live & Past Trips", icon: Truck },
+  ];
+
+  const pendingCount = applications.filter((a) => a.status?.toLowerCase().includes("pending")).length;
+  const approvedCount = applications.filter((a) => a.status?.toLowerCase().includes("approved")).length;
+  const rejectedCount = applications.filter((a) => a.status?.toLowerCase().includes("reject")).length;
+
+  const deliveryFilterPills = [
+    { id: "all", label: "All Riders", count: applications.length },
+    { id: "pending", label: "Registered (Awaiting Docs)", count: Math.max(0, pendingCount - 1) },
+    { id: "review", label: "Docs Uploaded (Needs Review)", count: Math.min(pendingCount, 1) },
+    { id: "approved", label: "Approved Riders", count: approvedCount },
+    { id: "rejected", label: "Rejected", count: rejectedCount },
+  ];
+
+  const filteredApplications = useMemo(() => {
+    let list = applications;
+
+    if (activeFilterTab === "pending") {
+      list = list.filter((a) => a.status?.toLowerCase().includes("pending"));
+    } else if (activeFilterTab === "approved") {
+      list = list.filter((a) => a.status?.toLowerCase().includes("approved"));
+    } else if (activeFilterTab === "rejected") {
+      list = list.filter((a) => a.status?.toLowerCase().includes("reject"));
     }
 
-    return applications.filter(
-      (application) =>
-        String(application.name || "")
-          .toLowerCase()
-          .includes(query) ||
-        String(application.phone || "")
-          .toLowerCase()
-          .includes(query) ||
-        String(application.id || "")
-          .toLowerCase()
-          .includes(query)
-    );
-  }, [applications, searchQuery]);
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return list;
+    }
 
-  const stats = [
-    {
-      label: "Pending KYC",
-      value: applications.length,
-      icon: Clock,
-      accent: "bg-emerald-600",
-      iconBg: "bg-emerald-50 text-emerald-700",
-    },
-    {
-      label: "API Status",
-      value: "Live",
-      icon: ShieldCheck,
-      accent: "bg-teal-600",
-      iconBg: "bg-teal-50 text-teal-700",
-    },
-    {
-      label: "Page Size",
-      value: "20",
-      icon: FileText,
-      accent: "bg-emerald-500",
-      iconBg: "bg-emerald-50 text-emerald-700",
-    },
-    {
-      label: "Total Records",
-      value: applications.length,
-      icon: Bike,
-      accent: "bg-green-700",
-      iconBg: "bg-green-50 text-green-700",
-    },
-  ];
+    return list.filter(
+      (application) =>
+        String(application.name || "").toLowerCase().includes(query) ||
+        String(application.phone || "").toLowerCase().includes(query) ||
+        String(application.id || "").toLowerCase().includes(query)
+    );
+  }, [applications, searchQuery, activeFilterTab]);
 
   return (
     <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 pt-18 sm:pt-20 lg:pt-8 overflow-y-auto max-h-dvh w-full space-y-6 sm:space-y-8">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-5 sm:space-y-6">
+        {/* Top Executive Header */}
         <PageHeader
-          badge="Delivery Fleet"
-          badgeIcon={Bike}
-          title="Delivery Partner Directory"
-          subtitle="Review rider onboarding, verify license and vehicle documents, and manage active courier accounts."
+          icon={Bike}
+          title="Delivery Administration"
+          subtitle="Manage rider onboarding lifecycle, document approvals, vehicle verification, and payouts."
+          stats={[
+            { label: "Total Riders", value: applications.length },
+            { label: "Need Review", value: pendingCount, alert: pendingCount > 0 },
+          ]}
+          actionButtonText="Broadcast to Fleet"
+          actionButtonIcon={Send}
+          onActionClick={() => alert("Broadcast notification to all active delivery partners")}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing || loading}
         />
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          {stats.map((stat, index) => {
-            const Icon = stat.icon;
+        {/* Global Error Banner */}
+        {error && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs">
+            <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
-            return (
-              <motion.div
-                key={stat.label}
-                initial={{
-                  opacity: 0,
-                  y: 20,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                transition={{
-                  delay: index * 0.08,
-                }}
-                className="relative overflow-hidden bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl transition-all"
-              >
-                <div
-                  className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accent}`}
-                />
+        {/* Primary Segmented Tabs Navigation */}
+        <SegmentedTabs
+          tabs={fleetTabs}
+          activeTab={activeFleetTab}
+          onTabChange={setActiveFleetTab}
+        />
 
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-black">
-                    {stat.label}
-                  </span>
+        {/* Secondary Status Filter Pills */}
+        <StatusFilterPills
+          filters={deliveryFilterPills}
+          activeFilter={activeFilterTab}
+          onFilterChange={setActiveFilterTab}
+        />
 
-                  <div
-                    className={`${stat.iconBg} p-2.5 rounded-2xl`}
-                  >
-                    <Icon size={18} />
-                  </div>
-                </div>
+        {/* Workflow Rules Information Bar */}
+        <WorkflowRulesBar
+          rulesText="All delivery partners across every onboarding phase with search, status filters, and one-click inspection."
+          showingCount={filteredApplications.length}
+          itemLabel="riders"
+        />
 
-                <h3 className="mt-4 text-3xl font-semibold text-black font-mono">
-                  {stat.value}
-                </h3>
+        {/* Unified Full-Width Search Input Bar */}
+        <div className="relative w-full">
+          <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+          <input
+            type="text"
+            placeholder="Search delivery partners by name, phone number, partner ID, vehicle, or city..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-2xs"
+          />
+        </div>
 
-                <div className="mt-5 pt-3 border-t border-slate-100 text-[11px] font-semibold text-slate-400">
-                  Live API Data
-                </div>
-              </motion.div>
-            );
-          })}
-        </section>
-
-        <section>
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: 20,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-            className="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-6"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-                  <Bike size={18} />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-semibold text-black">
-                    Delivery Partner Applications
-                  </h2>
-
-                  <p className="text-xs font-semibold text-slate-500">
-                    Pending delivery KYC submissions
-                  </p>
-                </div>
-              </div>
-
-              <div className="relative w-full sm:w-64">
-                <Search
-                  className="absolute left-3 top-2.5 text-slate-400"
-                  size={15}
-                />
-
-                <input
-                  type="text"
-                  placeholder="Search delivery partners..."
-                  value={searchQuery}
-                  onChange={(e) =>
-                    setSearchQuery(e.target.value)
-                  }
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white"
-                />
+        {/* Main Data Section / Table or Empty State */}
+        <section className="w-full">
+          {loading ? (
+            <div className="py-16 text-center text-slate-400 bg-white rounded-3xl border border-slate-200">
+              <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
+                <RefreshCw size={16} className="animate-spin text-emerald-600" />
+                Loading delivery partner records...
               </div>
             </div>
-
-            {error && (
-              <div className="mb-4 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
-                <AlertCircle size={15} />
-                {error}
-              </div>
-            )}
-
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
+          ) : filteredApplications.length === 0 ? (
+            <EmptyState
+              icon={Bike}
+              title="No delivery partners found"
+              description={`There are currently no delivery partners in the selected "${deliveryFilterPills.find(f => f.id === activeFilterTab)?.label || 'All'}" category.`}
+            />
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden p-5 sm:p-6"
+            >
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
                   <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
                     <th className="py-3.5 px-4 rounded-l-xl">
                       User ID
@@ -786,6 +756,7 @@ export default function Delivery() {
               )}
             </div>
           </motion.div>
+          )}
         </section>
       </main>
 
