@@ -13,6 +13,35 @@ export const getAdminDashboard = async () => {
   return response.data;
 };
 
+// Helper to safely extract list regardless of Spring Pageable or direct array response
+const extractList = (raw) => {
+  if (!raw) return [];
+  const candidates = [
+    raw?.content,
+    raw?.items,
+    raw?.data?.content,
+    raw?.data?.items,
+    raw?.data?.vendors,
+    raw?.data?.shops,
+    raw?.data?.applications,
+    raw?.data?.products,
+    raw?.data,
+    raw
+  ];
+  for (const c of candidates) {
+    if (Array.isArray(c)) return c;
+  }
+  return [];
+};
+
+const extractTotal = (raw, list) => {
+  if (typeof raw?.totalElements === 'number') return raw.totalElements;
+  if (typeof raw?.data?.totalElements === 'number') return raw.data.totalElements;
+  if (typeof raw?.total === 'number') return raw.total;
+  if (typeof raw?.count === 'number') return raw.count;
+  return list.length;
+};
+
 // 2. Comprehensive Aggregated Metrics for the Executive Dashboard
 export const fetchComprehensiveDashboardData = async () => {
   const results = await Promise.allSettled([
@@ -20,9 +49,9 @@ export const fetchComprehensiveDashboardData = async () => {
     getCustomerStats(),
     getPendingVendorKyc(),
     getPendingDeliveryKyc(),
-    getProducts({ page: 0, size: 5 }),
+    getProducts({ page: 0, size: 20 }),
     getCategories(),
-    getPendingPayouts(0, 5),
+    getPendingPayouts(0, 20),
     getWalletBalance()
   ]);
 
@@ -37,10 +66,14 @@ export const fetchComprehensiveDashboardData = async () => {
     walletRes
   ] = results;
 
-  // Safe parsing helper
-  const getData = (res) => (res.status === 'fulfilled' && res.value?.data ? res.value.data : null);
+  // Safe parsing helper that handles both axios wrappers and direct payloads
+  const getData = (res) => {
+    if (res.status !== 'fulfilled') return null;
+    if (res.value?.data !== undefined) return res.value.data;
+    return res.value;
+  };
 
-  const adminDashboard = getData(adminDashboardRes) || (adminDashboardRes.status === 'fulfilled' ? adminDashboardRes.value : null);
+  const adminDashboard = getData(adminDashboardRes);
   const customerStats = getData(customerStatsRes);
   const vendorKyc = getData(vendorKycRes);
   const deliveryKyc = getData(deliveryKycRes);
@@ -49,36 +82,12 @@ export const fetchComprehensiveDashboardData = async () => {
   const payouts = getData(payoutsRes);
   const wallet = getData(walletRes);
 
-  // Extract arrays safely
-  const vendorList = Array.isArray(vendorKyc?.content)
-    ? vendorKyc.content
-    : Array.isArray(vendorKyc)
-    ? vendorKyc
-    : [];
-
-  const deliveryList = Array.isArray(deliveryKyc?.content)
-    ? deliveryKyc.content
-    : Array.isArray(deliveryKyc)
-    ? deliveryKyc
-    : [];
-
-  const productList = Array.isArray(products?.content)
-    ? products.content
-    : Array.isArray(products)
-    ? products
-    : [];
-
-  const categoryList = Array.isArray(categories)
-    ? categories
-    : Array.isArray(categories?.content)
-    ? categories.content
-    : [];
-
-  const payoutList = Array.isArray(payouts?.content)
-    ? payouts.content
-    : Array.isArray(payouts)
-    ? payouts
-    : [];
+  // Extract arrays robustly
+  const vendorList = extractList(vendorKyc);
+  const deliveryList = extractList(deliveryKyc);
+  const productList = extractList(products);
+  const categoryList = extractList(categories);
+  const payoutList = extractList(payouts);
 
   return {
     // Platform Core
@@ -97,23 +106,23 @@ export const fetchComprehensiveDashboardData = async () => {
     },
     // Pending Approvals & Operations Queue
     pendingVendors: {
-      total: vendorKyc?.totalElements ?? vendorList.length,
-      items: vendorList.slice(0, 5)
+      total: extractTotal(vendorKyc, vendorList),
+      items: vendorList
     },
     pendingDeliveries: {
-      total: deliveryKyc?.totalElements ?? deliveryList.length,
-      items: deliveryList.slice(0, 5)
+      total: extractTotal(deliveryKyc, deliveryList),
+      items: deliveryList
     },
     // Catalog & Produce
     catalog: {
-      totalProducts: products?.totalElements ?? productList.length,
-      recentProducts: productList.slice(0, 5),
-      totalCategories: categoryList.length
+      totalProducts: extractTotal(products, productList),
+      recentProducts: productList,
+      totalCategories: extractTotal(categories, categoryList)
     },
     // Financials
     finances: {
-      pendingPayoutsTotal: payouts?.totalElements ?? payoutList.length,
-      recentPayouts: payoutList.slice(0, 5),
+      pendingPayoutsTotal: extractTotal(payouts, payoutList),
+      recentPayouts: payoutList,
       walletBalance: wallet?.balance ?? wallet?.currentBalance ?? null,
       currency: wallet?.currency || 'INR'
     },

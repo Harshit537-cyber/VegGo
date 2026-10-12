@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from '../../../layouts/Sidebar';
 import PageHeader from '../../../components/common/PageHeader';
 import SegmentedTabs from '../../../components/common/SegmentedTabs';
@@ -677,10 +678,23 @@ export default function Products() {
     }
   };
 
+  const location = useLocation();
+
   useEffect(() => {
     fetchProducts();
     fetchCategoriesList();
   }, []);
+
+  useEffect(() => {
+    if (location.state?.productId && products.length > 0) {
+      const target = products.find(
+        (p) => String(p.id) === String(location.state.productId)
+      );
+      if (target) {
+        openProductPanel(target, true);
+      }
+    }
+  }, [location.state?.productId, products]);
 
   const openAddPanel = async () => {
     setEditingProduct(null);
