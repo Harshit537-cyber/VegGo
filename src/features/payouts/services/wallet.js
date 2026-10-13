@@ -1,35 +1,48 @@
-// Wallet API helpers
-// These are convenience wrappers used by the Wallet.jsx page.
-// The full payment service (paymentService.js) also exports wallet functions;
-// these wrappers exist so Wallet.jsx doesn't need to be restructured.
-//
-// Endpoints: GET /api/payment/wallet/balance
-//            GET /api/payment/wallet/transactions
-
 import apiClient from '../../../api/axiosInstance';
+import { PAYOUT_ENDPOINTS } from '../../../constants/endpoints.constants';
 
 export const getWalletBalance = async () => {
-  const response = await apiClient.get('/api/payment/wallet/balance');
+  const response = await apiClient.get(PAYOUT_ENDPOINTS.WALLET_BALANCE);
   return response.data;
 };
 
 export const getWalletTransactions = async (page = 0, size = 20) => {
   const response = await apiClient.get(
-    `/api/payment/wallet/transactions?page=${page}&size=${size}`
+    PAYOUT_ENDPOINTS.WALLET_TRANSACTIONS,
+    {
+      params: {
+        page,
+        size,
+      },
+    }
   );
   return response.data;
 };
 
 export const getCreditTransactions = async (page = 0, size = 20) => {
   const response = await apiClient.get(
-    `/api/payment/wallet/transactions?type=CREDIT&page=${page}&size=${size}`
+    PAYOUT_ENDPOINTS.WALLET_TRANSACTIONS,
+    {
+      params: {
+        type: 'CREDIT',
+        page,
+        size,
+      },
+    }
   );
   return response.data;
 };
 
 export const getDebitTransactions = async (page = 0, size = 20) => {
   const response = await apiClient.get(
-    `/api/payment/wallet/transactions?type=DEBIT&page=${page}&size=${size}`
+    PAYOUT_ENDPOINTS.WALLET_TRANSACTIONS,
+    {
+      params: {
+        type: 'DEBIT',
+        page,
+        size,
+      },
+    }
   );
   return response.data;
 };

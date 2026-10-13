@@ -1,8 +1,15 @@
 import apiClient from "../../../api/axiosInstance";
+import { VENDOR_ENDPOINTS } from "../../../constants/endpoints.constants";
 
-export const getPendingVendorKyc = async () => {
+export const getPendingVendorKyc = async (page = 0, size = 20) => {
   const response = await apiClient.get(
-    "/api/admin/vendors/kyc/pending?page=0&size=20"
+    VENDOR_ENDPOINTS.KYC_PENDING,
+    {
+      params: {
+        page,
+        size,
+      },
+    }
   );
 
   return response.data;
@@ -10,7 +17,7 @@ export const getPendingVendorKyc = async () => {
 
 export const getVendorKycDetail = async (vendorShopId) => {
   const response = await apiClient.get(
-    `/api/admin/vendors/kyc/${vendorShopId}`
+    VENDOR_ENDPOINTS.KYC_DETAIL(vendorShopId)
   );
 
   return response.data;
@@ -18,7 +25,7 @@ export const getVendorKycDetail = async (vendorShopId) => {
 
 export const approveVendorKyc = async (vendorShopId) => {
   const response = await apiClient.put(
-    `/api/admin/vendors/kyc/${vendorShopId}/approve`
+    VENDOR_ENDPOINTS.KYC_APPROVE(vendorShopId)
   );
 
   return response.data;
@@ -29,7 +36,7 @@ export const rejectVendorKyc = async (
   reason = "Document unclear"
 ) => {
   const response = await apiClient.put(
-    `/api/admin/vendors/kyc/${vendorShopId}/reject`,
+    VENDOR_ENDPOINTS.KYC_REJECT(vendorShopId),
     null,
     {
       params: {

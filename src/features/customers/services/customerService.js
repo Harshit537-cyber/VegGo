@@ -1,8 +1,9 @@
 import apiClient from '../../../api/axiosInstance';
+import { CUSTOMER_ENDPOINTS } from '../../../constants/endpoints.constants';
 
 export const getCustomerStats = async () => {
   const response = await apiClient.get(
-    '/api/admin/customers/stats'
+    CUSTOMER_ENDPOINTS.STATS
   );
 
   return response.data;
@@ -10,7 +11,7 @@ export const getCustomerStats = async () => {
 
 export const getCustomers = async (params = {}) => {
   const response = await apiClient.get(
-    '/api/admin/customers',
+    CUSTOMER_ENDPOINTS.BASE,
     {
       params,
     }
@@ -21,7 +22,7 @@ export const getCustomers = async (params = {}) => {
 
 export const searchCustomers = async (search, params = {}) => {
   const response = await apiClient.get(
-    '/api/admin/customers',
+    CUSTOMER_ENDPOINTS.BASE,
     {
       params: {
         search,
@@ -35,7 +36,7 @@ export const searchCustomers = async (search, params = {}) => {
 
 export const getCustomerDetails = async (customerUserId) => {
   const response = await apiClient.get(
-    `/api/admin/customers/${customerUserId}`
+    CUSTOMER_ENDPOINTS.DETAILS(customerUserId)
   );
 
   return response.data;
@@ -43,7 +44,7 @@ export const getCustomerDetails = async (customerUserId) => {
 
 export const deleteCustomer = async (customerUserId) => {
   const response = await apiClient.delete(
-    `/api/admin/customers/${customerUserId}`
+    CUSTOMER_ENDPOINTS.DELETE(customerUserId)
   );
 
   return response.data;
@@ -51,7 +52,7 @@ export const deleteCustomer = async (customerUserId) => {
 
 export const blockCustomer = async (customerUserId) => {
   const response = await apiClient.put(
-    `/api/admin/customers/${customerUserId}/block`
+    CUSTOMER_ENDPOINTS.BLOCK(customerUserId)
   );
 
   return response.data;
@@ -59,7 +60,7 @@ export const blockCustomer = async (customerUserId) => {
 
 export const unblockCustomer = async (customerUserId) => {
   const response = await apiClient.put(
-    `/api/admin/customers/${customerUserId}/unblock`
+    CUSTOMER_ENDPOINTS.UNBLOCK(customerUserId)
   );
 
   return response.data;
@@ -67,7 +68,7 @@ export const unblockCustomer = async (customerUserId) => {
 
 export const getModerationStats = async () => {
   const response = await apiClient.get(
-    '/api/admin/customers/moderation/stats'
+    CUSTOMER_ENDPOINTS.MODERATION_STATS
   );
 
   return response.data;
@@ -75,7 +76,7 @@ export const getModerationStats = async () => {
 
 export const getModerationCustomers = async (params = {}) => {
   const response = await apiClient.get(
-    '/api/admin/customers/moderation',
+    CUSTOMER_ENDPOINTS.MODERATION_LIST,
     {
       params,
     }
@@ -86,7 +87,7 @@ export const getModerationCustomers = async (params = {}) => {
 
 export const searchModerationCustomers = async (search, params = {}) => {
   const response = await apiClient.get(
-    '/api/admin/customers/moderation',
+    CUSTOMER_ENDPOINTS.MODERATION_LIST,
     {
       params: {
         search,

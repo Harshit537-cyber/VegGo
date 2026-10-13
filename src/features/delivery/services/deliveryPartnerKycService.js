@@ -1,14 +1,16 @@
 import apiClient from "../../../api/axiosInstance";
+import { DELIVERY_ENDPOINTS } from "../../../constants/endpoints.constants";
 
 // Get Pending Delivery Partner KYC
-export const getPendingDeliveryKyc = async (params = {}) => {
+export const getPendingDeliveryKyc = async (page = 0, size = 20) => {
+  const queryParams = typeof page === "object" ? page : { page, size };
   const response = await apiClient.get(
-    "/api/admin/delivery-partners/kyc/pending",
+    DELIVERY_ENDPOINTS.KYC_PENDING,
     {
       params: {
         page: 0,
         size: 20,
-        ...params,
+        ...queryParams,
       },
     }
   );
@@ -21,7 +23,7 @@ export const getDeliveryKycDetails = async (
   deliveryPartnerUserId
 ) => {
   const response = await apiClient.get(
-    `/api/admin/delivery-partners/kyc/${deliveryPartnerUserId}`
+    DELIVERY_ENDPOINTS.KYC_DETAIL(deliveryPartnerUserId)
   );
 
   return response.data;
@@ -32,7 +34,7 @@ export const approveDeliveryKyc = async (
   deliveryPartnerUserId
 ) => {
   const response = await apiClient.put(
-    `/api/admin/delivery-partners/kyc/${deliveryPartnerUserId}/approve`
+    DELIVERY_ENDPOINTS.KYC_APPROVE(deliveryPartnerUserId)
   );
 
   return response.data;
@@ -44,7 +46,7 @@ export const rejectDeliveryKyc = async (
   reason = "License number does not match uploaded document"
 ) => {
   const response = await apiClient.put(
-    `/api/admin/delivery-partners/kyc/${deliveryPartnerUserId}/reject`,
+    DELIVERY_ENDPOINTS.KYC_REJECT(deliveryPartnerUserId),
     null,
     {
       params: {

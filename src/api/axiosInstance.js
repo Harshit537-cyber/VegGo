@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { clearAuthSession, getAuthToken } from '../utils/auth';
+import { API_CONFIG } from '../constants/api.constants';
 
 const getBaseUrl = () => {
   if (
@@ -16,12 +17,12 @@ const getBaseUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
 
-  return 'https://api.veggofresh.in';
+  return API_CONFIG.DEFAULT_BASE_URL;
 };
 
 const api = axios.create({
   baseURL: getBaseUrl(),
-  timeout: 15000,
+  timeout: API_CONFIG.DEFAULT_TIMEOUT,
 });
 
 api.interceptors.request.use(

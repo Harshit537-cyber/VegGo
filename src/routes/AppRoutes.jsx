@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
+import { ROUTES } from '../constants/routes.constants';
 
 // Auth Feature
 const Login = lazy(() => import('../features/auth/pages/Login'));
@@ -8,15 +9,14 @@ const Login = lazy(() => import('../features/auth/pages/Login'));
 // Dashboard Feature
 const Dashboard = lazy(() => import('../features/dashboard/pages/Dashboard'));
 
-// Orders Feature
-const Orders = lazy(() => import('../features/orders/pages/Orders'));
-const OrderMonitoring = lazy(() => import('../features/orders/pages/OrderMonitoring'));
-const OrderStatistics = lazy(() => import('../features/orders/pages/OrderStatistics'));
 
 // Products Feature
 const Products = lazy(() => import('../features/products/pages/Products'));
 const Categories = lazy(() => import('../features/products/pages/Categories'));
 const Subcategories = lazy(() => import('../features/products/pages/Subcategories'));
+
+// Management Feature
+const Management = lazy(() => import('../features/management/pages/Management'));
 
 // Customers Feature
 const Customer = lazy(() => import('../features/customers/pages/Customer'));
@@ -24,30 +24,15 @@ const Customer = lazy(() => import('../features/customers/pages/Customer'));
 // Vendors Feature
 const Vendor = lazy(() => import('../features/vendors/pages/Vendor'));
 const VendorStatistics = lazy(() => import('../features/vendors/pages/VendorStatistics'));
-const VendorReports = lazy(() => import('../features/vendors/pages/VendorReports'));
-
 // Delivery Feature
 const Delivery = lazy(() => import('../features/delivery/pages/Delivery'));
-const DeliveryReports = lazy(() => import('../features/delivery/pages/DeliveryReports'));
 
 // Payouts Feature
 const Payouts = lazy(() => import('../features/payouts/pages/Payouts'));
 const Wallet = lazy(() => import('../features/payouts/pages/Wallet'));
 
-// Revenue Feature
-const RevenueOverview = lazy(() => import('../features/revenue/pages/RevenueOverview'));
-const RevenueReports = lazy(() => import('../features/revenue/pages/RevenueReports'));
-
 // Logistics Feature
 const ColdChain = lazy(() => import('../features/logistics/pages/ColdChain'));
-
-// Analytics Feature
-const MarketMetrics = lazy(() => import('../features/analytics/pages/MarketMetrics'));
-
-// Notifications Feature
-const Notifications = lazy(() => import('../features/notifications/pages/Notifications'));
-const PushNotifications = lazy(() => import('../features/notifications/pages/PushNotifications'));
-const PromotionalNotifications = lazy(() => import('../features/notifications/pages/PromotionalNotifications'));
 
 // Team Feature
 const OperatorRoles = lazy(() => import('../features/team/pages/OperatorRoles'));
@@ -67,45 +52,46 @@ export default function AppRoutes() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path={ROUTES.LOGIN} element={<Login />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/dashboard/revenue" element={<RevenueOverview />} />
-          <Route path="/dashboard/orders" element={<OrderStatistics />} />
-          <Route path="/dashboard/vendors" element={<VendorStatistics />} />
+          <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+          <Route path={ROUTES.DASHBOARD_REVENUE} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.DASHBOARD_ORDERS} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.DASHBOARD_VENDORS} element={<VendorStatistics />} />
 
-          <Route path="/management/customers" element={<Customer />} />
-          <Route path="/management/delivery" element={<Delivery />} />
-          <Route path="/management/vendors" element={<Vendor />} />
+          <Route path={ROUTES.MANAGEMENT} element={<Management defaultTab="vendors" />} />
+          <Route path={ROUTES.CUSTOMERS} element={<Management defaultTab="customers" />} />
+          <Route path={ROUTES.DELIVERY} element={<Management defaultTab="delivery" />} />
+          <Route path={ROUTES.VENDORS} element={<Management defaultTab="vendors" />} />
 
-          <Route path="/payouts/wallet" element={<Wallet />} />
-          <Route path="/payouts/vendors" element={<Payouts />} />
+          <Route path={ROUTES.WALLET} element={<Payouts defaultTab="wallet" />} />
+          <Route path={ROUTES.PAYOUTS} element={<Payouts defaultTab="payouts" />} />
 
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/orders/monitoring" element={<OrderMonitoring />} />
-          <Route path="/dashboard/orders-monitoring" element={<Navigate to="/orders" replace />} />
+          <Route path={ROUTES.ORDERS} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.ORDERS_MONITORING} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path="/dashboard/orders-monitoring" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
 
-          <Route path="/reports/revenue" element={<RevenueReports />} />
-          <Route path="/reports/vendors" element={<VendorReports />} />
-          <Route path="/reports/delivery" element={<DeliveryReports />} />
+          <Route path={ROUTES.REPORTS_REVENUE} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.REPORTS_VENDORS} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.REPORTS_DELIVERY} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
 
-          <Route path="/notifications" element={<Notifications />} />
-          <Route path="/notifications/push" element={<PushNotifications />} />
-          <Route path="/notifications/promotional" element={<PromotionalNotifications />} />
+          <Route path={ROUTES.NOTIFICATIONS} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.NOTIFICATIONS_PUSH} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.NOTIFICATIONS_PROMOTIONAL} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
 
-          <Route path="/products/categories" element={<Categories />} />
-          <Route path="/products/subcategories" element={<Subcategories />} />
-          <Route path="/products/list" element={<Products />} />
+          <Route path={ROUTES.CATEGORIES} element={<Products defaultTab="categories" />} />
+          <Route path={ROUTES.SUBCATEGORIES} element={<Products defaultTab="subcategories" />} />
+          <Route path={ROUTES.PRODUCTS} element={<Products defaultTab="products" />} />
 
-          <Route path="/logistics" element={<ColdChain />} />
-          <Route path="/analytics" element={<MarketMetrics />} />
-          <Route path="/team" element={<OperatorRoles />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path={ROUTES.LOGISTICS} element={<ColdChain />} />
+          <Route path={ROUTES.ANALYTICS} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+          <Route path={ROUTES.TEAM} element={<OperatorRoles />} />
+          <Route path={ROUTES.SETTINGS} element={<Settings />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
       </Routes>
     </Suspense>
   );

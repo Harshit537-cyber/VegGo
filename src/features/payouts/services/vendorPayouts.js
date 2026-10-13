@@ -1,25 +1,31 @@
 import apiClient from "../../../api/axiosInstance";
+import { PAYOUT_ENDPOINTS } from "../../../constants/endpoints.constants";
+
+export const getPayouts = async (status = "ALL", page = 0, size = 20) => {
+  const params = { page, size };
+
+  if (status && status.toUpperCase() !== "ALL") {
+    params.status = status.toUpperCase();
+  }
+
+  const response = await apiClient.get(PAYOUT_ENDPOINTS.PAYOUTS, { params });
+  return response.data;
+};
 
 export const getPendingPayouts = async (page = 0, size = 20) => {
-  const response = await apiClient.get(
-    `/api/v1/admin/payouts?status=PENDING&page=${page}&size=${size}`
-  );
-
-  return response.data;
+  return getPayouts("PENDING", page, size);
 };
 
 export const approvePayout = async (payoutRequestId) => {
   const response = await apiClient.post(
-    `/api/v1/admin/payouts/${payoutRequestId}/approve`
+    PAYOUT_ENDPOINTS.APPROVE(payoutRequestId)
   );
-
   return response.data;
 };
 
 export const rejectPayout = async (payoutRequestId) => {
   const response = await apiClient.post(
-    `/api/v1/admin/payouts/${payoutRequestId}/reject`
+    PAYOUT_ENDPOINTS.REJECT(payoutRequestId)
   );
-
   return response.data;
 };

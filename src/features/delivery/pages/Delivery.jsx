@@ -1,8 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Sidebar from "../../../layouts/Sidebar";
 import PageHeader from "../../../components/common/PageHeader";
-import SegmentedTabs from "../../../components/common/SegmentedTabs";
-import StatusFilterPills from "../../../components/common/StatusFilterPills";
 import WorkflowRulesBar from "../../../components/common/WorkflowRulesBar";
 import EmptyState from "../../../components/common/EmptyState";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,12 +19,14 @@ import {
   FileText,
   ShieldCheck,
   AlertCircle,
-  Users,
-  Plus,
-  Send,
-  Navigation,
   MapPin,
-  Truck,
+  Landmark,
+  Check,
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  FileCheck,
+  AlertTriangle
 } from "lucide-react";
 
 import {
@@ -36,33 +36,10 @@ import {
   rejectDeliveryKyc,
 } from "../services/deliveryPartnerKycService";
 
-const getValue = (obj, keys, fallback = "-") => {
-  for (const key of keys) {
-    const value = key
-      .split(".")
-      .reduce((acc, part) => acc?.[part], obj);
-
-    if (
-      value !== undefined &&
-      value !== null &&
-      value !== ""
-    ) {
-      return value;
-    }
-  }
-
-  return fallback;
-};
-
 const formatDate = (value) => {
   if (!value) return "-";
-
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
+  if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -70,995 +47,979 @@ const formatDate = (value) => {
   });
 };
 
-const extractList = (response) => {
-  const possibleLists = [
-    response?.data?.content,
-    response?.data?.items,
-    response?.data?.deliveryPartners,
-    response?.data?.applications,
-    response?.content,
-    response?.items,
-    response?.deliveryPartners,
-    response?.applications,
-  ];
+const normalizeDeliveryPartner = (item) => ({
+  ...item,
+  userId: item?.userId || item?.deliveryPartnerUserId || item?.deliveryUserId || item?.id || "",
+  fullName: item?.fullName || item?.name || "-",
+  phone: item?.phone || "-",
+  vehicleType: item?.vehicleType || "-",
+  vehicleModel: item?.vehicleModel || "-",
+  plateNumber: item?.plateNumber || "-",
+  licenseNumber: item?.licenseNumber || "-",
+  cityOfOperation: item?.cityOfOperation || "-",
+  manufactureYear: item?.manufactureYear || null,
+  emergencyContact: item?.emergencyContact || {},
+  bank: item?.bank || null,
+  onboardingStep: item?.onboardingStep ?? null,
+  basicInfoCompleted: Boolean(item?.basicInfoCompleted),
+  submittedAt: item?.submittedAt || null,
+  registeredAt: item?.registeredAt || null,
+  lastUpdatedAt: item?.lastUpdatedAt || null,
+  date: formatDate(item?.submittedAt || item?.registeredAt),
+  documents: Array.isArray(item?.documents) ? item.documents : [],
+  allDocumentsUploaded: Boolean(item?.allDocumentsUploaded),
+  missingDocuments: Array.isArray(item?.missingDocuments) ? item.missingDocuments : [],
+  status: item?.kycStatus === "PENDING" ? "Pending" : item?.kycStatus || "Pending",
+});
 
-  for (const list of possibleLists) {
-    if (Array.isArray(list)) {
-      return list;
-    }
-  }
-
-  return [];
-};
-
-const normalizeDeliveryPartner = (item) => {
-  const userId = getValue(
-    item,
-    [
-      "deliveryPartnerUserId",
-      "userId",
-      "deliveryUserId",
-      "id",
-      "deliveryPartnerId",
-    ],
-    ""
-  );
-
-  const name = getValue(item, [
-    "name",
-    "fullName",
-    "deliveryPartnerName",
-    "userName",
-    "username",
-  ]);
-
-  const phone = getValue(item, [
-    "phone",
-    "phoneNumber",
-    "mobile",
-    "mobileNumber",
-    "user.phone",
-  ]);
-
-  const status = getValue(
-    item,
-    [
-      "status",
-      "kycStatus",
-      "applicationStatus",
-    ],
-    "PENDING"
-  );
-
-  const submittedAt = getValue(
-    item,
-    [
-      "submittedAt",
-      "createdAt",
-      "appliedAt",
-      "applicationDate",
-      "date",
-    ],
-    null
-  );
-
-  return {
-    ...item,
-    id: String(userId),
-    deliveryPartnerUserId: userId,
-    name,
-    phone,
-    status:
-      String(status).toUpperCase() === "PENDING"
-        ? "Pending"
-        : status,
-    date: formatDate(submittedAt),
-  };
-};
-
-export default function Delivery() {
-  const [currentTab, setCurrentTab] = useState("delivery");
-
-  const [applications, setApplications] = useState([]);
+export default function Delivery({ embedded = false }) {
   const [searchQuery, setSearchQuery] = useState("");
-
-  const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [selectedPartner, setSelectedPartner] =
-    useState(null);
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 20;
 
-  const [details, setDetails] = useState(null);
-  const [detailsLoading, setDetailsLoading] =
-    useState(false);
+  // Detail Modal State
+  const [selectedPartner, setSelectedPartner] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
 
-  const [actionLoading, setActionLoading] =
-    useState(false);
-
+  // Action States
+  const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectBox, setShowRejectBox] = useState(false);
 
-  const [showRejectModal, setShowRejectModal] =
-    useState(false);
-
-  const [rejectReason, setRejectReason] = useState(
-    "License number does not match uploaded document"
-  );
-
-  const fetchPendingDeliveryKyc = async () => {
+  const fetchPendingDeliveryKyc = useCallback(async (page = 0) => {
     try {
       setLoading(true);
       setError("");
 
-      const response =
-        await getPendingDeliveryKyc({
-          page: 0,
-          size: 20,
-        });
+      const response = await getPendingDeliveryKyc(page, pageSize);
+      const content =
+        response?.data?.content ||
+        response?.data?.items ||
+        response?.content ||
+        response?.data ||
+        [];
 
-      const list = extractList(response);
-
-      const normalized = list.map(
-        normalizeDeliveryPartner
+      // Enrich every pending rider using /api/admin/delivery-partners/kyc/:deliveryUserId to get the complete dossier
+      const fullPartners = await Promise.all(
+        content.map(async (p) => {
+          const uid = p?.userId || p?.deliveryPartnerUserId || p?.deliveryUserId || p?.id;
+          if (!uid) return normalizeDeliveryPartner(p);
+          try {
+            const detailRes = await getDeliveryKycDetails(uid);
+            const detail = detailRes?.data || detailRes || {};
+            return normalizeDeliveryPartner({ ...p, ...detail });
+          } catch {
+            return normalizeDeliveryPartner(p);
+          }
+        })
       );
 
-      setApplications(normalized);
+      setApplications(fullPartners);
+      setTotalPages(response?.data?.totalPages || response?.totalPages || 1);
+      setTotalElements(response?.data?.totalElements ?? response?.totalElements ?? fullPartners.length);
+      setCurrentPage(page);
     } catch (err) {
-      console.error(
-        "Delivery KYC Pending List Error:",
-        err
-      );
-
+      console.error("Delivery KYC Pending List Error:", err);
       setError(
         err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          "Unable to load pending delivery KYC applications."
+        err?.response?.data?.error ||
+        "Unable to load pending delivery partner verification requests."
       );
-
       setApplications([]);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchPendingDeliveryKyc();
-  }, []);
+    fetchPendingDeliveryKyc(0);
+  }, [fetchPendingDeliveryKyc]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchPendingDeliveryKyc();
+    await fetchPendingDeliveryKyc(currentPage);
   };
 
-  const handleViewDetails = async (partner) => {
-    const userId =
-      partner.deliveryPartnerUserId ||
-      partner.id;
-
+  const handleViewPartner = async (partner) => {
+    const userId = partner?.userId;
     if (!userId) {
-      setActionError(
-        "Delivery partner user ID is missing."
-      );
+      setActionError("Delivery partner User ID is missing.");
       return;
     }
 
     try {
-      setSelectedPartner(partner);
-      setDetails(null);
+      setDetailLoading(true);
       setActionError("");
-      setDetailsLoading(true);
+      setShowDetail(true);
+      setSelectedPartner(partner);
+      setShowRejectBox(false);
+      setRejectReason("");
 
-      const response =
-        await getDeliveryKycDetails(userId);
+      const response = await getDeliveryKycDetails(userId);
+      const detail = response?.data || response || {};
 
-      setDetails(
-        response?.data ||
-          response?.data?.data ||
-          response
+      setSelectedPartner(
+        normalizeDeliveryPartner({
+          ...partner,
+          ...detail,
+        })
       );
     } catch (err) {
-      console.error(
-        "Delivery KYC Details Error:",
-        err
-      );
-
+      console.error("Delivery KYC Detail Error:", err);
+      setSelectedPartner(partner);
       setActionError(
         err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          "Unable to load delivery KYC details."
+        err?.response?.data?.error ||
+        "Unable to load full delivery partner KYC details."
       );
     } finally {
-      setDetailsLoading(false);
+      setDetailLoading(false);
     }
   };
 
-  const handleApprove = async (partner) => {
-    const userId =
-      partner.deliveryPartnerUserId ||
-      partner.id;
-
+  const handleApprove = async () => {
+    const userId = selectedPartner?.userId;
     if (!userId) {
-      setActionError(
-        "Delivery partner user ID is missing."
-      );
+      setActionError("Delivery Partner User ID is missing.");
       return;
     }
 
     try {
       setActionLoading(true);
       setActionError("");
-
       await approveDeliveryKyc(userId);
-
+      setShowDetail(false);
       setSelectedPartner(null);
-      setDetails(null);
-
-      await fetchPendingDeliveryKyc();
+      await fetchPendingDeliveryKyc(currentPage);
     } catch (err) {
-      console.error(
-        "Delivery KYC Approve Error:",
-        err
-      );
-
+      console.error("Delivery KYC Approve Error:", err);
       setActionError(
         err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          "Unable to approve delivery KYC."
+        err?.response?.data?.error ||
+        "Unable to approve delivery partner."
       );
     } finally {
       setActionLoading(false);
     }
-  };
-
-  const openRejectModal = (partner) => {
-    setSelectedPartner(partner);
-    setActionError("");
-    setRejectReason(
-      "License number does not match uploaded document"
-    );
-    setShowRejectModal(true);
   };
 
   const handleReject = async () => {
-    if (!selectedPartner) return;
-
-    const userId =
-      selectedPartner.deliveryPartnerUserId ||
-      selectedPartner.id;
-
+    const userId = selectedPartner?.userId;
     if (!userId) {
-      setActionError(
-        "Delivery partner user ID is missing."
-      );
+      setActionError("Delivery Partner User ID is missing.");
       return;
     }
 
-    if (!rejectReason.trim()) {
-      setActionError(
-        "Please enter a rejection reason."
-      );
-      return;
-    }
+    const reason = rejectReason.trim() || "Documents unclear or verification failed";
 
     try {
       setActionLoading(true);
       setActionError("");
-
-      await rejectDeliveryKyc(
-        userId,
-        rejectReason.trim()
-      );
-
-      setShowRejectModal(false);
+      await rejectDeliveryKyc(userId, reason);
+      setShowDetail(false);
       setSelectedPartner(null);
-      setDetails(null);
-
-      await fetchPendingDeliveryKyc();
+      setRejectReason("");
+      setShowRejectBox(false);
+      await fetchPendingDeliveryKyc(currentPage);
     } catch (err) {
-      console.error(
-        "Delivery KYC Reject Error:",
-        err
-      );
-
+      console.error("Delivery KYC Reject Error:", err);
       setActionError(
         err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          "Unable to reject delivery KYC."
+        err?.response?.data?.error ||
+        "Unable to reject delivery partner application."
       );
     } finally {
       setActionLoading(false);
     }
   };
 
-  const [activeFleetTab, setActiveFleetTab] = useState("roster");
-  const [activeFilterTab, setActiveFilterTab] = useState("all");
-
-  const fleetTabs = [
-    { id: "roster", label: "Fleet Roster", icon: Users },
-    { id: "onboard", label: "Onboard Rider", icon: Plus },
-    { id: "shifts", label: "Active Shift Map", icon: MapPin },
-    { id: "trips", label: "Live & Past Trips", icon: Truck },
-  ];
-
-  const pendingCount = applications.filter((a) => a.status?.toLowerCase().includes("pending")).length;
-  const approvedCount = applications.filter((a) => a.status?.toLowerCase().includes("approved")).length;
-  const rejectedCount = applications.filter((a) => a.status?.toLowerCase().includes("reject")).length;
-
-  const deliveryFilterPills = [
-    { id: "all", label: "All Riders", count: applications.length },
-    { id: "pending", label: "Registered (Awaiting Docs)", count: Math.max(0, pendingCount - 1) },
-    { id: "review", label: "Docs Uploaded (Needs Review)", count: Math.min(pendingCount, 1) },
-    { id: "approved", label: "Approved Riders", count: approvedCount },
-    { id: "rejected", label: "Rejected", count: rejectedCount },
-  ];
-
   const filteredApplications = useMemo(() => {
-    let list = applications;
-
-    if (activeFilterTab === "pending") {
-      list = list.filter((a) => a.status?.toLowerCase().includes("pending"));
-    } else if (activeFilterTab === "approved") {
-      list = list.filter((a) => a.status?.toLowerCase().includes("approved"));
-    } else if (activeFilterTab === "rejected") {
-      list = list.filter((a) => a.status?.toLowerCase().includes("reject"));
-    }
-
     const query = searchQuery.trim().toLowerCase();
-    if (!query) {
-      return list;
-    }
+    if (!query) return applications;
 
-    return list.filter(
-      (application) =>
-        String(application.name || "").toLowerCase().includes(query) ||
-        String(application.phone || "").toLowerCase().includes(query) ||
-        String(application.id || "").toLowerCase().includes(query)
+    return applications.filter(
+      (app) =>
+        String(app.fullName || "").toLowerCase().includes(query) ||
+        String(app.phone || "").toLowerCase().includes(query) ||
+        String(app.cityOfOperation || "").toLowerCase().includes(query) ||
+        String(app.vehicleType || "").toLowerCase().includes(query) ||
+        String(app.vehicleModel || "").toLowerCase().includes(query) ||
+        String(app.plateNumber || "").toLowerCase().includes(query) ||
+        String(app.licenseNumber || "").toLowerCase().includes(query)
     );
-  }, [applications, searchQuery, activeFilterTab]);
+  }, [applications, searchQuery]);
+
+  const partnerDocuments = useMemo(() => {
+    if (!selectedPartner) return [];
+    const list = Array.isArray(selectedPartner.documents) ? selectedPartner.documents : [];
+    return list.filter((doc) => {
+      const rawUrl = doc?.fileUrl || doc?.documentUrl || doc?.url || "";
+      const cleaned = rawUrl.replace(/^\[?([^\]]+)\]?\(?([^)]*)\)?$/, "$1").replace(/[\[\]]/g, "").trim();
+      return Boolean(doc.uploaded && cleaned);
+    });
+  }, [selectedPartner]);
 
   return (
-    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
-      <Sidebar />
+    <div className={embedded ? "w-full space-y-5 sm:space-y-6" : "min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900"}>
+      {!embedded && <Sidebar />}
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-5 sm:space-y-6">
-        {/* Top Executive Header */}
+      <div className={embedded ? "w-full space-y-5 sm:space-y-6" : "flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-5 sm:space-y-6"}>
+        {/* Top Header */}
         <PageHeader
           icon={Bike}
-          title="Delivery Administration"
-          subtitle="Manage rider onboarding lifecycle, document approvals, vehicle verification, and payouts."
+          title="Delivery Partner Verification"
+          subtitle="Verify delivery partners, vehicle details, and KYC applications."
           stats={[
-            { label: "Total Riders", value: applications.length },
-            { label: "Need Review", value: pendingCount, alert: pendingCount > 0 },
+            { label: "Pending KYC", value: totalElements },
+            { label: "On This Page", value: applications.length },
           ]}
-          actionButtonText="Broadcast to Fleet"
-          actionButtonIcon={Send}
-          onActionClick={() => alert("Broadcast notification to all active delivery partners")}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing || loading}
         />
 
-        {/* Multi-Color Executive KPI Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-2xs relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Fleet Partners</span>
-              <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
-                <Bike size={17} />
-              </div>
-            </div>
-            <div className="text-2xl font-black text-slate-900 font-mono">{applications.length}</div>
-            <span className="text-[11px] font-semibold text-emerald-700">Enrolled Delivery Fleet</span>
-          </div>
-
-          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-2xs relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Pending KYC</span>
-              <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
-                <Clock size={17} />
-              </div>
-            </div>
-            <div className="text-2xl font-black text-amber-700 font-mono">{pendingCount}</div>
-            <span className="text-[11px] font-semibold text-amber-700">Licence & RC Verifications</span>
-          </div>
-
-          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-2xs relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-sky-500 to-blue-500" />
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">On-Duty Telemetry</span>
-              <div className="p-2 rounded-xl bg-sky-50 text-sky-700">
-                <Navigation size={17} />
-              </div>
-            </div>
-            <div className="text-2xl font-black text-sky-700 font-mono">{approvedCount}</div>
-            <span className="text-[11px] font-semibold text-sky-700">Active Live Dispatchers</span>
-          </div>
-
-          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-2xs relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-violet-500" />
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Safety & Coverage</span>
-              <div className="p-2 rounded-xl bg-indigo-50 text-indigo-700">
-                <ShieldCheck size={17} />
-              </div>
-            </div>
-            <div className="text-2xl font-black text-indigo-700 font-mono">100%</div>
-            <span className="text-[11px] font-semibold text-indigo-700">Insurance & Gear Checked</span>
-          </div>
-        </div>
-
         {/* Global Error Banner */}
         {error && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs">
-            <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center gap-3 text-xs sm:text-sm font-semibold text-rose-800 shadow-2xs">
+            <AlertCircle size={18} className="shrink-0 text-rose-600" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Primary Segmented Tabs Navigation */}
-        <SegmentedTabs
-          tabs={fleetTabs}
-          activeTab={activeFleetTab}
-          onTabChange={setActiveFleetTab}
-        />
-
-        {/* Secondary Status Filter Pills */}
-        <StatusFilterPills
-          filters={deliveryFilterPills}
-          activeFilter={activeFilterTab}
-          onFilterChange={setActiveFilterTab}
-        />
-
         {/* Workflow Rules Information Bar */}
         <WorkflowRulesBar
-          rulesText="All delivery partners across every onboarding phase with search, status filters, and one-click inspection."
+          rulesText="Review rider identity, driving license, vehicle registration, and settlement details before approving."
           showingCount={filteredApplications.length}
-          itemLabel="riders"
+          itemLabel="delivery partners"
         />
 
-        {/* Unified Full-Width Search Input Bar */}
+        {/* Search Bar */}
         <div className="relative w-full">
           <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
           <input
             type="text"
-            placeholder="Search delivery partners by name, phone number, partner ID, vehicle, or city..."
+            placeholder="Search riders by name, phone, city of operation, vehicle model, plate or license number..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-2xs"
           />
         </div>
 
-        {/* Main Data Section / Table or Empty State */}
+        {/* Main Content: Table on Desktop, Cards on Mobile/Tablet */}
         <section className="w-full">
           {loading ? (
-            <div className="py-16 text-center text-slate-400 bg-white rounded-3xl border border-slate-200">
-              <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
-                <RefreshCw size={16} className="animate-spin text-emerald-600" />
-                Loading delivery partner records...
+            <div className="py-20 text-center text-slate-400 bg-white rounded-3xl border border-slate-200/80">
+              <div className="flex flex-col items-center justify-center gap-3 text-xs font-semibold text-slate-500">
+                <RefreshCw size={24} className="animate-spin text-emerald-600" />
+                Loading pending delivery partner applications...
               </div>
             </div>
           ) : filteredApplications.length === 0 ? (
             <EmptyState
               icon={Bike}
-              title="No delivery partners found"
-              description={`There are currently no delivery partners in the selected "${deliveryFilterPills.find(f => f.id === activeFilterTab)?.label || 'All'}" category.`}
+              title="No pending delivery partner applications"
+              description={
+                searchQuery
+                  ? `No riders matched "${searchQuery}". Try a different keyword.`
+                  : "All delivery partner KYC verification requests have been processed."
+              }
             />
           ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden p-5 sm:p-6"
-            >
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
+              {/* Desktop Table View */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left border-collapse">
+                <table className="w-full min-w-[900px] text-left border-collapse">
                   <thead>
-                  <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-black bg-slate-50/80">
-                    <th className="py-3.5 px-4 rounded-l-xl">
-                      User ID
-                    </th>
-
-                    <th className="py-3.5 px-4">
-                      Delivery Partner
-                    </th>
-
-                    <th className="py-3.5 px-4">
-                      Phone
-                    </th>
-
-                    <th className="py-3.5 px-4">
-                      Applied Date
-                    </th>
-
-                    <th className="py-3.5 px-4">
-                      Status
-                    </th>
-
-                    <th className="py-3.5 px-4 text-center rounded-r-xl">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-100">
-                  {loading ? (
-                    <tr>
-                      <td
-                        colSpan="6"
-                        className="py-12 text-center text-slate-400 text-xs"
-                      >
-                        <div className="flex items-center justify-center gap-2">
-                          <RefreshCw
-                            size={15}
-                            className="animate-spin text-emerald-600"
-                          />
-                          Loading delivery KYC...
-                        </div>
-                      </td>
+                    <tr className="border-b border-slate-100 text-[11px] uppercase font-bold tracking-wider text-slate-500 bg-slate-50/60">
+                      <th className="py-3.5 px-5">Rider / Delivery Partner</th>
+                      <th className="py-3.5 px-5">Vehicle & Credentials</th>
+                      <th className="py-3.5 px-5">Operating City</th>
+                      <th className="py-3.5 px-5">Bank Account</th>
+                      <th className="py-3.5 px-5">Documents</th>
+                      <th className="py-3.5 px-5">Applied Date</th>
+                      <th className="py-3.5 px-5 text-center">Status</th>
+                      <th className="py-3.5 px-5 text-right">Actions</th>
                     </tr>
-                  ) : filteredApplications.length > 0 ? (
-                    filteredApplications.map(
-                      (application, index) => (
-                        <motion.tr
-                          key={
-                            application.deliveryPartnerUserId ||
-                            application.id ||
-                            index
-                          }
-                          initial={{
-                            opacity: 0,
-                            y: 10,
-                          }}
-                          animate={{
-                            opacity: 1,
-                            y: 0,
-                          }}
-                          className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors"
-                        >
-                          <td className="py-4 px-4 font-mono">
-                            {application.id}
-                          </td>
+                  </thead>
 
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                                <User size={16} />
-                              </div>
-
-                              <div>
-                                <p className="font-semibold">
-                                  {application.name}
-                                </p>
-
-                                <p className="text-[10px] text-slate-400">
-                                  Delivery Partner
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="py-4 px-4 text-slate-600">
-                            {application.phone}
-                          </td>
-
-                          <td className="py-4 px-4 text-slate-500">
-                            {application.date}
-                          </td>
-
-                          <td className="py-4 px-4">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">
-                              <Clock size={11} />
-                              {application.status}
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredApplications.map((app, idx) => (
+                      <motion.tr
+                        key={app.userId || idx}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.15, delay: idx * 0.02 }}
+                        className="text-xs font-semibold text-slate-800 hover:bg-emerald-50/40 transition-colors group"
+                      >
+                        {/* 1. Rider Name with Phone Number */}
+                        <td className="py-4 px-5">
+                          <div className="space-y-1">
+                            <span className="font-bold text-slate-900 block text-xs sm:text-sm">
+                              {app.fullName || "-"}
                             </span>
-                          </td>
+                            {app.phone && app.phone !== "-" && (
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+                                <Phone size={11} className="text-emerald-600 shrink-0" />
+                                <span>{app.phone}</span>
+                              </div>
+                            )}
+                          </div>hi
+                        </td>
 
-                          <td className="py-4 px-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() =>
-                                  handleViewDetails(
-                                    application
-                                  )
-                                }
-                                className="p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                title="View Details"
-                              >
-                                <Eye size={15} />
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  handleApprove(
-                                    application
-                                  )
-                                }
-                                disabled={
-                                  actionLoading
-                                }
-                                className="p-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
-                                title="Approve"
-                              >
-                                <CheckCircle2
-                                  size={15}
-                                />
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  openRejectModal(
-                                    application
-                                  )
-                                }
-                                disabled={
-                                  actionLoading
-                                }
-                                className="p-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 disabled:opacity-50"
-                                title="Reject"
-                              >
-                                <XCircle size={15} />
-                              </button>
+                        {/* 2. Vehicle & Credentials */}
+                        <td className="py-4 px-5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                              <Bike size={16} />
                             </div>
-                          </td>
-                        </motion.tr>
-                      )
-                    )
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="6"
-                        className="py-12 text-center text-slate-400 text-xs"
-                      >
-                        {searchQuery
-                          ? "No matching delivery partners found."
-                          : "No pending delivery KYC applications."}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                            <div className="min-w-0">
+                              <span className="font-bold text-slate-900 block truncate">
+                                {app.vehicleType} • {app.vehicleModel}
+                              </span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                  {app.plateNumber}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
 
-            <div className="md:hidden space-y-3">
-              {loading ? (
-                <div className="py-12 text-center text-slate-400 text-xs">
-                  <RefreshCw
-                    size={15}
-                    className="animate-spin mx-auto mb-2 text-emerald-600"
-                  />
-                  Loading delivery KYC...
-                </div>
-              ) : filteredApplications.length > 0 ? (
-                filteredApplications.map(
-                  (application, index) => (
-                    <div
-                      key={
-                        application.deliveryPartnerUserId ||
-                        application.id ||
-                        index
-                      }
-                      className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 space-y-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-semibold">
-                          {application.id}
-                        </span>
+                        {/* 3. Operating City */}
+                        <td className="py-4 px-5">
+                          <div className="flex items-center gap-1.5 text-slate-800 font-bold">
+                            <MapPin size={12} className="text-orange-600 shrink-0" />
+                            <span>{app.cityOfOperation || "-"}</span>
+                          </div>
+                        </td>
 
-                        <span className="px-2.5 py-1 rounded-full text-[10px] bg-amber-50 text-amber-700 border border-amber-200">
-                          {application.status}
-                        </span>
-                      </div>
+                        {/* 4. Bank Account */}
+                        <td className="py-4 px-5">
+                          {app.bank?.bankName ? (
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
+                                <Landmark size={12} className="text-emerald-600 shrink-0" />
+                                <span>{app.bank.bankName}</span>
+                              </div>
+                              <span className="text-[11px] text-slate-500 font-mono block">
+                                ••••{app.bank.accountNumber?.slice(-4) || "----"}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 font-normal">-</span>
+                          )}
+                        </td>
 
+                        {/* 5. Documents */}
+                        <td className="py-4 px-5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${app.allDocumentsUploaded ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                              <FileCheck size={11} />
+                              {app.documents?.filter((d) => d.uploaded)?.length || 0} / {app.documents?.length || 0} Docs
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 6. Applied Date */}
+                        <td className="py-4 px-5 text-slate-500 font-normal">
+                          {app.date || "-"}
+                        </td>
+
+                        {/* 7. Status */}
+                        <td className="py-4 px-5 text-center">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                            <Clock size={11} className="text-amber-600" />
+                            {app.status}
+                          </span>
+                        </td>
+
+                        {/* 8. Actions */}
+                        <td className="py-4 px-5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleViewPartner(app)}
+                            disabled={!app.userId}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-40 cursor-pointer font-bold text-xs"
+                          >
+                            <Eye size={13} />
+                            Inspect KYC
+                          </button>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile / Tablet Card View */}
+              <div className="md:hidden p-4 space-y-3">
+                {filteredApplications.map((app, idx) => (
+                  <div
+                    key={app.userId || idx}
+                    className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/40 hover:bg-white hover:shadow-xs transition-all space-y-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h4 className="font-semibold text-sm">
-                          {application.name}
-                        </h4>
-
-                        <p className="text-xs text-slate-500">
-                          {application.phone}
-                        </p>
+                        <h4 className="font-bold text-slate-900 text-sm">{app.fullName || "-"}</h4>
+                        {app.phone && (
+                          <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium mt-0.5">
+                            <Phone size={11} className="text-emerald-600 shrink-0" />
+                            <span>{app.phone}</span>
+                          </div>
+                        )}
                       </div>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        <Clock size={10} />
+                        {app.status}
+                      </span>
+                    </div>
 
-                      <div className="flex gap-2 pt-2 border-t border-slate-200">
-                        <button
-                          onClick={() =>
-                            handleViewDetails(
-                              application
-                            )
-                          }
-                          className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1"
-                        >
-                          <Eye size={14} />
-                          View
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleApprove(
-                              application
-                            )
-                          }
-                          className="flex-1 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-semibold flex items-center justify-center gap-1"
-                        >
-                          <CheckCircle2 size={14} />
-                          Approve
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            openRejectModal(
-                              application
-                            )
-                          }
-                          className="flex-1 py-2 rounded-xl bg-rose-50 text-rose-700 text-xs font-semibold flex items-center justify-center gap-1"
-                        >
-                          <XCircle size={14} />
-                          Reject
-                        </button>
+                    <div className="p-2.5 rounded-xl bg-white border border-slate-200/60 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold">Vehicle</span>
+                        <span className="font-bold text-slate-800">{app.vehicleType} • {app.vehicleModel}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold">Plate / City</span>
+                        <span className="font-mono text-[11px] font-bold text-slate-700">{app.plateNumber} • {app.cityOfOperation}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400 text-[10px] uppercase font-bold">Documents</span>
+                        <span className="font-bold text-emerald-700">{app.documents?.filter((d) => d.uploaded)?.length || 0} / {app.documents?.length || 0} Uploaded</span>
                       </div>
                     </div>
-                  )
-                )
-              ) : (
-                <div className="py-10 text-center text-xs text-slate-400">
-                  No pending delivery KYC applications.
+
+                    <div className="flex items-center justify-between pt-1 text-[11px]">
+                      <span className="text-slate-400 font-medium">Applied {app.date}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleViewPartner(app)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-2xs hover:bg-emerald-700 transition-colors"
+                      >
+                        <Eye size={12} />
+                        Inspect KYC
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Table Footer with Pagination */}
+              {totalPages > 1 && (
+                <div className="p-4 border-t border-slate-100 bg-slate-50/40 flex items-center justify-between text-xs font-semibold text-slate-600">
+                  <span>
+                    Page {currentPage + 1} of {totalPages} ({totalElements} total riders)
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={currentPage === 0 || loading}
+                      onClick={() => fetchPendingDeliveryKyc(currentPage - 1)}
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages - 1 || loading}
+                      onClick={() => fetchPendingDeliveryKyc(currentPage + 1)}
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-          </motion.div>
           )}
         </section>
-      </main>
+      </div>
 
+      {/* KYC Inspection & Full Dossier Modal */}
       <AnimatePresence>
-        {selectedPartner &&
-          !showRejectModal && (
+        {showDetail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-xs">
             <motion.div
-              initial={{
-                opacity: 0,
-              }}
-              animate={{
-                opacity: 1,
-              }}
-              exit={{
-                opacity: 0,
-              }}
-              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
-              onClick={() => {
-                setSelectedPartner(null);
-                setDetails(null);
-                setActionError("");
-              }}
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200"
             >
-              <motion.div
-                initial={{
-                  opacity: 0,
-                  scale: 0.95,
-                  y: 20,
-                }}
-                animate={{
-                  opacity: 1,
-                  scale: 1,
-                  y: 0,
-                }}
-                exit={{
-                  opacity: 0,
-                  scale: 0.95,
-                }}
-                onClick={(e) =>
-                  e.stopPropagation()
-                }
-                className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden"
-              >
-                <div className="p-5 bg-white text-slate-900 border-b border-slate-100 flex items-center justify-between relative">
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
+              {/* Modal Header */}
+              <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-50/40 via-teal-50/30 to-white">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-sm">
+                    <Bike size={20} />
+                  </div>
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900">
-                      Delivery KYC Details
-                    </h2>
-
-                    <p className="text-xs text-slate-500 mt-1">
-                      User ID:{" "}
-                      {selectedPartner.id}
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                        {selectedPartner?.fullName || "Delivery Partner Verification"}
+                      </h3>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                        <Clock size={10} />
+                        {selectedPartner?.status || "Pending"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      {selectedPartner?.vehicleType} • {selectedPartner?.cityOfOperation} • Applied {formatDate(selectedPartner?.submittedAt)}
                     </p>
                   </div>
-
-                  <button
-                    onClick={() => {
-                      setSelectedPartner(null);
-                      setDetails(null);
-                    }}
-                    className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-                  >
-                    <X size={18} />
-                  </button>
                 </div>
 
-                <div className="p-5 max-h-[70vh] overflow-y-auto">
-                  {detailsLoading ? (
-                    <div className="py-16 flex items-center justify-center gap-2 text-sm text-slate-500">
-                      <RefreshCw
-                        size={16}
-                        className="animate-spin text-emerald-600"
-                      />
-                      Loading details...
-                    </div>
-                  ) : actionError ? (
-                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">
-                      {actionError}
-                    </div>
-                  ) : details ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {Object.entries(
-                          details
-                        ).map(
-                          ([key, value]) => (
-                            <div
-                              key={key}
-                              className="p-4 rounded-2xl bg-slate-50 border border-slate-200"
-                            >
-                              <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-1">
-                                {key.replace(
-                                  /([A-Z])/g,
-                                  " $1"
-                                )}
-                              </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!actionLoading) {
+                      setShowDetail(false);
+                      setSelectedPartner(null);
+                      setShowRejectBox(false);
+                    }
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <X size={19} />
+                </button>
+              </div>
 
-                              <p className="text-sm font-semibold text-slate-800 break-words">
-                                {typeof value ===
-                                "object"
-                                  ? JSON.stringify(
-                                      value
-                                    )
-                                  : String(
-                                      value ?? "-"
-                                    )}
-                              </p>
-                            </div>
-                          )
-                        )}
+              {/* Modal Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 text-slate-800">
+                {detailLoading ? (
+                  <div className="py-24 text-center text-slate-400 flex flex-col items-center gap-3">
+                    <RefreshCw size={28} className="animate-spin text-emerald-600" />
+                    <span className="text-xs font-semibold text-slate-600">
+                      Loading comprehensive delivery partner KYC dossier...
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    {actionError && (
+                      <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                        <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                        <span>{actionError}</span>
+                      </div>
+                    )}
+
+                    {/* SECTION 1: Rider Profile & Contacts */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <User size={14} className="text-emerald-600" />
+                        <span>Rider Identity & Contact Details</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Full Name
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                            {selectedPartner?.fullName || "-"}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Phone Number
+                          </span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {selectedPartner?.phone && selectedPartner?.phone !== "-" ? (
+                              <>
+                                <Phone size={13} className="text-emerald-600 shrink-0" />
+                                <span className="text-xs sm:text-sm font-bold text-slate-900">
+                                  {selectedPartner.phone}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-xs text-slate-400">-</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            City of Operation
+                          </span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <MapPin size={13} className="text-orange-600 shrink-0" />
+                            <span className="text-xs sm:text-sm font-bold text-slate-900">
+                              {selectedPartner?.cityOfOperation || "-"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Onboarding Progress
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-emerald-800 block mt-0.5">
+                            Step {selectedPartner?.onboardingStep ?? "-"} Completed
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Registration Date
+                          </span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Calendar size={13} className="text-slate-500 shrink-0" />
+                            <span className="text-xs sm:text-sm font-bold text-slate-900">
+                              {formatDate(selectedPartner?.registeredAt)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Submission Date
+                          </span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Clock size={13} className="text-slate-500 shrink-0" />
+                            <span className="text-xs sm:text-sm font-bold text-slate-900">
+                              {formatDate(selectedPartner?.submittedAt)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  ) : (
-                    <div className="py-12 text-center text-slate-400 text-sm">
-                      No KYC details available.
+
+                    {/* SECTION 2: Vehicle & Transit Credentials */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <Bike size={14} className="text-emerald-600" />
+                        <span>Vehicle & Transit Credentials</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Vehicle Type
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                            {selectedPartner?.vehicleType || "-"}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Vehicle Model
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                            {selectedPartner?.vehicleModel || "-"}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            License Plate Number
+                          </span>
+                          <span className="text-xs sm:text-sm font-mono font-bold text-slate-900 block mt-0.5">
+                            {selectedPartner?.plateNumber || "-"}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Driving License Number
+                          </span>
+                          <span className="text-xs sm:text-sm font-mono font-bold text-slate-900 block mt-0.5">
+                            {selectedPartner?.licenseNumber || "-"}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Manufacture Year
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                            {selectedPartner?.manufactureYear || "-"}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Last Updated
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                            {formatDate(selectedPartner?.lastUpdatedAt)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                <div className="p-5 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={() =>
-                      handleApprove(
-                        selectedPartner
-                      )
-                    }
-                    disabled={
-                      actionLoading ||
-                      detailsLoading
-                    }
-                    className="flex-1 py-3 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle2 size={16} />
-                    {actionLoading
-                      ? "Processing..."
-                      : "Approve KYC"}
-                  </button>
+                    {/* SECTION 3: Bank & Settlement Details */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <Landmark size={14} className="text-emerald-600" />
+                        <span>Payout & Settlement Bank Details</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
+                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                            Bank Name
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                            {selectedPartner?.bank?.bankName || "-"}
+                          </span>
+                        </div>
 
+                        <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
+                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                            Account Holder
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                            {selectedPartner?.bank?.accountHolderName || "-"}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
+                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                            Account Number
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono block mt-0.5">
+                            {selectedPartner?.bank?.accountNumber || "-"}
+                          </span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
+                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                            IFSC Code
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono block mt-0.5">
+                            {selectedPartner?.bank?.ifscCode || "-"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold ${selectedPartner?.bank?.agreedToPayoutTerms ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
+                          <Check size={12} />
+                          {selectedPartner?.bank?.agreedToPayoutTerms ? "Agreed to Payout Terms" : "Payout Terms Not Agreed"}
+                        </span>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold ${selectedPartner?.bank?.provided ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>
+                          <Check size={12} />
+                          {selectedPartner?.bank?.provided ? "Bank Info Provided" : "Bank Info Pending"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* SECTION 4: Onboarding Verification Milestones */}
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <ShieldCheck size={14} className="text-emerald-600" />
+                        <span>Onboarding Progress Milestones</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 block">Basic Registration Info</span>
+                            <span className="text-[10px] text-slate-500">Profile credentials & vehicle specs</span>
+                          </div>
+                          {selectedPartner?.basicInfoCompleted ? (
+                            <span className="p-1 rounded-full bg-emerald-100 text-emerald-700"><Check size={14} /></span>
+                          ) : (
+                            <span className="p-1 rounded-full bg-slate-200 text-slate-500"><Clock size={14} /></span>
+                          )}
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 block">Document Submissions</span>
+                            <span className="text-[10px] text-slate-500">
+                              {selectedPartner?.allDocumentsUploaded ? "All documents uploaded" : `${selectedPartner?.missingDocuments?.length || 0} documents missing`}
+                            </span>
+                          </div>
+                          {selectedPartner?.allDocumentsUploaded ? (
+                            <span className="p-1 rounded-full bg-emerald-100 text-emerald-700"><Check size={14} /></span>
+                          ) : (
+                            <span className="p-1 rounded-full bg-amber-100 text-amber-700"><AlertTriangle size={14} /></span>
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedPartner?.missingDocuments?.length > 0 && (
+                        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-xs text-amber-900">
+                          <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold block">Missing Mandatory Documents:</span>
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              {selectedPartner.missingDocuments.map((mDoc, mIdx) => (
+                                <span
+                                  key={mIdx}
+                                  className="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-white text-amber-800 border border-amber-300"
+                                >
+                                  {mDoc.replace(/_/g, " ")}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* SECTION 5: Submitted KYC Documents with Visual Preview */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                          <FileText size={14} className="text-emerald-600" />
+                          <span>Submitted KYC Documents ({partnerDocuments.length})</span>
+                        </div>
+                        {selectedPartner?.allDocumentsUploaded && (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                            <Check size={11} /> All Documents Complete
+                          </span>
+                        )}
+                      </div>
+
+                      {partnerDocuments.length === 0 ? (
+                        <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500 font-medium">
+                          No document attachments uploaded yet.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                          {partnerDocuments.map((doc, dIdx) => {
+                            const rawUrl = doc.fileUrl || doc.documentUrl || doc.url || "";
+                            // Clean markdown link formatting if URL was enclosed in markdown
+                            const docUrl = rawUrl.replace(/^\[?([^\]]+)\]?\(?([^)]*)\)?$/, "$1").replace(/[\[\]]/g, "").trim();
+                            const docType = (doc.documentType || doc.type || `Document #${dIdx + 1}`).replace(/_/g, " ");
+
+                            return (
+                              <div
+                                key={dIdx}
+                                className="rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col hover:border-emerald-300 transition-all shadow-2xs group"
+                              >
+                                {/* Document Header */}
+                                <div className="p-3 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+                                  <div className="min-w-0 pr-2">
+                                    <span className="font-bold text-xs text-slate-900 block truncate capitalize">
+                                      {docType}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-medium">
+                                      Uploaded {formatDate(doc.uploadedAt || doc.lastUpdatedAt)}
+                                    </span>
+                                  </div>
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                    {doc.status || "PENDING"}
+                                  </span>
+                                </div>
+
+                                {/* Document Visual Preview */}
+                                <div className="relative w-full h-40 bg-slate-100 flex items-center justify-center overflow-hidden">
+                                  <img
+                                    src={docUrl}
+                                    alt={docType}
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none";
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <a
+                                      href={docUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-3 py-1.5 rounded-xl bg-white text-slate-900 font-bold text-xs shadow-md inline-flex items-center gap-1.5 hover:bg-emerald-50 transition-colors"
+                                    >
+                                      <ExternalLink size={13} />
+                                      Open Full Image
+                                    </a>
+                                  </div>
+                                </div>
+
+                                {/* Document Card Footer */}
+                                <div className="p-2.5 bg-white border-t border-slate-100 flex justify-end">
+                                  <a
+                                    href={docUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
+                                  >
+                                    View Original File <ExternalLink size={11} />
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Rejection Reason Form */}
+                    {showRejectBox && (
+                      <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-3">
+                        <label className="block text-xs font-bold text-rose-900">
+                          Reason for Delivery Partner Rejection
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          placeholder="Provide the reason for rejecting this delivery partner (e.g., Driving license expired, vehicle plate number mismatch, missing background check)..."
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-rose-500"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowRejectBox(false)}
+                            disabled={actionLoading}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleReject}
+                            disabled={actionLoading}
+                            className="px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
+                          >
+                            {actionLoading && <RefreshCw size={12} className="animate-spin" />}
+                            Confirm Rejection
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Modal Actions Footer */}
+              {!detailLoading && !showRejectBox && (
+                <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row items-center gap-3">
                   <button
-                    onClick={() =>
-                      openRejectModal(
-                        selectedPartner
-                      )
-                    }
+                    type="button"
+                    onClick={() => setShowRejectBox(true)}
                     disabled={actionLoading}
-                    className="flex-1 py-3 rounded-2xl bg-rose-50 text-rose-700 border border-rose-200 text-sm font-semibold hover:bg-rose-100 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full sm:flex-1 py-3 px-4 rounded-xl border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-2"
                   >
                     <XCircle size={16} />
-                    Reject KYC
+                    Reject Application
                   </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showRejectModal &&
-          selectedPartner && (
-            <motion.div
-              initial={{
-                opacity: 0,
-              }}
-              animate={{
-                opacity: 1,
-              }}
-              exit={{
-                opacity: 0,
-              }}
-              className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-            >
-              <motion.div
-                initial={{
-                  opacity: 0,
-                  scale: 0.95,
-                }}
-                animate={{
-                  opacity: 1,
-                  scale: 1,
-                }}
-                className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6"
-              >
-                <div className="flex items-center justify-between mb-5">
-                  <div>
-                    <h2 className="text-lg font-semibold text-black">
-                      Reject Delivery KYC
-                    </h2>
-
-                    <p className="text-xs text-slate-500 mt-1">
-                      User ID:{" "}
-                      {selectedPartner.id}
-                    </p>
-                  </div>
 
                   <button
-                    onClick={() =>
-                      setShowRejectModal(false)
-                    }
-                    className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200"
-                  >
-                    <X size={17} />
-                  </button>
-                </div>
-
-                <label className="block text-xs font-semibold text-slate-700 mb-2">
-                  Rejection Reason
-                </label>
-
-                <textarea
-                  value={rejectReason}
-                  onChange={(e) =>
-                    setRejectReason(
-                      e.target.value
-                    )
-                  }
-                  rows={4}
-                  className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-sm text-black focus:outline-none focus:border-emerald-500 focus:bg-white resize-none"
-                  placeholder="Enter rejection reason..."
-                />
-
-                {actionError && (
-                  <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
-                    {actionError}
-                  </div>
-                )}
-
-                <div className="flex gap-3 mt-5">
-                  <button
-                    onClick={() =>
-                      setShowRejectModal(false)
-                    }
+                    type="button"
+                    onClick={handleApprove}
                     disabled={actionLoading}
-                    className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-700 text-sm font-semibold hover:bg-slate-200"
+                    className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-2 shadow-sm"
                   >
-                    Cancel
-                  </button>
-
-                  <button
-                    onClick={handleReject}
-                    disabled={actionLoading}
-                    className="flex-1 py-3 rounded-2xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-50"
-                  >
-                    {actionLoading
-                      ? "Rejecting..."
-                      : "Reject KYC"}
+                    {actionLoading ? (
+                      <RefreshCw size={16} className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={16} />
+                    )}
+                    Approve Application
                   </button>
                 </div>
-              </motion.div>
+              )}
             </motion.div>
-          )}
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );

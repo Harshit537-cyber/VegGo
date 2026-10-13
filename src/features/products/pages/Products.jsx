@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import Sidebar from '../../../layouts/Sidebar';
 import PageHeader from '../../../components/common/PageHeader';
 import SegmentedTabs from '../../../components/common/SegmentedTabs';
@@ -7,6 +7,8 @@ import StatusFilterPills from '../../../components/common/StatusFilterPills';
 import WorkflowRulesBar from '../../../components/common/WorkflowRulesBar';
 import EmptyState from '../../../components/common/EmptyState';
 import { motion, AnimatePresence } from 'framer-motion';
+import Categories from './Categories';
+import Subcategories from './Subcategories';
 
 import {
   Calendar,
@@ -28,6 +30,8 @@ import {
   Sparkles,
   Zap,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Check,
   Image,
   Upload,
@@ -526,8 +530,25 @@ function ImageLightbox({ url, onClose }) {
   );
 }
 
-export default function Products() {
-  const [currentTab, setCurrentTab] = useState('products');
+export default function Products({ defaultTab = 'products' }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTabParam = searchParams.get('tab');
+
+  const [currentTab, setCurrentTab] = useState(
+    currentTabParam || defaultTab
+  );
+
+  useEffect(() => {
+    if (currentTabParam && currentTabParam !== currentTab) {
+      setCurrentTab(currentTabParam);
+    }
+  }, [currentTabParam, currentTab]);
+
+  const handleTabChange = (tabId) => {
+    setCurrentTab(tabId);
+    setSearchParams({ tab: tabId });
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState('All');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -544,6 +565,12 @@ export default function Products() {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isViewMode, setIsViewMode] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 20;
 
   const [productImages, setProductImages] = useState([]);
   const [selectedImages, setSelectedImages] = useState([]);
@@ -592,16 +619,28 @@ export default function Products() {
     resetForm();
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (page = 0, search = searchQuery) => {
     setIsRefreshing(true);
     setErrorMessage('');
 
     try {
-      const response = await getProducts({ page: 0, size: 100 });
+      const response = await getProducts({
+        page,
+        size: pageSize,
+        search: (search || '').trim()
+      });
 
+      const rawData = response?.data ?? response;
       const productList = extractProducts(response).map(normalizeProduct);
 
       setProducts(productList);
+      setTotalPages(Math.max(1, rawData?.totalPages ?? rawData?.pages ?? 1));
+      setTotalElements(
+        rawData?.totalElements ??
+        rawData?.totalCount ??
+        productList.length
+      );
+      setCurrentPage(page);
       setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error('Failed to fetch products:', error);
@@ -681,9 +720,17 @@ export default function Products() {
   const location = useLocation();
 
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(0, '');
     fetchCategoriesList();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchProducts(0, searchQuery);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (location.state?.productId && products.length > 0) {
@@ -1061,68 +1108,56 @@ export default function Products() {
     return matchesSearch && matchesStatus;
   });
 
-  const totalProducts = products.length;
+  const totalProductsCount = totalElements || products.length;
   const activeProducts = products.filter((p) => p.active).length;
   const inactiveProducts = products.filter((p) => !p.active).length;
 
   const productStats = [
     {
       label: 'Total Products',
-      value: `${totalProducts}`,
-      change: '+12.4%',
-      up: true,
-      accentColor: 'bg-emerald-600',
+      value: totalProductsCount,
+      subLabel: 'Catalog Produce Items',
+      accentGradient: 'from-emerald-500 to-teal-500',
       iconBg: 'bg-emerald-50 text-emerald-700',
-      tagColor: 'text-emerald-700 bg-emerald-50/80 border-emerald-200/80',
       icon: Package,
-      suffix: ' Products'
     },
     {
-      label: 'Active Products',
-      value: `${activeProducts}`,
-      change: '+8.2%',
-      up: true,
-      accentColor: 'bg-teal-600',
-      iconBg: 'bg-teal-50 text-teal-700',
-      tagColor: 'text-teal-700 bg-teal-50/80 border-teal-200/80',
+      label: 'Active (In Stock)',
+      value: activeProducts,
+      subLabel: 'Live on Storefront',
+      accentGradient: 'from-sky-500 to-blue-500',
+      iconBg: 'bg-sky-50 text-sky-700',
       icon: CheckCircle2,
-      suffix: ' Active'
     },
     {
-      label: 'Inactive Products',
-      value: `${inactiveProducts}`,
-      change: '-4.1%',
-      up: false,
-      accentColor: 'bg-emerald-500',
+      label: 'Inactive / Hidden',
+      value: inactiveProducts,
+      subLabel: 'Delisted or Paused',
+      accentGradient: 'from-amber-500 to-orange-500',
       iconBg: 'bg-amber-50 text-amber-700',
-      tagColor: 'text-amber-700 bg-amber-50/80 border-amber-200/80',
       icon: AlertTriangle,
-      suffix: ' Inactive'
     },
     {
-      label: 'Available Products',
-      value: `${activeProducts}`,
-      change: '+2.8%',
-      up: true,
-      accentColor: 'bg-green-700',
-      iconBg: 'bg-rose-50 text-rose-700',
-      tagColor: 'text-rose-700 bg-rose-50/80 border-rose-200/80',
-      icon: CheckCircle2,
-      suffix: ' Available'
-    }
+      label: 'Categories Covered',
+      value: categories.length,
+      subLabel: 'Taxonomy Departments',
+      accentGradient: 'from-purple-500 to-indigo-500',
+      iconBg: 'bg-purple-50 text-purple-700',
+      icon: Layers,
+    },
   ];
 
   const priceInputClass =
     'w-full h-[38px] px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] disabled:opacity-60 disabled:cursor-not-allowed';
 
   const productTabs = [
-    { id: 'products', label: 'Product Catalog', icon: Package, count: totalProducts },
-    { id: 'categories', label: 'Categories & Groups', icon: Layers, count: categories.length },
-    { id: 'units', label: 'Wholesale Units', icon: Zap, count: UNIT_OPTIONS.length }
+    { id: 'products', label: 'All Products', icon: Package },
+    { id: 'categories', label: 'Categories', icon: Layers },
+    { id: 'subcategories', label: 'Subcategories', icon: Tag },
   ];
 
   const filterPills = [
-    { id: 'All', label: 'All Products', count: totalProducts },
+    { id: 'All', label: 'All Products', count: totalProductsCount },
     { id: 'Active', label: 'Active (In Stock)', count: activeProducts },
     { id: 'Inactive', label: 'Inactive (Hidden)', count: inactiveProducts }
   ];
@@ -1132,47 +1167,49 @@ export default function Products() {
       <Sidebar />
 
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-5 sm:space-y-6">
-        {/* Top Executive Header */}
-        <PageHeader
-          icon={Package}
-          title="Product Administration"
-          subtitle="Manage catalog inventory items, pricing tiers, stock levels, and real-time availability."
-          stats={[
-            { label: 'Total Products', value: totalProducts },
-            { label: 'Inactive / Hidden', value: inactiveProducts, alert: inactiveProducts > 0 }
-          ]}
-          actionButtonText="Add Product"
-          actionButtonIcon={Plus}
-          onActionClick={openAddPanel}
-          onRefresh={fetchProducts}
-          isRefreshing={isRefreshing || loading}
-        />
+        {/* Horizontal Navigation Segmented Tabs Bar */}
+        <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <SegmentedTabs
+            tabs={productTabs}
+            activeTab={currentTab}
+            onTabChange={handleTabChange}
+          />
+        </div>
 
-        {/* Global Error Banner */}
-        <AnimatePresence>
-          {errorMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs"
-            >
-              <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-              <span>{errorMessage}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Primary Segmented Tabs Navigation */}
-        <SegmentedTabs
-          tabs={productTabs}
-          activeTab={currentTab}
-          onTabChange={setCurrentTab}
-        />
-
-        {/* Tab 1: Product Catalog View */}
+        {/* Tab 1: All Products View */}
         {currentTab === 'products' && (
-          <>
+          <div className="w-full space-y-5 sm:space-y-6">
+            {/* Top Executive Header */}
+            <PageHeader
+              icon={Package}
+              title="Produce & Inventory"
+              subtitle="View and manage products, pricing, and stock levels."
+              stats={[
+                { label: 'Total Products', value: totalProductsCount },
+                { label: 'Inactive / Hidden', value: inactiveProducts, alert: inactiveProducts > 0 }
+              ]}
+              actionButtonText="Add Product"
+              actionButtonIcon={Plus}
+              onActionClick={openAddPanel}
+              onRefresh={() => fetchProducts(currentPage, searchQuery)}
+              isRefreshing={isRefreshing || loading}
+            />
+
+            {/* Global Error Banner */}
+            <AnimatePresence>
+              {errorMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs"
+                >
+                  <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                  <span>{errorMessage}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Secondary Status Filter Pills */}
             <StatusFilterPills
               filters={filterPills}
@@ -1465,80 +1502,56 @@ export default function Products() {
                     </div>
                   ))}
                 </div>
+
+                {/* Table Footer with Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-semibold text-slate-600">
+                    <span>
+                      Showing Page {currentPage + 1} of {totalPages} ({totalElements} total products)
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={currentPage === 0 || loading}
+                        onClick={() => fetchProducts(currentPage - 1, searchQuery)}
+                        className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 shadow-2xs"
+                      >
+                        <ChevronLeft size={16} />
+                        <span className="hidden sm:inline">Prev</span>
+                      </button>
+
+                      <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 font-mono">
+                        {currentPage + 1}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={currentPage >= totalPages - 1 || loading}
+                        onClick={() => fetchProducts(currentPage + 1, searchQuery)}
+                        className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 shadow-2xs"
+                      >
+                        <span className="hidden sm:inline">Next</span>
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          </>
-        )}
-
-        {/* Tab 2: Categories & Taxonomy View */}
-        {currentTab === 'categories' && (
-          <div className="space-y-4">
-            <WorkflowRulesBar
-              rulesText="Configured parent product categories and associated subcategory groupings."
-              showingCount={categories.length}
-              totalCount={categories.length}
-              itemLabel="categories"
-            />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {categories.map((cat) => (
-                <div
-                  key={cat.id}
-                  className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-md transition-all space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-                        <Layers size={20} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-900">{cat.name}</h3>
-                        <span className="text-[11px] text-slate-400 font-mono">ID: {cat.id}</span>
-                      </div>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      {products.filter((p) => p.categoryId === cat.id).length} Products
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-500 line-clamp-2">
-                    {cat.description || 'Standard platform product taxonomy category.'}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
-        {/* Tab 3: Wholesale Units View */}
-        {currentTab === 'units' && (
-          <div className="space-y-4">
-            <WorkflowRulesBar
-              rulesText="Standard metric and packaging measurement units supported across store catalogs."
-              showingCount={UNIT_OPTIONS.length}
-              totalCount={UNIT_OPTIONS.length}
-              itemLabel="units"
-            />
+        {/* Tab 2: Categories View */}
+        {currentTab === 'categories' && (
+          <div className="w-full">
+            <Categories embedded={true} />
+          </div>
+        )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              {UNIT_OPTIONS.map((unit) => (
-                <div
-                  key={unit.id}
-                  className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between hover:border-emerald-300 transition-colors"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-semibold text-xs">
-                      {unit.id.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <span className="font-semibold text-xs text-slate-900 block">{unit.name}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{unit.id}</span>
-                    </div>
-                  </div>
-                  <CheckCircle2 size={16} className="text-emerald-600" />
-                </div>
-              ))}
-            </div>
+        {/* Tab 3: Subcategories View */}
+        {currentTab === 'subcategories' && (
+          <div className="w-full">
+            <Subcategories embedded={true} />
           </div>
         )}
       </main>

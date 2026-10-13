@@ -105,7 +105,7 @@ function ImageLightbox({ url, onClose }) {
   );
 }
 
-export default function Categories() {
+export default function Categories({ embedded = false }) {
   const [currentTab, setCurrentTab] = useState("categories");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -480,41 +480,47 @@ export default function Categories() {
   const categoryStats = [
     {
       label: "Total Categories",
-      value: `${categories.length}`,
-      change: "+12.4%",
-      up: true,
+      value: categories.length,
       accentColor: "bg-emerald-600",
       iconBg: "bg-emerald-50 text-emerald-700",
-      tagColor: "text-emerald-700 bg-emerald-50/80 border-emerald-200/80",
       icon: FolderTree,
       suffix: " Categories",
+      subLabel: `${activeCategories.length} Active • ${inactiveCategories.length} Inactive`,
+      statusTag: "Catalog Taxonomy",
+      tagColor: "text-emerald-700 bg-emerald-50/80 border-emerald-200/80",
     },
     {
       label: "Active Categories",
-      value: `${activeCategories.length}`,
-      change: "+8.2%",
-      up: true,
+      value: activeCategories.length,
       accentColor: "bg-teal-600",
       iconBg: "bg-teal-50 text-teal-700",
-      tagColor: "text-teal-700 bg-teal-50/80 border-teal-200/80",
       icon: CheckCircle2,
       suffix: " Active",
+      subLabel: "Visible on Storefront",
+      statusTag: "In Stock & Live",
+      tagColor: "text-teal-700 bg-teal-50/80 border-teal-200/80",
     },
     {
       label: "Inactive Categories",
-      value: `${inactiveCategories.length}`,
-      change: "-4.1%",
-      up: false,
-      accentColor: "bg-emerald-500",
+      value: inactiveCategories.length,
+      accentColor: "bg-amber-500",
       iconBg: "bg-amber-50 text-amber-700",
-      tagColor: "text-amber-700 bg-amber-50/80 border-amber-200/80",
       icon: FolderTree,
       suffix: " Inactive",
+      subLabel: "Hidden from Storefront",
+      statusTag: "Delisted / Hidden",
+      tagColor: "text-amber-700 bg-amber-50/80 border-amber-200/80",
     },
   ];
 
   return (
-    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div
+      className={
+        embedded
+          ? "w-full space-y-6 sm:space-y-8"
+          : "min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white"
+      }
+    >
       <style>{`
         input.no-spinner::-webkit-outer-spin-button,
         input.no-spinner::-webkit-inner-spin-button {
@@ -526,14 +532,20 @@ export default function Categories() {
         }
       `}</style>
 
-      <Sidebar />
+      {!embedded && <Sidebar />}
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-6 sm:space-y-8">
+      <div
+        className={
+          embedded
+            ? "w-full space-y-6 sm:space-y-8"
+            : "flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-6 sm:space-y-8"
+        }
+      >
         <PageHeader
           badge="Product Management"
           badgeIcon={FolderTree}
           title="Category Directory"
-          subtitle="Manage master product categories, visibility toggles, and classification hierarchy."
+          subtitle="Manage product categories and visibility status."
           onRefresh={() => fetchCategories(statusFilter)}
           isRefreshing={isRefreshing}
           rightActions={
@@ -565,72 +577,6 @@ export default function Categories() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {categoryStats.map((stat, idx) => {
-            const IconComponent = stat.icon;
-
-            return (
-              <motion.div
-                key={`${idx}-${refreshKey}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: idx * 0.1 }}
-                whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group cursor-pointer"
-              >
-                <div
-                  className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor} transition-all duration-300 group-hover:h-2`}
-                />
-
-                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none group-hover:scale-125" />
-
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors duration-200">
-                      {stat.label}
-                    </span>
-
-                    <motion.div
-                      whileHover={{ rotate: 12, scale: 1.1 }}
-                      className={`${stat.iconBg} p-2.5 rounded-2xl transition-all shadow-xs`}
-                    >
-                      <IconComponent size={18} />
-                    </motion.div>
-                  </div>
-
-                  <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono group-hover:text-emerald-800 transition-colors duration-200">
-                    {loading ? (
-                      <span className="text-slate-300">...</span>
-                    ) : (
-                      <>
-                        <AnimatedValue value={stat.value} />
-                        <span className="text-base ml-1 font-sans">{stat.suffix}</span>
-                      </>
-                    )}
-                  </h3>
-                </div>
-
-                <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between relative z-10">
-                  <span
-                    className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-transform duration-300 group-hover:scale-105 ${stat.tagColor}`}
-                  >
-                    {stat.up ? (
-                      <ArrowUpRight size={13} className="text-emerald-600" />
-                    ) : (
-                      <ArrowDownRight size={13} className="text-rose-600" />
-                    )}
-                    {stat.change}
-                  </span>
-
-                  <span className="text-[11px] text-black font-semibold">
-                    Monthly Period
-                  </span>
-                </div>
-              </motion.div>
-            );
-          })}
-        </section>
 
         <section className="w-full">
           <motion.div
@@ -973,7 +919,7 @@ export default function Categories() {
             </div>
           </motion.div>
         </section>
-      </main>
+      </div>
 
       <AnimatePresence>
         {isPanelOpen && (

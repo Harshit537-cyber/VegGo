@@ -1,10 +1,11 @@
 import apiClient from "../../../api/axiosInstance";
+import { CATALOG_ENDPOINTS } from "../../../constants/endpoints.constants";
 
 export const getCategories = async (
   includeInactive = false
 ) => {
   const response = await apiClient.get(
-    "/api/admin/catalog/categories",
+    CATALOG_ENDPOINTS.CATEGORIES,
     {
       params: {
         includeInactive,
@@ -17,7 +18,7 @@ export const getCategories = async (
 
 export const createCategory = async (categoryData) => {
   const response = await apiClient.post(
-    "/api/admin/catalog/categories",
+    CATALOG_ENDPOINTS.CATEGORIES,
     categoryData
   );
 
@@ -26,7 +27,7 @@ export const createCategory = async (categoryData) => {
 
 export const getCategoryById = async (categoryId) => {
   const response = await apiClient.get(
-    `/api/admin/catalog/categories/${categoryId}`
+    CATALOG_ENDPOINTS.CATEGORY_BY_ID(categoryId)
   );
 
   return response.data;
@@ -37,7 +38,7 @@ export const updateCategory = async (
   categoryData
 ) => {
   const response = await apiClient.put(
-    `/api/admin/catalog/categories/${categoryId}`,
+    CATALOG_ENDPOINTS.CATEGORY_BY_ID(categoryId),
     categoryData
   );
 
@@ -48,7 +49,7 @@ export const deactivateCategory = async (
   categoryId
 ) => {
   const response = await apiClient.patch(
-    `/api/admin/catalog/categories/${categoryId}/status`,
+    CATALOG_ENDPOINTS.CATEGORY_STATUS(categoryId),
     null,
     {
       params: {
@@ -64,7 +65,7 @@ export const activateCategory = async (
   categoryId
 ) => {
   const response = await apiClient.patch(
-    `/api/admin/catalog/categories/${categoryId}/status`,
+    CATALOG_ENDPOINTS.CATEGORY_STATUS(categoryId),
     null,
     {
       params: {

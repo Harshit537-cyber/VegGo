@@ -1,8 +1,9 @@
 import apiClient from '../../../api/axiosInstance';
+import { CATALOG_ENDPOINTS } from '../../../constants/endpoints.constants';
 
 export const getSubcategories = async (params = {}) => {
   const response = await apiClient.get(
-    '/api/admin/catalog/subcategories',
+    CATALOG_ENDPOINTS.SUBCATEGORIES,
     {
       params
     }
@@ -13,7 +14,7 @@ export const getSubcategories = async (params = {}) => {
 
 export const createSubcategory = async (subcategoryData) => {
   const response = await apiClient.post(
-    '/api/admin/catalog/subcategories',
+    CATALOG_ENDPOINTS.SUBCATEGORIES,
     subcategoryData
   );
 
@@ -22,7 +23,7 @@ export const createSubcategory = async (subcategoryData) => {
 
 export const getSubcategoryById = async (subcategoryId) => {
   const response = await apiClient.get(
-    `/api/admin/catalog/subcategories/${subcategoryId}`
+    CATALOG_ENDPOINTS.SUBCATEGORY_BY_ID(subcategoryId)
   );
 
   return response.data;
@@ -33,7 +34,7 @@ export const updateSubcategory = async (
   subcategoryData
 ) => {
   const response = await apiClient.put(
-    `/api/admin/catalog/subcategories/${subcategoryId}`,
+    CATALOG_ENDPOINTS.SUBCATEGORY_BY_ID(subcategoryId),
     subcategoryData
   );
 
@@ -42,7 +43,7 @@ export const updateSubcategory = async (
 
 export const deactivateSubcategory = async (subcategoryId) => {
   const response = await apiClient.patch(
-    `/api/admin/catalog/subcategories/${subcategoryId}/status`,
+    CATALOG_ENDPOINTS.SUBCATEGORY_STATUS(subcategoryId),
     null,
     {
       params: {
@@ -56,7 +57,7 @@ export const deactivateSubcategory = async (subcategoryId) => {
 
 export const activateSubcategory = async (subcategoryId) => {
   const response = await apiClient.patch(
-    `/api/admin/catalog/subcategories/${subcategoryId}/status`,
+    CATALOG_ENDPOINTS.SUBCATEGORY_STATUS(subcategoryId),
     null,
     {
       params: {

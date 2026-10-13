@@ -13,24 +13,17 @@ import {
   X,
   Users,
   ShieldCheck,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
   Dot,
-  Bell,
-  HelpCircle,
-  Mail,
-  FileText,
   Store,
   Truck,
   User,
   Tag,
   Layers,
-  BarChart3,
   TrendingUp
 } from "lucide-react";
 import LogoutModal from "../components/common/LogoutModal";
 import { clearAuthSession } from "../utils/auth";
+import { ROUTES } from "../constants/routes.constants";
 
 const menuGroups = [
   {
@@ -39,7 +32,7 @@ const menuGroups = [
     icon: LayoutDashboard,
     color: "text-emerald-600",
     bgHover: "group-hover/item:text-emerald-600",
-    path: "/dashboard",
+    path: ROUTES.DASHBOARD,
     subItems: [],
   },
   {
@@ -48,59 +41,17 @@ const menuGroups = [
     icon: Users,
     color: "text-sky-600",
     bgHover: "group-hover/item:text-sky-600",
-    subItems: [
-      {
-        id: "vendors",
-        label: "Vendors / Stores",
-        icon: Store,
-        color: "text-amber-600",
-        path: "/management/vendors",
-      },
-      {
-        id: "delivery",
-        label: "Delivery Fleet",
-        icon: Truck,
-        color: "text-sky-600",
-        path: "/management/delivery",
-      },
-      {
-        id: "customers",
-        label: "Customer Directory",
-        icon: User,
-        color: "text-indigo-600",
-        path: "/management/customers",
-      },
-    ],
+    path: ROUTES.MANAGEMENT,
+    subItems: [],
   },
   {
     id: "products",
-    label: "Product Catalog",
+    label: "Inventory & Catalog",
     icon: Package,
     color: "text-emerald-600",
     bgHover: "group-hover/item:text-emerald-600",
-    subItems: [
-      {
-        id: "catalog",
-        label: "All Products",
-        icon: Package,
-        color: "text-emerald-600",
-        path: "/products/list",
-      },
-      {
-        id: "categories",
-        label: "Categories",
-        icon: Layers,
-        color: "text-teal-600",
-        path: "/products/categories",
-      },
-      {
-        id: "subcategories",
-        label: "Subcategories",
-        icon: Tag,
-        color: "text-cyan-600",
-        path: "/products/subcategories",
-      },
-    ],
+    path: ROUTES.PRODUCTS,
+    subItems: [],
   },
   {
     id: "payouts",
@@ -108,48 +59,7 @@ const menuGroups = [
     icon: Wallet,
     color: "text-violet-600",
     bgHover: "group-hover/item:text-violet-600",
-    subItems: [
-      {
-        id: "wallet",
-        label: "Admin Wallet",
-        icon: Wallet,
-        color: "text-violet-600",
-        path: "/payouts/wallet",
-      },
-      {
-        id: "payout_requests",
-        label: "Payout Requests",
-        icon: TrendingUp,
-        color: "text-fuchsia-600",
-        path: "/payouts/vendors",
-      },
-    ],
-  },
-  {
-    id: "orders",
-    label: "Consignments & Fleet",
-    icon: Truck,
-    color: "text-blue-600",
-    bgHover: "group-hover/item:text-blue-600",
-    path: "/orders",
-    subItems: [],
-  },
-  {
-    id: "reports",
-    label: "Analytics & Reports",
-    icon: BarChart3,
-    color: "text-indigo-600",
-    bgHover: "group-hover/item:text-indigo-600",
-    path: "/reports/revenue",
-    subItems: [],
-  },
-  {
-    id: "notifications",
-    label: "Push Notifications",
-    icon: Bell,
-    color: "text-amber-500",
-    bgHover: "group-hover/item:text-amber-500",
-    path: "/notifications",
+    path: ROUTES.WALLET,
     subItems: [],
   },
   {
@@ -158,7 +68,7 @@ const menuGroups = [
     icon: Settings,
     color: "text-slate-600",
     bgHover: "group-hover/item:text-slate-700",
-    path: "/settings",
+    path: ROUTES.SETTINGS,
     subItems: [],
   },
 ];
@@ -314,24 +224,8 @@ function Sidebar() {
           </button>
         </div>
 
-        {/* Right: Notifications & Circular User Profile */}
+        {/* Right: Circular User Profile */}
         <div className="flex items-center gap-3 sm:gap-4">
-          {/* Notification Bell with 9+ Count Badge */}
-          <button
-            onClick={() => {
-              startTransition(() => {
-                navigate("/notifications");
-              });
-            }}
-            className="relative p-2 rounded-xl text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer border border-transparent hover:border-emerald-200"
-            title="Notifications"
-          >
-            <Bell size={19} />
-            <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-4.5 px-1 bg-rose-500 text-white text-[10px] font-black rounded-full border-2 border-white shadow-xs">
-              9+
-            </span>
-          </button>
-
           {/* User Profile Pill */}
           <div className="relative">
             <button
@@ -432,7 +326,11 @@ function Sidebar() {
           {menuGroups.map((group) => {
             const isExpanded = expandedGroup === group.id;
 
-            const isDirectSelected = location.pathname === group.path;
+            const isDirectSelected =
+              location.pathname === group.path ||
+              (group.id === "management" && location.pathname.startsWith("/management")) ||
+              (group.id === "products" && location.pathname.startsWith("/products")) ||
+              (group.id === "payouts" && location.pathname.startsWith("/payouts"));
             const hasActiveSub = group.subItems.some(
               (subItem) => location.pathname === subItem.path
             );
