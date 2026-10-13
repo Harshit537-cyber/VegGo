@@ -1073,6 +1073,15 @@ export default function Products({ defaultTab = 'products' }) {
         await activateProduct(product.id);
       }
 
+      // Optimistically update product status in state
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === product.id
+            ? { ...p, active: !product.active, status: !product.active ? 'Active' : 'Inactive' }
+            : p
+        )
+      );
+
       await fetchProducts();
 
       if (editingProduct === product.id) {
@@ -1090,6 +1099,8 @@ export default function Products({ defaultTab = 'products' }) {
       setActionLoading(null);
     }
   };
+
+  const handleToggleStatus = handleStatusChange;
 
   const filteredProducts = products.filter((prod) => {
     const name = String(prod.name || '').toLowerCase();
@@ -1379,7 +1390,7 @@ export default function Products({ defaultTab = 'products' }) {
 
                                 <button
                                   type="button"
-                                  onClick={() => handleToggleStatus(prod)}
+                                  onClick={() => handleStatusChange(prod)}
                                   disabled={actionLoading === prod.id}
                                   className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-2xs cursor-pointer disabled:opacity-50 ${
                                     prod.active
@@ -1486,7 +1497,7 @@ export default function Products({ defaultTab = 'products' }) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleToggleStatus(prod)}
+                          onClick={() => handleStatusChange(prod)}
                           disabled={actionLoading === prod.id}
                           className={`h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs border cursor-pointer ${
                             prod.active

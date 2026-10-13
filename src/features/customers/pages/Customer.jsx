@@ -47,6 +47,7 @@ import {
   TrendingUp,
   CreditCard,
   Check,
+  X,
 } from "lucide-react";
 
 /**

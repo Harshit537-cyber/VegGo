@@ -19,18 +19,14 @@ import { isTokenUsable, clearAuthSession, getAuthToken } from '../../../utils/au
 export default function Login() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState(() => {
-    return localStorage.getItem('remember_admin_email') || ''
-  })
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(() => {
-    return Boolean(localStorage.getItem('remember_admin_email'))
-  })
   const [isForgotOpen, setIsForgotOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
+    localStorage.removeItem('remember_admin_email')
     const token = getAuthToken()
     if (token) {
       if (isTokenUsable(token)) {
@@ -56,12 +52,7 @@ export default function Login() {
         localStorage.setItem('token', response.data.accessToken)
         localStorage.setItem('accessToken', response.data.accessToken)
         localStorage.setItem('refreshToken', response.data.refreshToken)
-
-        if (rememberMe) {
-          localStorage.setItem('remember_admin_email', cleanEmail)
-        } else {
-          localStorage.removeItem('remember_admin_email')
-        }
+        localStorage.removeItem('remember_admin_email')
 
         navigate('/dashboard', { replace: true })
       } else {
@@ -241,18 +232,7 @@ export default function Login() {
               </div>
             </motion.div>
 
-            {/* Remember Me */}
-            <motion.div variants={itemVariants} className="flex items-center pt-0.5">
-              <label className="inline-flex items-center gap-2.5 text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-800 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/30 cursor-pointer accent-emerald-600"
-                />
-                <span>Remember this device</span>
-              </label>
-            </motion.div>
+
 
             {/* Submit Button (Vibrant & Eye-catching) */}
             <motion.div variants={itemVariants} className="pt-2">

@@ -32,26 +32,26 @@ import {
 } from '../services/settingsService';
 
 /* =========================================================
-   SAFE OPERATIONAL DEFAULTS & CEILINGS
+   SAFE OPERATIONAL DEFAULTS & CEILINGS (MATCHING BACKEND)
 ========================================================= */
 const DEFAULT_SETTINGS = {
-  deliveryRadiusKm: 10,
-  platformFeeAmount: 5.0,
-  deliveryFeeAmount: 25.0,
-  vendorAcceptTimeoutSeconds: 180,
-  deliveryAcceptTimeoutSeconds: 120,
+  deliveryRadiusKm: 50,
+  platformFeeAmount: 100,
+  deliveryFeeAmount: 100,
+  vendorAcceptTimeoutSeconds: 60,
+  deliveryAcceptTimeoutSeconds: 30,
   rebroadcastMaxRounds: 3,
   rebroadcastMaxElapsedMinutes: 15,
-  otpExpiryMinutes: 5,
+  otpExpiryMinutes: 120,
 };
 
 const DEFAULT_CEILINGS = {
   maxDeliveryRadiusKm: 50,
-  maxPlatformFeeAmount: 100,
-  maxDeliveryFeeAmount: 200,
-  maxAcceptTimeoutSeconds: 600,
-  maxRebroadcastRounds: 10,
-  maxRebroadcastElapsedMinutes: 60,
+  maxPlatformFeeAmount: 500,
+  maxDeliveryFeeAmount: 500,
+  maxAcceptTimeoutSeconds: 1800,
+  maxRebroadcastRounds: 20,
+  maxRebroadcastElapsedMinutes: 120,
 };
 
 const LOCAL_STORAGE_KEY = 'veggo_platform_settings_v1';
@@ -189,6 +189,7 @@ const SETTING_GROUPS = [
 export default function Settings() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [ceilings, setCeilings] = useState(DEFAULT_CEILINGS);
+  const [updatedAt, setUpdatedAt] = useState(null);
   const [isLiveApi, setIsLiveApi] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -229,6 +230,10 @@ export default function Settings() {
       }));
     }
 
+    if (data.updatedAt) {
+      setUpdatedAt(data.updatedAt);
+    }
+
     const nextSettings = {};
     Object.keys(DEFAULT_SETTINGS).forEach((key) => {
       if (data[key] !== undefined && data[key] !== null) {
@@ -248,20 +253,20 @@ export default function Settings() {
   const loadSettings = async (showFullLoader = true) => {
     try {
       if (showFullLoader) setLoading(true);
-      setError('');
 
-      // Check if backend responds
+      // Fetch live configuration from backend GET /api/admin/settings
       const response = await getPlatformSettings();
 
       if (response?.success && response?.data && typeof response.data === 'object') {
         applyResponseData(response.data);
         setIsLiveApi(true);
       } else {
-        // Backend didn't return valid json data, use safe defaults
+        // Fallback to local defaults if response data is missing
         setSettings(getInitialValues());
         setIsLiveApi(false);
       }
-    } catch {
+    } catch (err) {
+      console.warn('Live settings fetch fallback:', err);
       // Graceful fallback to default values
       setSettings(getInitialValues());
       setIsLiveApi(false);
@@ -274,12 +279,25 @@ export default function Settings() {
     loadSettings(true);
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
-    setTimeout(() => {
-      window.location.reload();
-    }, 200);
+    try {
+      await loadSettings(false);
+      setToast({
+        type: 'success',
+        title: 'Settings Refreshed',
+        desc: 'Loaded the latest platform configuration from the server.',
+      });
+    } catch {
+      setToast({
+        type: 'error',
+        title: 'Refresh Notice',
+        desc: 'Could not refresh from server. Using local operational defaults.',
+      });
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleChange = (field, value) => {
@@ -359,45 +377,64 @@ export default function Settings() {
 
       const startTime = Date.now();
 
+      // Clean payload strictly matching backend PUT /api/admin/settings schema
+      const payload = {
+        deliveryRadiusKm: Number(settings.deliveryRadiusKm),
+        vendorAcceptTimeoutSeconds: Number(settings.vendorAcceptTimeoutSeconds),
+        deliveryAcceptTimeoutSeconds: Number(settings.deliveryAcceptTimeoutSeconds),
+        rebroadcastMaxRounds: Number(settings.rebroadcastMaxRounds),
+        rebroadcastMaxElapsedMinutes: Number(settings.rebroadcastMaxElapsedMinutes),
+        otpExpiryMinutes: Number(settings.otpExpiryMinutes),
+        deliveryFeeAmount: Number(settings.deliveryFeeAmount),
+        platformFeeAmount: Number(settings.platformFeeAmount),
+      };
+
       // Always persist to local cache for instant reliability
       try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(settings));
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
       } catch {
         // Ignore
       }
 
-      // If backend endpoint is active, sync with server
-      let backendSynced = false;
-      try {
-        const response = await updatePlatformSettings(settings);
-        if (response?.success) {
-          backendSynced = true;
-          setIsLiveApi(true);
-        }
-      } catch {
-        // Backend not ready yet
-      }
+      // Synchronize with server PUT /api/admin/settings
+      const response = await updatePlatformSettings(payload);
 
-      // Ensure minimum 750ms processing delay so user sees tactile feedback
+      // Ensure minimum 500ms processing delay so user sees tactile feedback
       const elapsed = Date.now() - startTime;
-      if (elapsed < 750) {
-        await new Promise((resolve) => setTimeout(resolve, 750 - elapsed));
+      if (elapsed < 500) {
+        await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
       }
 
-      setSaveSuccess(true);
+      if (response?.success) {
+        if (response?.data) {
+          applyResponseData(response.data);
+        }
+        setIsLiveApi(true);
+        setSaveSuccess(true);
+        setToast({
+          type: 'success',
+          title: 'Platform Settings Synchronized',
+          desc: response?.message || 'Platform settings updated successfully.',
+        });
+      } else {
+        throw new Error(response?.message || 'Failed to update platform settings');
+      }
+    } catch (err) {
+      console.error('Settings save error:', err);
       setToast({
-        type: 'success',
-        title: backendSynced ? 'Platform Settings Synchronized' : 'Platform Settings Saved',
-        desc: backendSynced
-          ? 'Configuration updated and synchronized directly with the live server.'
-          : 'Values safely stored in operational storage. (Backend live sync pending endpoint deployment).',
+        type: 'error',
+        title: 'Update Failed',
+        desc:
+          err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.message ||
+          'Failed to update platform settings on server.',
       });
-
+    } finally {
+      setSaving(false);
       setTimeout(() => {
         setSaveSuccess(false);
       }, 2500);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -434,7 +471,11 @@ export default function Settings() {
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 {isLiveApi
-                  ? 'All parameters are synced directly with the production backend.'
+                  ? `All parameters are synchronized directly with the production backend.${
+                      updatedAt
+                        ? ` (Last synced: ${new Date(updatedAt).toLocaleTimeString()})`
+                        : ''
+                    }`
                   : 'Operating with certified safe defaults. Edits are saved locally until backend endpoint /api/admin/settings is deployed.'}
               </p>
             </div>
