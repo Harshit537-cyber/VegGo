@@ -18,7 +18,7 @@ export default function StatusFilterPills({
             className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-150 cursor-pointer ${
               isActive
                 ? 'bg-emerald-700 text-white shadow-xs'
-                : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+                : 'bg-white hover:bg-emerald-50/70 hover:border-emerald-300 text-slate-600 border border-emerald-100/90'
             }`}
           >
             <span>{filter.label}</span>

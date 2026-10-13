@@ -119,8 +119,8 @@ export default function Login() {
         variants={containerVariants}
         className="w-full max-w-xl sm:max-w-[570px] bg-white/95 backdrop-blur-2xl border border-emerald-200/70 rounded-3xl shadow-2xl shadow-emerald-950/15 overflow-hidden relative z-10"
       >
-        {/* Top vibrant multi-color gradient accent bar */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400" />
+        {/* Top vibrant green accent bar */}
+        <div className="h-1.5 w-full bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400" />
 
         {/* Soft decorative ambient glow in top-right corner */}
         <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-emerald-300/20 via-teal-100/10 to-transparent rounded-full blur-2xl pointer-events-none" />

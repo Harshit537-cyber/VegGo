@@ -1,6 +1,6 @@
 /**
- * Design & Theme Palette Constants
- * Pure light, soft pastel aesthetics for clean & modern SaaS presentation
+ * Unified Professional Green Theme System for VegGo Admin
+ * Soft, balanced, and cohesive green aesthetics across all pages.
  */
 
 export const THEME_COLORS = Object.freeze({
@@ -16,29 +16,23 @@ export const THEME_COLORS = Object.freeze({
     BORDER: '#b2eee3',
     TEXT: '#115e59',
   },
-  ORANGE: {
-    LIGHT: '#fffaf5',
-    SOFT: '#fff1e6',
-    BORDER: '#fed7aa',
-    TEXT: '#9a3412',
+  SAGE: {
+    LIGHT: '#f4f8f5',
+    SOFT: '#e5eee7',
+    BORDER: '#c9ded0',
+    TEXT: '#22543d',
   },
-  PINK: {
-    LIGHT: '#fdf4f8',
-    SOFT: '#fce7f3',
-    BORDER: '#fbcfe8',
-    TEXT: '#9d174d',
+  MINT: {
+    LIGHT: '#f0fdf4',
+    SOFT: '#dcfce7',
+    BORDER: '#bbf7d0',
+    TEXT: '#15803d',
   },
-  AMBER: {
-    LIGHT: '#fffdf5',
-    SOFT: '#fef3c7',
-    BORDER: '#fde68a',
-    TEXT: '#92400e',
-  },
-  ROSE: {
-    LIGHT: '#fff5f6',
-    SOFT: '#ffe4e6',
-    BORDER: '#fecdd3',
-    TEXT: '#9f1239',
+  FOREST: {
+    LIGHT: '#ecfdf5',
+    SOFT: '#d1fae5',
+    BORDER: '#a7f3d0',
+    TEXT: '#047857',
   },
   SLATE: {
     LIGHT: '#f8fafc',
@@ -49,61 +43,61 @@ export const THEME_COLORS = Object.freeze({
 });
 
 export const STATUS_BADGE_CLASSES = Object.freeze({
-  ACTIVE: 'bg-emerald-50 text-emerald-800 border-emerald-200/60',
-  INACTIVE: 'bg-slate-50 text-slate-700 border-slate-200/60',
-  PENDING: 'bg-amber-50 text-amber-800 border-amber-200/60',
-  REJECTED: 'bg-rose-50 text-rose-800 border-rose-200/60',
-  BLOCKED: 'bg-rose-50 text-rose-800 border-rose-200/60',
+  ACTIVE: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
+  INACTIVE: 'bg-slate-50 text-slate-700 border-slate-200/80',
+  PENDING: 'bg-amber-50 text-amber-800 border-amber-200/80',
+  REJECTED: 'bg-rose-50 text-rose-800 border-rose-200/80',
+  BLOCKED: 'bg-rose-50 text-rose-800 border-rose-200/80',
 });
 
-// Soft light border and header accents using light pastel orange and light pink
+// Subtle, soft green header & accent stripes
 export const LIGHT_ACCENTS = Object.freeze({
-  TOP_STRIPE: 'bg-gradient-to-r from-orange-200/50 via-rose-200/40 to-pink-200/50',
-  HEADER_BG: 'bg-gradient-to-r from-orange-50/25 via-pink-50/20 to-white',
-  CONTAINER_BG: 'bg-white',
+  TOP_STRIPE: 'bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400',
+  HEADER_BG: 'bg-gradient-to-r from-emerald-50/40 via-teal-50/20 to-white',
+  CONTAINER_BG: 'bg-[#f6f9f7]',
 });
 
-// Pure soft light pastel themes with light orange and light pink
+// Cohesive, balanced green dashboard metric card themes
 export const DASHBOARD_METRIC_THEMES = Object.freeze({
   CUSTOMERS: {
-    iconBg: 'bg-emerald-50/80 text-emerald-700 border border-emerald-100/80',
-    cardBg: 'bg-gradient-to-br from-emerald-50/30 to-white hover:from-emerald-50/50 hover:to-white border-emerald-100/70 shadow-2xs',
+    iconBg: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
+    cardBg: 'bg-gradient-to-br from-emerald-50/40 via-white to-white hover:from-emerald-50/60 hover:to-white border-emerald-100/90 shadow-2xs',
     rowBg: 'hover:bg-emerald-50/30',
-    badge: 'bg-emerald-50 text-emerald-800 border-emerald-200/50',
-    dot: 'bg-emerald-400',
-    textColor: 'text-emerald-900',
+    badge: 'bg-emerald-50 text-emerald-800 border-emerald-200/70',
+    dot: 'bg-emerald-500',
+    textColor: 'text-emerald-950',
   },
   USERS: {
-    iconBg: 'bg-orange-50/80 text-orange-700 border border-orange-100/80',
-    cardBg: 'bg-gradient-to-br from-orange-50/30 to-white hover:from-orange-50/50 hover:to-white border-orange-100/70 shadow-2xs',
-    rowBg: 'hover:bg-orange-50/30',
-    badge: 'bg-orange-50 text-orange-800 border-orange-200/50',
-    dot: 'bg-orange-300',
-    textColor: 'text-orange-900',
+    iconBg: 'bg-teal-50 text-teal-700 border border-teal-200/80',
+    cardBg: 'bg-gradient-to-br from-teal-50/35 via-white to-white hover:from-teal-50/55 hover:to-white border-teal-100/90 shadow-2xs',
+    rowBg: 'hover:bg-teal-50/30',
+    badge: 'bg-teal-50 text-teal-800 border-teal-200/70',
+    dot: 'bg-teal-500',
+    textColor: 'text-teal-950',
   },
   STATUS_HEALTHY: {
-    iconBg: 'bg-teal-50/80 text-teal-700 border border-teal-100/80',
-    cardBg: 'bg-gradient-to-br from-teal-50/30 to-white hover:from-teal-50/50 hover:to-white border-teal-100/70 shadow-2xs',
-    rowBg: 'hover:bg-teal-50/30',
-    badge: 'bg-teal-50 text-teal-800 border-teal-200/50',
-    dot: 'bg-teal-400',
-    textColor: 'text-teal-900',
+    iconBg: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
+    cardBg: 'bg-gradient-to-br from-emerald-50/40 via-white to-white hover:from-emerald-50/60 hover:to-white border-emerald-100/90 shadow-2xs',
+    rowBg: 'hover:bg-emerald-50/30',
+    badge: 'bg-emerald-50 text-emerald-800 border-emerald-200/70',
+    dot: 'bg-emerald-500',
+    textColor: 'text-emerald-950',
   },
   STATUS_DEGRADED: {
-    iconBg: 'bg-rose-50/80 text-rose-700 border border-rose-100/80',
-    cardBg: 'bg-gradient-to-br from-rose-50/30 to-white hover:from-rose-50/50 hover:to-white border-rose-100/70 shadow-2xs',
+    iconBg: 'bg-rose-50 text-rose-700 border border-rose-200/80',
+    cardBg: 'bg-gradient-to-br from-rose-50/30 via-white to-white hover:from-rose-50/50 hover:to-white border-rose-100/80 shadow-2xs',
     rowBg: 'hover:bg-rose-50/30',
-    badge: 'bg-rose-50 text-rose-800 border-rose-200/50',
-    dot: 'bg-rose-300',
-    textColor: 'text-rose-900',
+    badge: 'bg-rose-50 text-rose-800 border-rose-200/70',
+    dot: 'bg-rose-500',
+    textColor: 'text-rose-950',
   },
   ENVIRONMENT: {
-    iconBg: 'bg-pink-50/80 text-pink-700 border border-pink-100/80',
-    cardBg: 'bg-gradient-to-br from-pink-50/30 to-white hover:from-pink-50/50 hover:to-white border-pink-100/70 shadow-2xs',
-    rowBg: 'hover:bg-pink-50/30',
-    badge: 'bg-pink-50 text-pink-800 border-pink-200/50',
-    dot: 'bg-pink-300',
-    textColor: 'text-pink-900',
+    iconBg: 'bg-emerald-50/90 text-emerald-800 border border-emerald-200/80',
+    cardBg: 'bg-gradient-to-br from-emerald-50/30 via-white to-white hover:from-emerald-50/50 hover:to-white border-emerald-100/90 shadow-2xs',
+    rowBg: 'hover:bg-emerald-50/30',
+    badge: 'bg-emerald-50 text-emerald-800 border-emerald-200/70',
+    dot: 'bg-emerald-500',
+    textColor: 'text-emerald-950',
   },
 });
 

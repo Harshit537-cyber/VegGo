@@ -270,7 +270,7 @@ export default function Vendor({ embedded = false }) {
   }, [selectedVendor]);
 
   return (
-    <div className={embedded ? "w-full space-y-5 sm:space-y-6" : "min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-orange-100 selection:text-orange-900"}>
+    <div className={embedded ? "w-full space-y-5 sm:space-y-6" : "min-h-dvh bg-[#f6f9f7] flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900"}>
       {!embedded && <Sidebar />}
 
       <div className={embedded ? "w-full space-y-5 sm:space-y-6" : "flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-5 sm:space-y-6"}>
@@ -343,7 +343,7 @@ export default function Vendor({ embedded = false }) {
               }
             />
           ) : (
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
+            <div className="bg-white rounded-3xl border border-emerald-100/90 shadow-2xs overflow-hidden">
               {/* Desktop Table View (md and above) */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full min-w-[900px] text-left border-collapse">
@@ -393,7 +393,7 @@ export default function Vendor({ embedded = false }) {
                         {/* 2. Shop Details & Location (NO Shop ID) */}
                         <td className="py-4 px-5">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 text-orange-700 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                               <Store size={16} />
                             </div>
                             <div className="min-w-0">
@@ -402,7 +402,7 @@ export default function Vendor({ embedded = false }) {
                               </span>
                               {app.address?.city && (
                                 <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium mt-0.5">
-                                  <MapPin size={10} className="text-orange-600 shrink-0" />
+                                  <MapPin size={10} className="text-emerald-600 shrink-0" />
                                   <span className="truncate">{app.address.city}, {app.address.state}</span>
                                 </div>
                               )}

@@ -7,7 +7,7 @@ export default function WorkflowRulesBar({
   className = ''
 }) {
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 py-3 rounded-2xl bg-white border border-slate-200 shadow-2xs text-xs ${className}`}>
+    <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 py-3 rounded-2xl bg-white border border-emerald-100/90 shadow-2xs text-xs ${className}`}>
       <div className="flex items-center gap-2 text-slate-700 font-medium">
         <span className="font-extrabold text-slate-900">Workflow Rules:</span>
         <span className="text-slate-600 truncate">{rulesText}</span>

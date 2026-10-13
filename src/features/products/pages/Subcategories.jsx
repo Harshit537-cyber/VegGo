@@ -821,24 +821,24 @@ export default function Subcategories({ embedded = false }) {
     {
       label: 'Parent Categories',
       value: categoryCount,
-      accentColor: 'bg-sky-600',
-      iconBg: 'bg-sky-50 text-sky-700',
+      accentColor: 'bg-teal-600',
+      iconBg: 'bg-teal-50 text-teal-700',
       icon: Layers3,
       suffix: ' Categories',
       statusTag: 'Active Groups',
       subLabel: 'Taxonomy Departments',
-      tagColor: 'text-sky-700 bg-sky-50/80 border-sky-200/80',
+      tagColor: 'text-teal-700 bg-teal-50/80 border-teal-200/80',
     },
     {
       label: 'Inactive Subcategories',
       value: inactiveSubcategories,
-      accentColor: 'bg-amber-500',
-      iconBg: 'bg-amber-50 text-amber-700',
+      accentColor: 'bg-slate-500',
+      iconBg: 'bg-slate-50 text-slate-700',
       icon: XCircle,
       suffix: ' Inactive',
       statusTag: 'Delisted / Hidden',
       subLabel: 'Hidden from Catalog',
-      tagColor: 'text-amber-700 bg-amber-50/80 border-amber-200/80',
+      tagColor: 'text-slate-700 bg-slate-50/80 border-slate-200/80',
     }
   ];
 
@@ -847,7 +847,7 @@ export default function Subcategories({ embedded = false }) {
       className={
         embedded
           ? "w-full space-y-6 sm:space-y-8"
-          : "min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white"
+          : "min-h-dvh bg-[#f6f9f7] flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900"
       }
     >
       {!embedded && <Sidebar />}
@@ -967,7 +967,7 @@ export default function Subcategories({ embedded = false }) {
                     <th className="py-3.5 px-4">Parent Category</th>
                     <th className="py-3.5 px-4 text-center">Display Order</th>
                     <th className="py-3.5 px-4 text-center">Status</th>
-                    <th className="py-3.5 px-4 text-right rounded-r-xl">Actions</th>
+                    <th className="py-3.5 px-4 text-right rounded-r-xl min-w-[220px]">Actions</th>
                   </tr>
                 </thead>
 
@@ -1051,40 +1051,45 @@ export default function Subcategories({ embedded = false }) {
                         </td>
 
                         <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
+                              type="button"
                               onClick={() => openViewPanel(subcategory)}
                               disabled={actionLoading === subcategory.id}
-                              className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-40"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300 text-xs font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer disabled:opacity-40"
                               title="View Subcategory"
                             >
                               {actionLoading === subcategory.id ? (
-                                <Loader2 size={15} className="animate-spin" />
+                                <Loader2 size={13} className="animate-spin text-emerald-600" />
                               ) : (
-                                <Eye size={15} />
+                                <Eye size={13} className="text-slate-500" />
                               )}
+                              <span>View</span>
                             </button>
 
                             <button
+                              type="button"
                               onClick={() => openEditPanel(subcategory)}
                               disabled={actionLoading === subcategory.id}
-                              className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-40"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200/90 hover:border-emerald-600 text-xs font-bold shadow-2xs hover:shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-40"
                               title="Edit Subcategory"
                             >
                               {actionLoading === subcategory.id ? (
-                                <Loader2 size={15} className="animate-spin" />
+                                <Loader2 size={13} className="animate-spin text-emerald-600" />
                               ) : (
-                                <Edit3 size={15} />
+                                <Edit3 size={13} />
                               )}
+                              <span>Edit</span>
                             </button>
 
                             <button
+                              type="button"
                               onClick={() => handleStatusChange(subcategory)}
                               disabled={actionLoading === subcategory.id}
-                              className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
+                              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-2xs cursor-pointer disabled:opacity-40 ${
                                 subcategory.active === false
-                                  ? 'text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
-                                  : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
+                                  ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border-emerald-200/90 hover:border-emerald-600 hover:shadow-emerald-600/20'
+                                  : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200/90 hover:border-rose-600 hover:shadow-rose-600/20'
                               }`}
                               title={
                                 subcategory.active === false
@@ -1093,11 +1098,17 @@ export default function Subcategories({ embedded = false }) {
                               }
                             >
                               {actionLoading === subcategory.id ? (
-                                <Loader2 size={15} className="animate-spin" />
+                                <Loader2 size={13} className="animate-spin text-emerald-600" />
                               ) : subcategory.active === false ? (
-                                <Power size={15} />
+                                <>
+                                  <Power size={13} />
+                                  <span>Enable</span>
+                                </>
                               ) : (
-                                <PowerOff size={15} />
+                                <>
+                                  <PowerOff size={13} />
+                                  <span>Disable</span>
+                                </>
                               )}
                             </button>
                           </div>
@@ -1194,37 +1205,46 @@ export default function Subcategories({ embedded = false }) {
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-1 pt-2 border-t border-slate-200/60">
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/60">
                       <button
+                        type="button"
                         onClick={() => openViewPanel(subcategory)}
                         disabled={actionLoading === subcategory.id}
-                        className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-40"
                         title="View Subcategory"
                       >
                         {actionLoading === subcategory.id ? (
-                          <Loader2 size={15} className="animate-spin" />
+                          <Loader2 size={13} className="animate-spin text-emerald-600" />
                         ) : (
-                          <Eye size={15} />
+                          <Eye size={13} className="text-slate-500" />
                         )}
+                        <span>View</span>
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => openEditPanel(subcategory)}
                         disabled={actionLoading === subcategory.id}
-                        className="p-2 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200 text-xs font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-40"
                         title="Edit Subcategory"
                       >
                         {actionLoading === subcategory.id ? (
-                          <Loader2 size={15} className="animate-spin" />
+                          <Loader2 size={13} className="animate-spin text-emerald-600" />
                         ) : (
-                          <Edit3 size={15} />
+                          <Edit3 size={13} />
                         )}
+                        <span>Edit</span>
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => handleStatusChange(subcategory)}
                         disabled={actionLoading === subcategory.id}
-                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-2xs cursor-pointer disabled:opacity-40 ${
+                          subcategory.active === false
+                            ? 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border-emerald-200'
+                            : 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200'
+                        }`}
                         title={
                           subcategory.active === false
                             ? 'Activate Subcategory'
@@ -1232,11 +1252,17 @@ export default function Subcategories({ embedded = false }) {
                         }
                       >
                         {actionLoading === subcategory.id ? (
-                          <Loader2 size={15} className="animate-spin" />
+                          <Loader2 size={13} className="animate-spin text-emerald-600" />
                         ) : subcategory.active === false ? (
-                          <Power size={15} />
+                          <>
+                            <Power size={13} />
+                            <span>Enable</span>
+                          </>
                         ) : (
-                          <PowerOff size={15} />
+                          <>
+                            <PowerOff size={13} />
+                            <span>Disable</span>
+                          </>
                         )}
                       </button>
                     </div>

@@ -96,7 +96,7 @@ const SETTING_GROUPS = [
     title: 'Order Dispatch & SLA Timeouts',
     subtitle: 'Define response deadlines for vendor confirmation and rider assignment',
     icon: Clock,
-    badgeColor: 'bg-sky-50 text-sky-700 border-sky-200/80',
+    badgeColor: 'bg-teal-50 text-teal-800 border-teal-200/80',
     fields: [
       {
         key: 'vendorAcceptTimeoutSeconds',
@@ -127,7 +127,7 @@ const SETTING_GROUPS = [
     title: 'Rebroadcast & Escalation Cycles',
     subtitle: 'Parameters governing unattended order redispatch retries',
     icon: RotateCcw,
-    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200/80',
+    badgeColor: 'bg-emerald-50/80 text-emerald-800 border-emerald-200/80',
     fields: [
       {
         key: 'rebroadcastMaxRounds',
@@ -158,7 +158,7 @@ const SETTING_GROUPS = [
     title: 'Platform Fee & OTP Security',
     subtitle: 'Platform commission surcharge and customer authentication expiry',
     icon: ShieldCheck,
-    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200/80',
+    badgeColor: 'bg-teal-50/80 text-teal-800 border-teal-200/80',
     fields: [
       {
         key: 'platformFeeAmount',
@@ -402,7 +402,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="w-full min-h-dvh bg-slate-50 flex flex-col lg:flex-row font-sans antialiased text-slate-800">
+    <div className="w-full min-h-dvh bg-[#f6f9f7] flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900">
       <Sidebar />
 
       <main className="flex-1 min-w-0 min-h-dvh p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto space-y-6 sm:space-y-8">
@@ -417,7 +417,7 @@ export default function Settings() {
         />
 
         {/* Status Notification Banner */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-white border border-emerald-100/80 shadow-xs">
           <div className="flex items-start sm:items-center gap-3">
             <div className={`p-2.5 rounded-xl border shrink-0 ${isLiveApi ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-emerald-50/70 text-emerald-800 border-emerald-200/60'}`}>
               <Database size={20} />
@@ -561,7 +561,7 @@ export default function Settings() {
             return (
               <section
                 key={group.id}
-                className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden transition-all hover:shadow-md"
+                className="bg-white rounded-3xl border border-emerald-100/80 shadow-xs overflow-hidden transition-all hover:shadow-md"
               >
                 {/* Group Header */}
                 <div className="px-6 py-4.5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2">

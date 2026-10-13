@@ -249,7 +249,7 @@ export default function Wallet({ embedded = false }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs p-5 sm:p-6"
+          className="bg-white rounded-3xl border border-emerald-100/90 shadow-2xs p-5 sm:p-6"
         >
           {/* Controls Bar: Title, Search, Filter */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
@@ -555,7 +555,7 @@ export default function Wallet({ embedded = false }) {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-dvh bg-[#f6f9f7] flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900">
       <Sidebar />
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 w-full space-y-5 sm:space-y-6 lg:max-h-dvh lg:overflow-y-auto">
         {content}

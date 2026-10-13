@@ -30,8 +30,8 @@ const menuGroups = [
     id: "dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
-    color: "text-emerald-600",
-    bgHover: "group-hover/item:text-emerald-600",
+    color: "text-emerald-700",
+    bgHover: "group-hover/item:text-emerald-800",
     path: ROUTES.DASHBOARD,
     subItems: [],
   },
@@ -39,8 +39,8 @@ const menuGroups = [
     id: "management",
     label: "Management",
     icon: Users,
-    color: "text-sky-600",
-    bgHover: "group-hover/item:text-sky-600",
+    color: "text-emerald-700",
+    bgHover: "group-hover/item:text-emerald-800",
     path: ROUTES.MANAGEMENT,
     subItems: [],
   },
@@ -48,8 +48,8 @@ const menuGroups = [
     id: "products",
     label: "Inventory & Catalog",
     icon: Package,
-    color: "text-emerald-600",
-    bgHover: "group-hover/item:text-emerald-600",
+    color: "text-emerald-700",
+    bgHover: "group-hover/item:text-emerald-800",
     path: ROUTES.PRODUCTS,
     subItems: [],
   },
@@ -57,8 +57,8 @@ const menuGroups = [
     id: "payouts",
     label: "Payouts & Wallet",
     icon: Wallet,
-    color: "text-violet-600",
-    bgHover: "group-hover/item:text-violet-600",
+    color: "text-emerald-700",
+    bgHover: "group-hover/item:text-emerald-800",
     path: ROUTES.WALLET,
     subItems: [],
   },
@@ -66,8 +66,8 @@ const menuGroups = [
     id: "settings",
     label: "System Settings",
     icon: Settings,
-    color: "text-slate-600",
-    bgHover: "group-hover/item:text-slate-700",
+    color: "text-emerald-700",
+    bgHover: "group-hover/item:text-emerald-800",
     path: ROUTES.SETTINGS,
     subItems: [],
   },
@@ -108,7 +108,7 @@ function Sidebar() {
 
   const [expandedGroup, setExpandedGroup] = useState(() => {
     const active = getActiveGroupForPath(location.pathname);
-    return active !== null ? active : (persistedExpandedGroup || "management");
+    return active !== null ? active : persistedExpandedGroup;
   });
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -179,7 +179,7 @@ function Sidebar() {
       {/* 1. Full-Width Top Navigation Bar (Sign-In page luminous aesthetic) */}
       <header className="fixed top-0 left-0 right-0 h-16 z-50 bg-white/95 backdrop-blur-xl border-b border-emerald-100/90 text-slate-800 px-4 sm:px-6 flex items-center justify-between shadow-xs">
         {/* Top multi-color gradient line */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400" />
 
         {/* Left: VegGo Brand Logo & Hamburger */}
         <div className="flex items-center gap-3 sm:gap-4">
@@ -330,11 +330,14 @@ function Sidebar() {
               location.pathname === group.path ||
               (group.id === "management" && location.pathname.startsWith("/management")) ||
               (group.id === "products" && location.pathname.startsWith("/products")) ||
-              (group.id === "payouts" && location.pathname.startsWith("/payouts"));
+              (group.id === "payouts" && location.pathname.startsWith("/payouts")) ||
+              (group.id === "settings" && location.pathname.startsWith("/settings")) ||
+              (group.id === "dashboard" && location.pathname === "/dashboard");
             const hasActiveSub = group.subItems.some(
               (subItem) => location.pathname === subItem.path
             );
             const isSelected = isDirectSelected || hasActiveSub;
+            const isGroupExpanded = isExpanded && group.subItems.length > 0 && !isEffectiveCollapsed;
 
             const GroupIcon = group.icon;
 
@@ -347,16 +350,16 @@ function Sidebar() {
                       ? "justify-center p-3"
                       : "justify-between px-3.5 py-2.5"
                   } ${
-                    isDirectSelected
+                    isSelected
                       ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold shadow-md shadow-emerald-600/20"
-                      : isSelected || (isExpanded && !isEffectiveCollapsed)
+                      : isGroupExpanded
                       ? "bg-emerald-50/90 text-emerald-800 font-bold border border-emerald-200/80"
                       : "text-slate-600 hover:text-emerald-800 hover:bg-emerald-50/60"
                   }`}
                 >
                   <div className={`flex items-center ${isEffectiveCollapsed ? 'justify-center' : 'gap-3'}`}>
                     <div className={`shrink-0 transition-transform group-hover/item:scale-110 ${
-                      isDirectSelected ? "text-white" : isSelected ? "text-emerald-600" : (group.color || "text-slate-500")
+                      isSelected ? "text-white" : isGroupExpanded ? "text-emerald-700" : (group.color || "text-slate-500")
                     }`}>
                       <GroupIcon size={19} />
                     </div>

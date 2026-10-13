@@ -174,7 +174,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-orange-100 selection:text-orange-900">
+    <div className="min-h-dvh bg-[#f6f9f7] flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900">
       <Sidebar />
 
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-5 sm:space-y-6">
@@ -190,7 +190,7 @@ export default function Dashboard() {
           onRefresh={() => fetchDashboard(true)}
           isRefreshing={isRefreshing || loading}
           actions={
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200/80 text-[11px] font-bold text-slate-500 shadow-2xs">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-emerald-100/80 text-[11px] font-bold text-slate-500 shadow-2xs">
               <Clock
                 size={13}
                 className={isRefreshing ? 'text-emerald-500 animate-spin' : 'text-slate-400'}
@@ -233,15 +233,15 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* Minimal Single Main Container with Soft Light Pastel Styling */}
-        <div className="relative bg-white/95 rounded-3xl border border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow overflow-hidden backdrop-blur-xs">
-          {/* Delicate Light Pastel Top Stripe */}
+        {/* Minimal Single Main Container with Soft Green Styling */}
+        <div className="relative bg-white/95 rounded-3xl border border-emerald-100/80 shadow-2xs hover:shadow-xs transition-shadow overflow-hidden backdrop-blur-xs">
+          {/* Delicate Green Top Stripe */}
           <div className={`h-1.5 w-full ${LIGHT_ACCENTS.TOP_STRIPE}`} />
 
-          {/* Container Header Bar with Soft Light Background */}
-          <div className={`p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${LIGHT_ACCENTS.HEADER_BG}`}>
+          {/* Container Header Bar with Soft Green Background */}
+          <div className={`p-5 sm:p-6 border-b border-emerald-100/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${LIGHT_ACCENTS.HEADER_BG}`}>
             <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shadow-2xs">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-700 flex items-center justify-center shadow-2xs">
                 <Database size={18} />
               </div>
               <div>
@@ -275,14 +275,14 @@ export default function Dashboard() {
                 />
                 {formatDisplayText(systemStatus)}
               </span>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-pink-50/80 text-pink-800 border border-pink-200/60">
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-teal-50/80 text-teal-800 border border-teal-200/60">
                 {formatDisplayText(environment)}
               </span>
             </div>
           </div>
 
-          {/* Quick Light Pastel Metric Highlights Strip */}
-          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3.5 p-3.5 sm:p-5 bg-gradient-to-b from-orange-50/15 via-pink-50/10 to-transparent border-b border-slate-100">
+          {/* Quick Green Metric Highlights Strip */}
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3.5 p-3.5 sm:p-5 bg-gradient-to-b from-emerald-50/25 via-teal-50/15 to-transparent border-b border-emerald-100/70">
             {metrics.map((item) => {
               const Icon = item.icon;
               const theme = item.theme;

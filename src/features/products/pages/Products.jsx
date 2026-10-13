@@ -1117,32 +1117,32 @@ export default function Products({ defaultTab = 'products' }) {
       label: 'Total Products',
       value: totalProductsCount,
       subLabel: 'Catalog Produce Items',
-      accentGradient: 'from-emerald-500 to-teal-500',
-      iconBg: 'bg-emerald-50 text-emerald-700',
+      accentGradient: 'from-emerald-600 to-teal-600',
+      iconBg: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
       icon: Package,
     },
     {
       label: 'Active (In Stock)',
       value: activeProducts,
       subLabel: 'Live on Storefront',
-      accentGradient: 'from-sky-500 to-blue-500',
-      iconBg: 'bg-sky-50 text-sky-700',
+      accentGradient: 'from-emerald-500 to-teal-500',
+      iconBg: 'bg-emerald-50/90 text-emerald-800 border border-emerald-200/80',
       icon: CheckCircle2,
     },
     {
       label: 'Inactive / Hidden',
       value: inactiveProducts,
       subLabel: 'Delisted or Paused',
-      accentGradient: 'from-amber-500 to-orange-500',
-      iconBg: 'bg-amber-50 text-amber-700',
+      accentGradient: 'from-slate-500 to-slate-600',
+      iconBg: 'bg-slate-50 text-slate-700 border border-slate-200',
       icon: AlertTriangle,
     },
     {
       label: 'Categories Covered',
       value: categories.length,
       subLabel: 'Taxonomy Departments',
-      accentGradient: 'from-purple-500 to-indigo-500',
-      iconBg: 'bg-purple-50 text-purple-700',
+      accentGradient: 'from-teal-600 to-emerald-700',
+      iconBg: 'bg-teal-50 text-teal-700 border border-teal-200/80',
       icon: Layers,
     },
   ];
@@ -1163,12 +1163,12 @@ export default function Products({ defaultTab = 'products' }) {
   ];
 
   return (
-    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-dvh bg-[#f6f9f7] flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900">
       <Sidebar />
 
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-5 sm:space-y-6">
         {/* Horizontal Navigation Segmented Tabs Bar */}
-        <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <div className="bg-white p-2 rounded-2xl border border-emerald-100/80 shadow-2xs">
           <SegmentedTabs
             tabs={productTabs}
             activeTab={currentTab}
@@ -1257,7 +1257,7 @@ export default function Products({ defaultTab = 'products' }) {
                         <th className="py-4 px-5">Pricing</th>
                         <th className="py-4 px-5">Unit Standard</th>
                         <th className="py-4 px-5 text-center">Status</th>
-                        <th className="py-4 px-5 text-right min-w-[150px]">Actions</th>
+                        <th className="py-4 px-5 text-right min-w-[220px]">Actions</th>
                       </tr>
                     </thead>
 
@@ -1356,42 +1356,50 @@ export default function Products({ defaultTab = 'products' }) {
                             </td>
 
                             <td className="py-4 px-5 text-right">
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-end gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => openEditPanel(prod, true)}
-                                  className="h-9 w-9 inline-flex items-center justify-center rounded-xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 shadow-2xs hover:shadow-xs transition-all cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300 text-xs font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer"
                                   title="View Details"
                                 >
-                                  <Eye size={18} />
+                                  <Eye size={13} className="text-slate-500" />
+                                  <span>View</span>
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={() => openEditPanel(prod, false)}
-                                  className="h-9 w-9 inline-flex items-center justify-center rounded-xl bg-white hover:bg-emerald-50/80 border border-slate-200 hover:border-emerald-300 text-slate-600 hover:text-emerald-700 shadow-2xs hover:shadow-xs transition-all cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200/90 hover:border-emerald-600 text-xs font-bold shadow-2xs hover:shadow-emerald-600/20 transition-all cursor-pointer"
                                   title="Edit Product"
                                 >
-                                  <Edit3 size={18} />
+                                  <Edit3 size={13} />
+                                  <span>Edit</span>
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={() => handleToggleStatus(prod)}
                                   disabled={actionLoading === prod.id}
-                                  className={`h-9 w-9 inline-flex items-center justify-center rounded-xl border transition-all shadow-2xs hover:shadow-xs cursor-pointer disabled:opacity-50 ${
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-2xs cursor-pointer disabled:opacity-50 ${
                                     prod.active
-                                      ? 'bg-white hover:bg-rose-50 border-slate-200 hover:border-rose-300 text-rose-500 hover:text-rose-700'
-                                      : 'bg-white hover:bg-emerald-50 border-slate-200 hover:border-emerald-300 text-slate-400 hover:text-emerald-700'
+                                      ? 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200/90 hover:border-rose-600 hover:shadow-rose-600/20'
+                                      : 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border-emerald-200/90 hover:border-emerald-600 hover:shadow-emerald-600/20'
                                   }`}
                                   title={prod.active ? 'Deactivate Product' : 'Activate Product'}
                                 >
                                   {actionLoading === prod.id ? (
-                                    <Loader2 size={18} className="animate-spin text-emerald-600" />
+                                    <Loader2 size={13} className="animate-spin text-emerald-600" />
                                   ) : prod.active ? (
-                                    <PowerOff size={18} />
+                                    <>
+                                      <PowerOff size={13} />
+                                      <span>Disable</span>
+                                    </>
                                   ) : (
-                                    <Power size={18} />
+                                    <>
+                                      <Power size={13} />
+                                      <span>Enable</span>
+                                    </>
                                   )}
                                 </button>
                               </div>

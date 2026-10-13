@@ -271,7 +271,7 @@ export default function Delivery({ embedded = false }) {
   }, [selectedPartner]);
 
   return (
-    <div className={embedded ? "w-full space-y-5 sm:space-y-6" : "min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900"}>
+    <div className={embedded ? "w-full space-y-5 sm:space-y-6" : "min-h-dvh bg-[#f6f9f7] flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900"}>
       {!embedded && <Sidebar />}
 
       <div className={embedded ? "w-full space-y-5 sm:space-y-6" : "flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 overflow-y-auto max-h-dvh w-full space-y-5 sm:space-y-6"}>
@@ -335,7 +335,7 @@ export default function Delivery({ embedded = false }) {
               }
             />
           ) : (
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
+            <div className="bg-white rounded-3xl border border-emerald-100/90 shadow-2xs overflow-hidden">
               {/* Desktop Table View */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full min-w-[900px] text-left border-collapse">
@@ -373,7 +373,7 @@ export default function Delivery({ embedded = false }) {
                                 <span>{app.phone}</span>
                               </div>
                             )}
-                          </div>hi
+                          </div>
                         </td>
 
                         {/* 2. Vehicle & Credentials */}
@@ -398,7 +398,7 @@ export default function Delivery({ embedded = false }) {
                         {/* 3. Operating City */}
                         <td className="py-4 px-5">
                           <div className="flex items-center gap-1.5 text-slate-800 font-bold">
-                            <MapPin size={12} className="text-orange-600 shrink-0" />
+                            <MapPin size={12} className="text-emerald-600 shrink-0" />
                             <span>{app.cityOfOperation || "-"}</span>
                           </div>
                         </td>

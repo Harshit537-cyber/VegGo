@@ -538,7 +538,7 @@ export default function Customer({ embedded = false }) {
       className={
         embedded
           ? "w-full space-y-4 sm:space-y-5"
-          : "min-h-dvh w-full overflow-x-hidden bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800"
+          : "min-h-dvh w-full overflow-x-hidden bg-[#f6f9f7] flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900"
       }
     >
       {!embedded && <Sidebar />}
@@ -591,7 +591,7 @@ export default function Customer({ embedded = false }) {
         </AnimatePresence>
 
         {/* Segmented View Tabs Navigation */}
-        <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <div className="bg-white p-2 rounded-2xl border border-emerald-100/80 shadow-2xs">
           <SegmentedTabs
             tabs={customerTabs}
             activeTab={activeCustomerTab}
@@ -717,7 +717,7 @@ export default function Customer({ embedded = false }) {
                       )}
 
                       <th className="py-3.5 px-5 text-center">Status</th>
-                      <th className="py-3.5 px-5 text-center">Actions</th>
+                      <th className="py-3.5 px-5 text-center min-w-[230px]">Actions</th>
                     </tr>
                   </thead>
 
@@ -867,21 +867,25 @@ export default function Customer({ embedded = false }) {
                           <td className="py-4 px-5 text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               <button
+                                type="button"
                                 onClick={() => handleViewCustomer(account)}
                                 disabled={isRefreshing || detailsLoading}
-                                className="p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all cursor-pointer disabled:opacity-40"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300 text-xs font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer disabled:opacity-40"
                                 title="View Customer Details"
                               >
-                                <Eye size={15} />
+                                <Eye size={13} className="text-slate-500" />
+                                <span>View</span>
                               </button>
 
                               <button
+                                type="button"
                                 onClick={() => initiateToggleStatus(account)}
                                 disabled={isRefreshing}
-                                className={`p-2 rounded-xl transition-all cursor-pointer disabled:opacity-40 ${account.blocked
-                                    ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                    : "bg-amber-50 text-amber-700 hover:bg-amber-100"
-                                  }`}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-2xs cursor-pointer disabled:opacity-40 ${
+                                  account.blocked
+                                    ? "bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border-emerald-200/90 hover:border-emerald-600 hover:shadow-emerald-600/20"
+                                    : "bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white border-amber-200/90 hover:border-amber-600 hover:shadow-amber-600/20"
+                                }`}
                                 title={
                                   account.blocked
                                     ? "Restore Access"
@@ -889,19 +893,27 @@ export default function Customer({ embedded = false }) {
                                 }
                               >
                                 {account.blocked ? (
-                                  <ShieldCheck size={15} />
+                                  <>
+                                    <ShieldCheck size={13} />
+                                    <span>Restore</span>
+                                  </>
                                 ) : (
-                                  <UserX size={15} />
+                                  <>
+                                    <UserX size={13} />
+                                    <span>Block</span>
+                                  </>
                                 )}
                               </button>
 
                               <button
+                                type="button"
                                 onClick={() => initiateDelete(account)}
                                 disabled={isRefreshing}
-                                className="p-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all cursor-pointer disabled:opacity-40"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200/90 hover:border-rose-600 text-xs font-bold shadow-2xs hover:shadow-rose-600/20 transition-all cursor-pointer disabled:opacity-40"
                                 title="Delete Customer Account"
                               >
-                                <Trash2 size={15} />
+                                <Trash2 size={13} />
+                                <span>Delete</span>
                               </button>
                             </div>
                           </td>

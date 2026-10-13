@@ -441,7 +441,7 @@ export default function PayoutRequests({ embedded = false }) {
         />
 
         {/* Partner Role Filter */}
-        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200/80 shadow-2xs self-start sm:self-auto">
+        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-emerald-100/80 shadow-2xs self-start sm:self-auto">
           {[
             { id: "ALL", label: "All Partners" },
             { id: "VENDOR", label: "Vendors", icon: Store },
@@ -488,7 +488,7 @@ export default function PayoutRequests({ embedded = false }) {
       </div>
 
       {/* Data Table */}
-      <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-2xs sm:p-6">
+      <section className="overflow-hidden rounded-3xl border border-emerald-100/90 bg-white p-5 shadow-2xs sm:p-6">
         <div className="hidden w-full md:block overflow-x-auto">
           <table className="w-full min-w-[850px] table-fixed border-collapse text-left">
             <colgroup>
@@ -627,10 +627,11 @@ export default function PayoutRequests({ embedded = false }) {
                               setSelectedPayout(item);
                               setShowDetails(true);
                             }}
-                            className="p-2 rounded-xl text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300 text-xs font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer"
                             title="View Full Details"
                           >
-                            <Eye size={16} />
+                            <Eye size={13} className="text-slate-500" />
+                            <span>View</span>
                           </button>
 
                           {status === "PENDING" && (
@@ -922,7 +923,7 @@ export default function PayoutRequests({ embedded = false }) {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-100/70 flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-dvh bg-[#f6f9f7] flex flex-col lg:flex-row font-sans antialiased text-slate-800 selection:bg-emerald-100 selection:text-emerald-900">
       <Sidebar />
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 w-full space-y-5 sm:space-y-6 lg:max-h-dvh lg:overflow-y-auto">
         {content}
