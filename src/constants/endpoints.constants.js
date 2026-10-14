@@ -66,6 +66,14 @@ export const PAYOUT_ENDPOINTS = Object.freeze({
   WALLET_TRANSACTIONS: '/api/payment/wallet/transactions',
 });
 
+// Complaints Management
+export const COMPLAINT_ENDPOINTS = Object.freeze({
+  STATS: '/api/admin/complaints/stats',
+  BASE: '/api/admin/complaints',
+  DETAILS: (complaintId) => `/api/admin/complaints/${complaintId}`,
+  UPDATE_STATUS: (complaintId) => `/api/admin/complaints/${complaintId}/status`,
+});
+
 // Platform Settings
 export const SETTINGS_ENDPOINTS = Object.freeze({
   SETTINGS: '/api/admin/settings',
@@ -80,6 +88,7 @@ export const ENDPOINTS = Object.freeze({
   DELIVERY: DELIVERY_ENDPOINTS,
   CATALOG: CATALOG_ENDPOINTS,
   PAYOUTS: PAYOUT_ENDPOINTS,
+  COMPLAINTS: COMPLAINT_ENDPOINTS,
   SETTINGS: SETTINGS_ENDPOINTS,
 });
 

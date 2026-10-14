@@ -23,6 +23,9 @@ export const ROUTES = Object.freeze({
   WALLET: '/payouts/wallet',
   PAYOUTS: '/payouts/vendors',
 
+  // Complaints
+  COMPLAINTS: '/complaints',
+
   // Orders
   ORDERS: '/orders',
   ORDERS_MONITORING: '/orders/monitoring',

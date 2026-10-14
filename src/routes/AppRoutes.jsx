@@ -31,6 +31,9 @@ const Delivery = lazy(() => import('../features/delivery/pages/Delivery'));
 const Payouts = lazy(() => import('../features/payouts/pages/Payouts'));
 const Wallet = lazy(() => import('../features/payouts/pages/Wallet'));
 
+// Complaints Feature
+const Complaints = lazy(() => import('../features/complaints/pages/Complaints'));
+
 // Logistics Feature
 const ColdChain = lazy(() => import('../features/logistics/pages/ColdChain'));
 
@@ -68,6 +71,8 @@ export default function AppRoutes() {
 
           <Route path={ROUTES.WALLET} element={<Payouts defaultTab="wallet" />} />
           <Route path={ROUTES.PAYOUTS} element={<Payouts defaultTab="payouts" />} />
+
+          <Route path={ROUTES.COMPLAINTS} element={<Complaints />} />
 
           <Route path={ROUTES.ORDERS} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
           <Route path={ROUTES.ORDERS_MONITORING} element={<Navigate to={ROUTES.DASHBOARD} replace />} />

@@ -19,7 +19,8 @@ import {
   User,
   Tag,
   Layers,
-  TrendingUp
+  TrendingUp,
+  MessageSquareWarning
 } from "lucide-react";
 import LogoutModal from "../components/common/LogoutModal";
 import { clearAuthSession } from "../utils/auth";
@@ -60,6 +61,15 @@ const menuGroups = [
     color: "text-emerald-700",
     bgHover: "group-hover/item:text-emerald-800",
     path: ROUTES.WALLET,
+    subItems: [],
+  },
+  {
+    id: "complaints",
+    label: "Complaints",
+    icon: MessageSquareWarning,
+    color: "text-emerald-700",
+    bgHover: "group-hover/item:text-emerald-800",
+    path: ROUTES.COMPLAINTS,
     subItems: [],
   },
   {
@@ -331,6 +341,7 @@ function Sidebar() {
               (group.id === "management" && location.pathname.startsWith("/management")) ||
               (group.id === "products" && location.pathname.startsWith("/products")) ||
               (group.id === "payouts" && location.pathname.startsWith("/payouts")) ||
+              (group.id === "complaints" && location.pathname.startsWith("/complaints")) ||
               (group.id === "settings" && location.pathname.startsWith("/settings")) ||
               (group.id === "dashboard" && location.pathname === "/dashboard");
             const hasActiveSub = group.subItems.some(
