@@ -3,6 +3,7 @@ import Sidebar from "../../../layouts/Sidebar";
 import PageHeader from "../../../components/common/PageHeader";
 import WorkflowRulesBar from "../../../components/common/WorkflowRulesBar";
 import EmptyState from "../../../components/common/EmptyState";
+import SegmentedTabs from "../../../components/common/SegmentedTabs";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
@@ -26,10 +27,12 @@ import {
   ChevronLeft,
   ChevronRight,
   FileCheck,
-  AlertTriangle
+  AlertTriangle,
+  Radio,
 } from "lucide-react";
 
 import {
+  getDeliveryPartners,
   getPendingDeliveryKyc,
   getDeliveryKycDetails,
   approveDeliveryKyc,
@@ -47,32 +50,56 @@ const formatDate = (value) => {
   });
 };
 
-const normalizeDeliveryPartner = (item) => ({
-  ...item,
-  userId: item?.userId || item?.deliveryPartnerUserId || item?.deliveryUserId || item?.id || "",
-  fullName: item?.fullName || item?.name || "-",
-  phone: item?.phone || "-",
-  vehicleType: item?.vehicleType || "-",
-  vehicleModel: item?.vehicleModel || "-",
-  plateNumber: item?.plateNumber || "-",
-  licenseNumber: item?.licenseNumber || "-",
-  cityOfOperation: item?.cityOfOperation || "-",
-  manufactureYear: item?.manufactureYear || null,
-  emergencyContact: item?.emergencyContact || {},
-  bank: item?.bank || null,
-  onboardingStep: item?.onboardingStep ?? null,
-  basicInfoCompleted: Boolean(item?.basicInfoCompleted),
-  submittedAt: item?.submittedAt || null,
-  registeredAt: item?.registeredAt || null,
-  lastUpdatedAt: item?.lastUpdatedAt || null,
-  date: formatDate(item?.submittedAt || item?.registeredAt),
-  documents: Array.isArray(item?.documents) ? item.documents : [],
-  allDocumentsUploaded: Boolean(item?.allDocumentsUploaded),
-  missingDocuments: Array.isArray(item?.missingDocuments) ? item.missingDocuments : [],
-  status: item?.kycStatus === "PENDING" ? "Pending" : item?.kycStatus || "Pending",
-});
+const normalizeDeliveryPartner = (item) => {
+  const kyc =
+    item?.kycStatus ||
+    (item?.status ? String(item.status).toUpperCase() : "PENDING");
+  const displayStatus =
+    kyc === "APPROVED"
+      ? "Approved"
+      : kyc === "REJECTED"
+      ? "Rejected"
+      : "Pending";
+
+  return {
+    ...item,
+    userId:
+      item?.userId ||
+      item?.deliveryPartnerUserId ||
+      item?.deliveryUserId ||
+      item?.id ||
+      "",
+    fullName: item?.fullName || item?.name || "-",
+    phone: item?.phone || "-",
+    vehicleType: item?.vehicleType || "-",
+    vehicleModel: item?.vehicleModel || "-",
+    plateNumber: item?.plateNumber || "-",
+    licenseNumber: item?.licenseNumber || "-",
+    cityOfOperation: item?.cityOfOperation || item?.city || "-",
+    isOnline: Boolean(item?.isOnline),
+    kycStatus: kyc,
+    manufactureYear: item?.manufactureYear || null,
+    emergencyContact: item?.emergencyContact || {},
+    bank: item?.bank || null,
+    onboardingStep: item?.onboardingStep ?? null,
+    basicInfoCompleted: Boolean(item?.basicInfoCompleted),
+    submittedAt: item?.submittedAt || item?.createdAt || null,
+    registeredAt: item?.registeredAt || item?.createdAt || null,
+    lastUpdatedAt: item?.lastUpdatedAt || item?.updatedAt || null,
+    date: formatDate(
+      item?.submittedAt || item?.createdAt || item?.registeredAt
+    ),
+    documents: Array.isArray(item?.documents) ? item.documents : [],
+    allDocumentsUploaded: Boolean(item?.allDocumentsUploaded),
+    missingDocuments: Array.isArray(item?.missingDocuments)
+      ? item.missingDocuments
+      : [],
+    status: displayStatus,
+  };
+};
 
 export default function Delivery({ embedded = false }) {
+  const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [applications, setApplications] = useState([]);
@@ -96,59 +123,91 @@ export default function Delivery({ embedded = false }) {
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectBox, setShowRejectBox] = useState(false);
 
-  const fetchPendingDeliveryKyc = useCallback(async (page = 0) => {
-    try {
-      setLoading(true);
-      setError("");
+  const deliveryTabs = [
+    { id: "all", label: "All Delivery", icon: Bike },
+    { id: "pending", label: "Pending Delivery", icon: Clock },
+  ];
 
-      const response = await getPendingDeliveryKyc(page, pageSize);
-      const content =
-        response?.data?.content ||
-        response?.data?.items ||
-        response?.content ||
-        response?.data ||
-        [];
+  const fetchDeliveryPartners = useCallback(
+    async (tab = activeTab, page = 0, search = searchQuery) => {
+      try {
+        setLoading(true);
+        setError("");
 
-      // Enrich every pending rider using /api/admin/delivery-partners/kyc/:deliveryUserId to get the complete dossier
-      const fullPartners = await Promise.all(
-        content.map(async (p) => {
-          const uid = p?.userId || p?.deliveryPartnerUserId || p?.deliveryUserId || p?.id;
-          if (!uid) return normalizeDeliveryPartner(p);
-          try {
-            const detailRes = await getDeliveryKycDetails(uid);
-            const detail = detailRes?.data || detailRes || {};
-            return normalizeDeliveryPartner({ ...p, ...detail });
-          } catch {
-            return normalizeDeliveryPartner(p);
+        const params = {
+          page,
+          size: pageSize,
+          sort: "newest",
+        };
+
+        if (search && search.trim()) {
+          params.search = search.trim();
+        }
+
+        if (tab === "pending") {
+          params.kycStatus = "PENDING";
+        }
+
+        let response;
+        try {
+          response = await getDeliveryPartners(params);
+        } catch (apiErr) {
+          if (tab === "pending" || tab === "all") {
+            response = await getPendingDeliveryKyc(page, pageSize);
+          } else {
+            throw apiErr;
           }
-        })
-      );
+        }
 
-      setApplications(fullPartners);
-      setTotalPages(response?.data?.totalPages || response?.totalPages || 1);
-      setTotalElements(response?.data?.totalElements ?? response?.totalElements ?? fullPartners.length);
-      setCurrentPage(page);
-    } catch (err) {
-      console.error("Delivery KYC Pending List Error:", err);
-      setError(
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Unable to load pending delivery partner verification requests."
-      );
-      setApplications([]);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+        const rawContent =
+          response?.data?.content ||
+          response?.data?.items ||
+          response?.content ||
+          (Array.isArray(response?.data)
+            ? response.data
+            : Array.isArray(response)
+            ? response
+            : []);
+
+        const normalized = rawContent.map(normalizeDeliveryPartner);
+
+        setApplications(normalized);
+        setTotalPages(response?.data?.totalPages || response?.totalPages || 1);
+        setTotalElements(
+          response?.data?.totalElements ??
+            response?.totalElements ??
+            normalized.length
+        );
+        setCurrentPage(page);
+      } catch (err) {
+        console.error("Delivery List Error:", err);
+        setError(
+          err?.response?.data?.message ||
+            err?.response?.data?.error ||
+            "Unable to load delivery fleet records."
+        );
+        setApplications([]);
+      } finally {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [activeTab, searchQuery]
+  );
 
   useEffect(() => {
-    fetchPendingDeliveryKyc(0);
-  }, [fetchPendingDeliveryKyc]);
+    fetchDeliveryPartners(activeTab, 0, searchQuery);
+  }, [activeTab]);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setCurrentPage(0);
+    fetchDeliveryPartners(tabId, 0, searchQuery);
+  };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchPendingDeliveryKyc(currentPage);
+    await fetchDeliveryPartners(activeTab, currentPage, searchQuery);
   };
 
   const handleViewPartner = async (partner) => {
@@ -201,7 +260,7 @@ export default function Delivery({ embedded = false }) {
       await approveDeliveryKyc(userId);
       setShowDetail(false);
       setSelectedPartner(null);
-      await fetchPendingDeliveryKyc(currentPage);
+      await fetchDeliveryPartners(activeTab, currentPage, searchQuery);
     } catch (err) {
       console.error("Delivery KYC Approve Error:", err);
       setActionError(
@@ -231,7 +290,7 @@ export default function Delivery({ embedded = false }) {
       setSelectedPartner(null);
       setRejectReason("");
       setShowRejectBox(false);
-      await fetchPendingDeliveryKyc(currentPage);
+      await fetchDeliveryPartners(activeTab, currentPage, searchQuery);
     } catch (err) {
       console.error("Delivery KYC Reject Error:", err);
       setActionError(
@@ -278,10 +337,20 @@ export default function Delivery({ embedded = false }) {
         {/* Top Header */}
         <PageHeader
           icon={Bike}
-          title="Delivery Partner Verification"
-          subtitle="Verify delivery partners, vehicle details, and KYC applications."
+          title={
+            activeTab === "pending"
+              ? "Pending Delivery KYC"
+              : "All Delivery Directory"
+          }
+          subtitle="Directory and KYC status verification for delivery partners on VegGo."
           stats={[
-            { label: "Pending KYC", value: totalElements },
+            {
+              label:
+                activeTab === "all"
+                  ? "Total Partners"
+                  : "Pending Delivery",
+              value: totalElements,
+            },
             { label: "On This Page", value: applications.length },
           ]}
           onRefresh={handleRefresh}
@@ -296,9 +365,18 @@ export default function Delivery({ embedded = false }) {
           </div>
         )}
 
+        {/* Segmented View Tabs Navigation */}
+        <div className="bg-white p-2 rounded-2xl border border-emerald-100/80 shadow-2xs">
+          <SegmentedTabs
+            tabs={deliveryTabs}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+          />
+        </div>
+
         {/* Workflow Rules Information Bar */}
         <WorkflowRulesBar
-          rulesText="Review rider identity, driving license, vehicle registration, and settlement details before approving."
+          rulesText={`Showing ${activeTab === 'all' ? 'all' : activeTab} delivery partners with real-time status and verification controls.`}
           showingCount={filteredApplications.length}
           itemLabel="delivery partners"
         />
@@ -437,10 +515,32 @@ export default function Delivery({ embedded = false }) {
 
                         {/* 7. Status */}
                         <td className="py-4 px-5 text-center">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                            <Clock size={11} className="text-amber-600" />
-                            {app.status}
-                          </span>
+                          <div className="flex flex-col items-center gap-1">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
+                                app.status === "Approved"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : app.status === "Rejected"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                  : "bg-amber-50 text-amber-700 border border-amber-200"
+                              }`}
+                            >
+                              {app.status === "Approved" ? (
+                                <CheckCircle2 size={11} className="text-emerald-600" />
+                              ) : app.status === "Rejected" ? (
+                                <XCircle size={11} className="text-rose-600" />
+                              ) : (
+                                <Clock size={11} className="text-amber-600" />
+                              )}
+                              {app.status}
+                            </span>
+                            {app.isOnline && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                                Online
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* 8. Actions */}
@@ -478,10 +578,29 @@ export default function Delivery({ embedded = false }) {
                           </div>
                         )}
                       </div>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                        <Clock size={10} />
-                        {app.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            app.status === "Approved"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : app.status === "Rejected"
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {app.status === "Approved" ? (
+                            <CheckCircle2 size={10} className="text-emerald-600" />
+                          ) : app.status === "Rejected" ? (
+                            <XCircle size={10} className="text-rose-600" />
+                          ) : (
+                            <Clock size={10} className="text-amber-600" />
+                          )}
+                          {app.status}
+                        </span>
+                        {app.isOnline && (
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Online" />
+                        )}
+                      </div>
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-white border border-slate-200/60 text-xs space-y-1.5">

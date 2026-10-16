@@ -3,6 +3,7 @@ import Sidebar from "../../../layouts/Sidebar";
 import PageHeader from "../../../components/common/PageHeader";
 import WorkflowRulesBar from "../../../components/common/WorkflowRulesBar";
 import EmptyState from "../../../components/common/EmptyState";
+import SegmentedTabs from "../../../components/common/SegmentedTabs";
 import { motion, AnimatePresence } from "framer-motion";
 
 import {
@@ -27,10 +28,12 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
-  FileCheck
+  FileCheck,
+  Radio,
 } from "lucide-react";
 
 import {
+  getVendors,
   getPendingVendorKyc,
   getVendorKycDetail,
   approveVendorKyc,
@@ -48,29 +51,56 @@ const formatDate = (value) => {
   });
 };
 
-const normalizeVendor = (item) => ({
-  ...item,
-  shopId: item?.shopId || "",
-  ownerUserId: item?.ownerUserId || "",
-  ownerFullName: item?.ownerFullName || "-",
-  businessPhone: item?.businessPhone || "-",
-  loginPhone: item?.loginPhone || "",
-  email: item?.email || "-",
-  businessName: item?.businessName || "-",
-  businessType: item?.businessType || "-",
-  submittedAt: item?.submittedAt || null,
-  registeredAt: item?.registeredAt || null,
-  lastUpdatedAt: item?.lastUpdatedAt || null,
-  date: formatDate(item?.submittedAt),
-  address: item?.address || null,
-  bank: item?.bank || null,
-  onboardingProgress: item?.onboardingProgress || null,
-  documents: Array.isArray(item?.documents) ? item.documents : [],
-  allDocumentsUploaded: Boolean(item?.allDocumentsUploaded),
-  status: item?.kycStatus === "PENDING" ? "Pending" : item?.kycStatus || "Pending",
-});
+const normalizeVendor = (item) => {
+  const kyc =
+    item?.kycStatus ||
+    (item?.status ? String(item.status).toUpperCase() : "PENDING");
+  const displayStatus =
+    kyc === "APPROVED"
+      ? "Approved"
+      : kyc === "REJECTED"
+      ? "Rejected"
+      : "Pending";
+
+  return {
+    ...item,
+    shopId: item?.shopId || item?.id || "",
+    ownerUserId: item?.ownerUserId || item?.userId || "",
+    ownerFullName:
+      item?.ownerFullName ||
+      item?.ownerName ||
+      item?.fullName ||
+      item?.name ||
+      "-",
+    businessPhone: item?.businessPhone || item?.phone || "-",
+    loginPhone: item?.loginPhone || item?.phone || "",
+    email: item?.email || "-",
+    businessName: item?.businessName || item?.shopName || "-",
+    businessType: item?.businessType || item?.category || "-",
+    city: item?.city || item?.address?.city || "-",
+    isOnline: Boolean(item?.isOnline),
+    kycStatus: kyc,
+    submittedAt: item?.submittedAt || item?.createdAt || null,
+    registeredAt: item?.registeredAt || item?.createdAt || null,
+    lastUpdatedAt: item?.lastUpdatedAt || item?.updatedAt || null,
+    date: formatDate(
+      item?.submittedAt || item?.createdAt || item?.registeredAt
+    ),
+    address:
+      item?.address ||
+      (item?.city
+        ? { city: item.city, state: item?.state || "" }
+        : null),
+    bank: item?.bank || null,
+    onboardingProgress: item?.onboardingProgress || null,
+    documents: Array.isArray(item?.documents) ? item.documents : [],
+    allDocumentsUploaded: Boolean(item?.allDocumentsUploaded),
+    status: displayStatus,
+  };
+};
 
 export default function Vendor({ embedded = false }) {
+  const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [applications, setApplications] = useState([]);
@@ -94,53 +124,90 @@ export default function Vendor({ embedded = false }) {
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectBox, setShowRejectBox] = useState(false);
 
-  const fetchPendingVendors = useCallback(async (page = 0) => {
-    try {
-      setLoading(true);
-      setError("");
+  const vendorTabs = [
+    { id: "all", label: "All Vendors", icon: Store },
+    { id: "pending", label: "Pending Vendors", icon: Clock },
+  ];
 
-      const response = await getPendingVendorKyc(page, pageSize);
-      const content = response?.data?.content || response?.content || [];
+  const fetchVendors = useCallback(
+    async (tab = activeTab, page = 0, search = searchQuery) => {
+      try {
+        setLoading(true);
+        setError("");
 
-      // Enrich every pending vendor using /api/admin/vendors/kyc/:vendorShopId to get the complete dossier
-      const fullVendors = await Promise.all(
-        content.map(async (v) => {
-          if (!v?.shopId) return normalizeVendor(v);
-          try {
-            const detailRes = await getVendorKycDetail(v.shopId);
-            const detail = detailRes?.data || detailRes || {};
-            return normalizeVendor({ ...v, ...detail });
-          } catch {
-            return normalizeVendor(v);
+        const params = {
+          page,
+          size: pageSize,
+          sort: "newest",
+        };
+
+        if (search && search.trim()) {
+          params.search = search.trim();
+        }
+
+        if (tab === "pending") {
+          params.kycStatus = "PENDING";
+        }
+
+        let response;
+        try {
+          response = await getVendors(params);
+        } catch (apiErr) {
+          if (tab === "pending" || tab === "all") {
+            response = await getPendingVendorKyc(page, pageSize);
+          } else {
+            throw apiErr;
           }
-        })
-      );
+        }
 
-      setApplications(fullVendors);
-      setTotalPages(response?.data?.totalPages || response?.totalPages || 1);
-      setTotalElements(response?.data?.totalElements ?? response?.totalElements ?? fullVendors.length);
-      setCurrentPage(page);
-    } catch (err) {
-      console.error("Vendor KYC Pending List Error:", err);
-      setError(
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Unable to load pending vendor verification requests."
-      );
-      setApplications([]);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+        const rawContent =
+          response?.data?.content ||
+          response?.content ||
+          (Array.isArray(response?.data)
+            ? response.data
+            : Array.isArray(response)
+            ? response
+            : []);
+
+        const normalized = rawContent.map(normalizeVendor);
+
+        setApplications(normalized);
+        setTotalPages(response?.data?.totalPages || response?.totalPages || 1);
+        setTotalElements(
+          response?.data?.totalElements ??
+            response?.totalElements ??
+            normalized.length
+        );
+        setCurrentPage(page);
+      } catch (err) {
+        console.error("Vendor List Error:", err);
+        setError(
+          err?.response?.data?.message ||
+            err?.response?.data?.error ||
+            "Unable to load vendor records."
+        );
+        setApplications([]);
+      } finally {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [activeTab, searchQuery]
+  );
 
   useEffect(() => {
-    fetchPendingVendors(0);
-  }, [fetchPendingVendors]);
+    fetchVendors(activeTab, 0, searchQuery);
+  }, [activeTab]);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setCurrentPage(0);
+    fetchVendors(tabId, 0, searchQuery);
+  };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchPendingVendors(currentPage);
+    await fetchVendors(activeTab, currentPage, searchQuery);
   };
 
   const handleViewVendor = async (application) => {
@@ -197,7 +264,7 @@ export default function Vendor({ embedded = false }) {
       await approveVendorKyc(vendorShopId);
       setShowDetail(false);
       setSelectedVendor(null);
-      await fetchPendingVendors(currentPage);
+      await fetchVendors(activeTab, currentPage, searchQuery);
     } catch (err) {
       console.error("Vendor KYC Approve Error:", err);
       setActionError(
@@ -231,7 +298,7 @@ export default function Vendor({ embedded = false }) {
       setSelectedVendor(null);
       setRejectReason("");
       setShowRejectBox(false);
-      await fetchPendingVendors(currentPage);
+      await fetchVendors(activeTab, currentPage, searchQuery);
     } catch (err) {
       console.error("Vendor KYC Reject Error:", err);
       setActionError(
@@ -254,7 +321,8 @@ export default function Vendor({ embedded = false }) {
         String(app.businessPhone || app.phone || "").toLowerCase().includes(query) ||
         String(app.email || "").toLowerCase().includes(query) ||
         String(app.businessName || app.shopName || "").toLowerCase().includes(query) ||
-        String(app.businessType || app.category || "").toLowerCase().includes(query)
+        String(app.businessType || app.category || "").toLowerCase().includes(query) ||
+        String(app.city || app.address?.city || "").toLowerCase().includes(query)
     );
   }, [applications, searchQuery]);
 
@@ -277,10 +345,20 @@ export default function Vendor({ embedded = false }) {
         {/* Top Header */}
         <PageHeader
           icon={Store}
-          title="Vendor Verifications"
-          subtitle="Review and process pending merchant shop KYC applications and document credentials."
+          title={
+            activeTab === "pending"
+              ? "Pending Vendor KYC"
+              : "All Vendors Directory"
+          }
+          subtitle="Directory and KYC status moderation for merchant shops on VegGo."
           stats={[
-            { label: "Pending KYC", value: totalElements },
+            {
+              label:
+                activeTab === "all"
+                  ? "Total Vendors"
+                  : "Pending Vendors",
+              value: totalElements,
+            },
             { label: "On This Page", value: applications.length },
           ]}
           onRefresh={handleRefresh}
@@ -304,9 +382,18 @@ export default function Vendor({ embedded = false }) {
           </div>
         )}
 
+        {/* Segmented View Tabs Navigation */}
+        <div className="bg-white p-2 rounded-2xl border border-emerald-100/80 shadow-2xs">
+          <SegmentedTabs
+            tabs={vendorTabs}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+          />
+        </div>
+
         {/* Workflow Information Bar */}
         <WorkflowRulesBar
-          rulesText="Vendor merchant applications awaiting administrative KYC inspection, document validation, and approval."
+          rulesText={`Showing ${activeTab === 'all' ? 'all' : activeTab} vendors with real-time status and verification controls.`}
           showingCount={filteredApplications.length}
           itemLabel="merchants"
         />
@@ -316,7 +403,7 @@ export default function Vendor({ embedded = false }) {
           <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
           <input
             type="text"
-            placeholder="Search pending applications by merchant name, phone, shop name, or category..."
+            placeholder="Search by merchant name, phone, shop name, category, or city..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-2xs"
@@ -451,10 +538,32 @@ export default function Vendor({ embedded = false }) {
 
                         {/* 7. Status */}
                         <td className="py-4 px-5 text-center">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                            <Clock size={11} className="text-amber-600" />
-                            {app.status}
-                          </span>
+                          <div className="flex flex-col items-center gap-1">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
+                                app.status === "Approved"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : app.status === "Rejected"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                  : "bg-amber-50 text-amber-700 border border-amber-200"
+                              }`}
+                            >
+                              {app.status === "Approved" ? (
+                                <CheckCircle2 size={11} className="text-emerald-600" />
+                              ) : app.status === "Rejected" ? (
+                                <XCircle size={11} className="text-rose-600" />
+                              ) : (
+                                <Clock size={11} className="text-amber-600" />
+                              )}
+                              {app.status}
+                            </span>
+                            {app.isOnline && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                                Online
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* 8. Actions */}
@@ -500,10 +609,29 @@ export default function Vendor({ embedded = false }) {
                           </div>
                         )}
                       </div>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
-                        <Clock size={10} />
-                        {app.status}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            app.status === "Approved"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : app.status === "Rejected"
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {app.status === "Approved" ? (
+                            <CheckCircle2 size={10} className="text-emerald-600" />
+                          ) : app.status === "Rejected" ? (
+                            <XCircle size={10} className="text-rose-600" />
+                          ) : (
+                            <Clock size={10} className="text-amber-600" />
+                          )}
+                          {app.status}
+                        </span>
+                        {app.isOnline && (
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Online" />
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2.5 pt-2 border-t border-slate-200/60">

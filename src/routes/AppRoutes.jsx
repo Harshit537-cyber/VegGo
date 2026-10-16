@@ -64,10 +64,10 @@ export default function AppRoutes() {
           <Route path={ROUTES.DASHBOARD_ORDERS} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
           <Route path={ROUTES.DASHBOARD_VENDORS} element={<VendorStatistics />} />
 
-          <Route path={ROUTES.MANAGEMENT} element={<Management defaultTab="vendors" />} />
-          <Route path={ROUTES.CUSTOMERS} element={<Management defaultTab="customers" />} />
-          <Route path={ROUTES.DELIVERY} element={<Management defaultTab="delivery" />} />
-          <Route path={ROUTES.VENDORS} element={<Management defaultTab="vendors" />} />
+          <Route path={ROUTES.MANAGEMENT} element={<Navigate to={ROUTES.VENDORS} replace />} />
+          <Route path={ROUTES.CUSTOMERS} element={<Customer />} />
+          <Route path={ROUTES.DELIVERY} element={<Delivery />} />
+          <Route path={ROUTES.VENDORS} element={<Vendor />} />
 
           <Route path={ROUTES.WALLET} element={<Payouts defaultTab="wallet" />} />
           <Route path={ROUTES.PAYOUTS} element={<Payouts defaultTab="payouts" />} />

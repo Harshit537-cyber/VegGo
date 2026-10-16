@@ -16,6 +16,7 @@ import {
   Dot,
   Store,
   Truck,
+  Bike,
   User,
   Tag,
   Layers,
@@ -42,8 +43,30 @@ const menuGroups = [
     icon: Users,
     color: "text-emerald-700",
     bgHover: "group-hover/item:text-emerald-800",
-    path: ROUTES.MANAGEMENT,
-    subItems: [],
+    path: ROUTES.VENDORS,
+    subItems: [
+      {
+        id: "management-vendors",
+        label: "Vendors",
+        path: ROUTES.VENDORS,
+        icon: Store,
+        color: "text-emerald-600",
+      },
+      {
+        id: "management-delivery",
+        label: "Delivery",
+        path: ROUTES.DELIVERY,
+        icon: Bike,
+        color: "text-emerald-600",
+      },
+      {
+        id: "management-customers",
+        label: "Customers",
+        path: ROUTES.CUSTOMERS,
+        icon: User,
+        color: "text-emerald-600",
+      },
+    ],
   },
   {
     id: "products",
@@ -87,7 +110,8 @@ let persistedExpandedGroup = null;
 
 function getActiveGroupForPath(pathname) {
   const active = menuGroups.find((group) =>
-    group.subItems.some((subItem) => pathname === subItem.path)
+    group.subItems.some((subItem) => pathname === subItem.path || pathname.startsWith(subItem.path)) ||
+    (group.id === "management" && pathname.startsWith("/management"))
   );
   return active ? active.id : null;
 }
@@ -338,14 +362,13 @@ function Sidebar() {
 
             const isDirectSelected =
               location.pathname === group.path ||
-              (group.id === "management" && location.pathname.startsWith("/management")) ||
               (group.id === "products" && location.pathname.startsWith("/products")) ||
               (group.id === "payouts" && location.pathname.startsWith("/payouts")) ||
               (group.id === "complaints" && location.pathname.startsWith("/complaints")) ||
               (group.id === "settings" && location.pathname.startsWith("/settings")) ||
               (group.id === "dashboard" && location.pathname === "/dashboard");
             const hasActiveSub = group.subItems.some(
-              (subItem) => location.pathname === subItem.path
+              (subItem) => location.pathname === subItem.path || location.pathname.startsWith(subItem.path)
             );
             const isSelected = isDirectSelected || hasActiveSub;
             const isGroupExpanded = isExpanded && group.subItems.length > 0 && !isEffectiveCollapsed;
@@ -361,16 +384,20 @@ function Sidebar() {
                       ? "justify-center p-3"
                       : "justify-between px-3.5 py-2.5"
                   } ${
-                    isSelected
+                    isSelected && group.subItems.length === 0
                       ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold shadow-md shadow-emerald-600/20"
-                      : isGroupExpanded
+                      : isGroupExpanded || (isSelected && group.subItems.length > 0)
                       ? "bg-emerald-50/90 text-emerald-800 font-bold border border-emerald-200/80"
                       : "text-slate-600 hover:text-emerald-800 hover:bg-emerald-50/60"
                   }`}
                 >
                   <div className={`flex items-center ${isEffectiveCollapsed ? 'justify-center' : 'gap-3'}`}>
                     <div className={`shrink-0 transition-transform group-hover/item:scale-110 ${
-                      isSelected ? "text-white" : isGroupExpanded ? "text-emerald-700" : (group.color || "text-slate-500")
+                      isSelected && group.subItems.length === 0
+                        ? "text-white"
+                        : isGroupExpanded || isSelected
+                        ? "text-emerald-700"
+                        : (group.color || "text-slate-500")
                     }`}>
                       <GroupIcon size={19} />
                     </div>
@@ -382,7 +409,7 @@ function Sidebar() {
                     (isExpanded ? (
                       <ChevronUp size={16} className="text-emerald-700 shrink-0" />
                     ) : (
-                      <ChevronDown size={16} className="text-slate-400 shrink-0" />
+                      <ChevronDown size={16} className={isSelected ? "text-emerald-700 shrink-0" : "text-slate-400 shrink-0"} />
                     ))}
                 </button>
 

@@ -1,6 +1,18 @@
 import apiClient from "../../../api/axiosInstance";
 import { DELIVERY_ENDPOINTS } from "../../../constants/endpoints.constants";
 
+// Get All Delivery Partners (with search, sort, kycStatus, isOnline)
+export const getDeliveryPartners = async (params = {}) => {
+  const response = await apiClient.get(
+    DELIVERY_ENDPOINTS.BASE,
+    {
+      params,
+    }
+  );
+
+  return response.data;
+};
+
 // Get Pending Delivery Partner KYC
 export const getPendingDeliveryKyc = async (page = 0, size = 20) => {
   const queryParams = typeof page === "object" ? page : { page, size };

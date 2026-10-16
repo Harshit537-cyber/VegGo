@@ -18,8 +18,10 @@ export default function Management({ defaultTab = "vendors" }) {
   useEffect(() => {
     if (currentTabParam && currentTabParam !== activeTab) {
       setActiveTab(currentTabParam);
+    } else if (!currentTabParam && defaultTab && defaultTab !== activeTab) {
+      setActiveTab(defaultTab);
     }
-  }, [currentTabParam, activeTab]);
+  }, [currentTabParam, defaultTab, activeTab]);
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);

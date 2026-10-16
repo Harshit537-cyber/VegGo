@@ -10,24 +10,39 @@ export const getCustomerStats = async () => {
 };
 
 export const getCustomers = async (params = {}) => {
-  const response = await apiClient.get(
-    CUSTOMER_ENDPOINTS.BASE,
-    {
-      params,
-    }
-  );
+  try {
+    const response = await apiClient.get(
+      CUSTOMER_ENDPOINTS.BASE,
+      {
+        params,
+      }
+    );
 
-  return response.data;
+    return response.data;
+  } catch (err) {
+    if (CUSTOMER_ENDPOINTS.LEGACY_BASE && err?.response?.status === 404) {
+      const fallback = await apiClient.get(
+        CUSTOMER_ENDPOINTS.LEGACY_BASE,
+        {
+          params,
+        }
+      );
+      return fallback.data;
+    }
+    throw err;
+  }
 };
 
 export const searchCustomers = async (search, params = {}) => {
+  return getCustomers({ search, ...params });
+};
+
+export const exportCustomersPdf = async (params = {}) => {
   const response = await apiClient.get(
-    CUSTOMER_ENDPOINTS.BASE,
+    CUSTOMER_ENDPOINTS.EXPORT_PDF,
     {
-      params: {
-        search,
-        ...params,
-      },
+      params,
+      responseType: 'blob',
     }
   );
 

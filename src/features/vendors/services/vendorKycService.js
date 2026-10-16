@@ -1,6 +1,17 @@
 import apiClient from "../../../api/axiosInstance";
 import { VENDOR_ENDPOINTS } from "../../../constants/endpoints.constants";
 
+export const getVendors = async (params = {}) => {
+  const response = await apiClient.get(
+    VENDOR_ENDPOINTS.BASE,
+    {
+      params,
+    }
+  );
+
+  return response.data;
+};
+
 export const getPendingVendorKyc = async (page = 0, size = 20) => {
   const response = await apiClient.get(
     VENDOR_ENDPOINTS.KYC_PENDING,

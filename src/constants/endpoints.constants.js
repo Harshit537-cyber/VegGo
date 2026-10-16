@@ -16,7 +16,9 @@ export const DASHBOARD_ENDPOINTS = Object.freeze({
 // Customer Management & Moderation
 export const CUSTOMER_ENDPOINTS = Object.freeze({
   STATS: '/api/admin/customers/stats',
-  BASE: '/api/admin/customers',
+  BASE: '/api/admin/users/customers',
+  EXPORT_PDF: '/api/admin/users/customers/export/pdf',
+  LEGACY_BASE: '/api/admin/customers',
   DETAILS: (customerUserId) => `/api/admin/customers/${customerUserId}`,
   DELETE: (customerUserId) => `/api/admin/customers/${customerUserId}`,
   BLOCK: (customerUserId) => `/api/admin/customers/${customerUserId}/block`,
@@ -27,6 +29,8 @@ export const CUSTOMER_ENDPOINTS = Object.freeze({
 
 // Vendor Partner Verification & KYC
 export const VENDOR_ENDPOINTS = Object.freeze({
+  BASE: '/api/admin/users/vendors',
+  EXPORT_PDF: '/api/admin/users/vendors/export/pdf',
   KYC_PENDING: '/api/admin/vendors/kyc/pending',
   KYC_DETAIL: (vendorShopId) => `/api/admin/vendors/kyc/${vendorShopId}`,
   KYC_APPROVE: (vendorShopId) => `/api/admin/vendors/kyc/${vendorShopId}/approve`,
@@ -35,6 +39,8 @@ export const VENDOR_ENDPOINTS = Object.freeze({
 
 // Delivery Fleet Verification & KYC
 export const DELIVERY_ENDPOINTS = Object.freeze({
+  BASE: '/api/admin/users/delivery',
+  EXPORT_PDF: '/api/admin/users/delivery/export/pdf',
   KYC_PENDING: '/api/admin/delivery-partners/kyc/pending',
   KYC_DETAIL: (deliveryPartnerUserId) => `/api/admin/delivery-partners/kyc/${deliveryPartnerUserId}`,
   KYC_APPROVE: (deliveryPartnerUserId) => `/api/admin/delivery-partners/kyc/${deliveryPartnerUserId}/approve`,
