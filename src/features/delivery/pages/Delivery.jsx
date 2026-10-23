@@ -29,6 +29,7 @@ import {
   FileCheck,
   AlertTriangle,
   Radio,
+  Download,
 } from "lucide-react";
 
 import {
@@ -37,6 +38,7 @@ import {
   getDeliveryKycDetails,
   approveDeliveryKyc,
   rejectDeliveryKyc,
+  exportDeliveryPdf,
 } from "../services/deliveryPartnerKycService";
 
 const formatDate = (value) => {
@@ -58,8 +60,8 @@ const normalizeDeliveryPartner = (item) => {
     kyc === "APPROVED"
       ? "Approved"
       : kyc === "REJECTED"
-      ? "Rejected"
-      : "Pending";
+        ? "Rejected"
+        : "Pending";
 
   return {
     ...item,
@@ -76,7 +78,12 @@ const normalizeDeliveryPartner = (item) => {
     plateNumber: item?.plateNumber || "-",
     licenseNumber: item?.licenseNumber || "-",
     cityOfOperation: item?.cityOfOperation || item?.city || "-",
-    isOnline: Boolean(item?.isOnline),
+    isOnline: Boolean(
+      item?.isOnline === true ||
+      item?.isOnline === "true" ||
+      item?.online === true ||
+      item?.online === "true"
+    ),
     kycStatus: kyc,
     manufactureYear: item?.manufactureYear || null,
     emergencyContact: item?.emergencyContact || {},
@@ -98,13 +105,26 @@ const normalizeDeliveryPartner = (item) => {
   };
 };
 
+const deliveryTabs = [
+  { id: "all", label: "All Delivery", icon: Bike },
+  { id: "pending", label: "KYC Pending", icon: Clock },
+];
+
 export default function Delivery({ embedded = false }) {
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("all"); // "all" | "pending"
+  const [approvedFilter, setApprovedFilter] = useState(false);
+  const [onlineFilter, setOnlineFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [counts, setCounts] = useState({
+    total: 0,
+    approved: 0,
+    pending: 0,
+    online: 0,
+  });
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(0);
@@ -122,37 +142,45 @@ export default function Delivery({ embedded = false }) {
   const [actionError, setActionError] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectBox, setShowRejectBox] = useState(false);
-
-  const deliveryTabs = [
-    { id: "all", label: "All Delivery", icon: Bike },
-    { id: "pending", label: "Pending Delivery", icon: Clock },
-  ];
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const fetchDeliveryPartners = useCallback(
-    async (tab = activeTab, page = 0, search = searchQuery) => {
+    async (
+      tab = activeTab,
+      approved = approvedFilter,
+      online = onlineFilter,
+      page = 0,
+      search = searchQuery
+    ) => {
       try {
         setLoading(true);
         setError("");
 
-        const params = {
-          page,
-          size: pageSize,
-          sort: "newest",
-        };
-
-        if (search && search.trim()) {
-          params.search = search.trim();
-        }
+        const params = {};
 
         if (tab === "pending") {
           params.kycStatus = "PENDING";
+        } else if (approved) {
+          params.kycStatus = "APPROVED";
+        }
+
+        if (tab === "all" && online) {
+          params.isOnline = true;
+        }
+
+        params.page = page;
+        params.size = pageSize;
+
+        if (search && search.trim()) {
+          params.search = search.trim();
         }
 
         let response;
         try {
           response = await getDeliveryPartners(params);
         } catch (apiErr) {
-          if (tab === "pending" || tab === "all") {
+          if (tab === "pending" || params.kycStatus === "PENDING") {
             response = await getPendingDeliveryKyc(page, pageSize);
           } else {
             throw apiErr;
@@ -166,25 +194,46 @@ export default function Delivery({ embedded = false }) {
           (Array.isArray(response?.data)
             ? response.data
             : Array.isArray(response)
-            ? response
-            : []);
+              ? response
+              : []);
 
         const normalized = rawContent.map(normalizeDeliveryPartner);
 
         setApplications(normalized);
         setTotalPages(response?.data?.totalPages || response?.totalPages || 1);
-        setTotalElements(
+        const total =
           response?.data?.totalElements ??
-            response?.totalElements ??
-            normalized.length
-        );
+          response?.totalElements ??
+          normalized.length;
+        setTotalElements(total);
         setCurrentPage(page);
+
+        // Update counts intelligently
+        setCounts((prev) => {
+          if (tab === "all" && !approved && !online) {
+            const appCount = normalized.filter((a) => a.kycStatus === "APPROVED").length;
+            const pendCount = normalized.filter((a) => a.kycStatus === "PENDING").length;
+            const onlCount = normalized.filter((a) => a.isOnline).length;
+            return {
+              total,
+              approved: appCount,
+              pending: pendCount,
+              online: onlCount,
+            };
+          }
+
+          const updated = { ...prev };
+          if (tab === "pending") updated.pending = total;
+          if (tab === "all" && approved && !online) updated.approved = total;
+          if (tab === "all" && online && !approved) updated.online = total;
+          return updated;
+        });
       } catch (err) {
         console.error("Delivery List Error:", err);
         setError(
           err?.response?.data?.message ||
-            err?.response?.data?.error ||
-            "Unable to load delivery fleet records."
+          err?.response?.data?.error ||
+          "Unable to load delivery fleet records."
         );
         setApplications([]);
       } finally {
@@ -192,22 +241,199 @@ export default function Delivery({ embedded = false }) {
         setIsRefreshing(false);
       }
     },
-    [activeTab, searchQuery]
+    [activeTab, approvedFilter, onlineFilter, searchQuery]
   );
 
   useEffect(() => {
-    fetchDeliveryPartners(activeTab, 0, searchQuery);
-  }, [activeTab]);
+    fetchDeliveryPartners("all", false, false, 0, searchQuery);
+  }, []);
 
-  const handleTabChange = (tabId) => {
-    setActiveTab(tabId);
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
     setCurrentPage(0);
-    fetchDeliveryPartners(tabId, 0, searchQuery);
+    setApprovedFilter(false);
+    setOnlineFilter(false);
+    fetchDeliveryPartners(newTab, false, false, 0, searchQuery);
+  };
+
+  const handleSelectAllInAllTab = () => {
+    setApprovedFilter(false);
+    setOnlineFilter(false);
+    setCurrentPage(0);
+    fetchDeliveryPartners("all", false, false, 0, searchQuery);
+  };
+
+  const handleToggleKycApproved = () => {
+    const nextApproved = !approvedFilter;
+    setApprovedFilter(nextApproved);
+    setCurrentPage(0);
+    fetchDeliveryPartners("all", nextApproved, onlineFilter, 0, searchQuery);
+  };
+
+  const handleToggleOnline = () => {
+    const nextOnline = !onlineFilter;
+    setOnlineFilter(nextOnline);
+    setCurrentPage(0);
+    fetchDeliveryPartners("all", approvedFilter, nextOnline, 0, searchQuery);
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 0 || newPage >= totalPages || loading) return;
+    setCurrentPage(newPage);
+    fetchDeliveryPartners(activeTab, approvedFilter, onlineFilter, newPage, searchQuery);
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchDeliveryPartners(activeTab, currentPage, searchQuery);
+    await fetchDeliveryPartners(activeTab, approvedFilter, onlineFilter, currentPage, searchQuery);
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      setIsExportingCsv(true);
+
+      const params = {
+        page: 0,
+        size: 500,
+      };
+
+      if (activeTab === "pending") {
+        params.kycStatus = "PENDING";
+      } else {
+        if (approvedFilter) {
+          params.kycStatus = "APPROVED";
+        }
+        if (onlineFilter) {
+          params.isOnline = true;
+        }
+      }
+
+      if (searchQuery && searchQuery.trim()) {
+        params.search = searchQuery.trim();
+      }
+
+      let exportList = applications;
+      try {
+        const response = await getDeliveryPartners(params);
+        const rawContent =
+          response?.data?.content ||
+          response?.data?.items ||
+          response?.content ||
+          (Array.isArray(response?.data)
+            ? response.data
+            : Array.isArray(response)
+              ? response
+              : []);
+        if (rawContent.length > 0) {
+          exportList = rawContent.map(normalizeDeliveryPartner);
+        }
+      } catch (fetchErr) {
+        console.warn("Falling back to current delivery page records:", fetchErr);
+      }
+
+      if (!exportList || exportList.length === 0) {
+        alert("No delivery partner records found to export.");
+        return;
+      }
+
+      const headers = [
+        "User ID",
+        "Rider Name",
+        "Phone",
+        "Vehicle Type",
+        "Vehicle Model",
+        "Plate Number",
+        "License Number",
+        "Operating City",
+        "KYC Status",
+        "Presence Status",
+        "Bank Name",
+        "Account Number",
+        "IFSC Code",
+        "Documents Uploaded",
+        "Registered / Applied Date",
+      ];
+
+      const escapeCell = (val) => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return `"${str}"`;
+      };
+
+      const rows = exportList.map((r) => [
+        escapeCell(r.userId || ""),
+        escapeCell(r.fullName || ""),
+        escapeCell(r.phone || ""),
+        escapeCell(r.vehicleType || ""),
+        escapeCell(r.vehicleModel || ""),
+        escapeCell(r.plateNumber || ""),
+        escapeCell(r.licenseNumber || ""),
+        escapeCell(r.cityOfOperation || ""),
+        escapeCell(r.kycStatus || r.status || ""),
+        escapeCell(r.isOnline ? "Online" : "Offline"),
+        escapeCell(r.bank?.bankName || ""),
+        escapeCell(r.bank?.accountNumber ? `••••${r.bank.accountNumber.slice(-4)}` : ""),
+        escapeCell(r.bank?.ifscCode || ""),
+        escapeCell(r.documents?.filter((d) => d.uploaded)?.length || 0),
+        escapeCell(r.date || r.submittedAt || r.registeredAt || ""),
+      ]);
+
+      const csvString = [headers.join(","), ...rows.map((row) => row.join(","))].join("\r\n");
+
+      // UTF-8 BOM ensures proper Unicode handling in Microsoft Excel
+      const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().split("T")[0];
+      link.href = url;
+      link.setAttribute("download", `veggo-delivery-partners-${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export Delivery CSV Error:", err);
+      alert("Failed to export delivery partners CSV. Please try again.");
+    } finally {
+      setIsExportingCsv(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      setIsExportingPdf(true);
+      const params = { limit: 500 };
+      if (activeTab === "pending") {
+        params.kycStatus = "PENDING";
+      } else {
+        if (approvedFilter) {
+          params.kycStatus = "APPROVED";
+        }
+        if (onlineFilter) {
+          params.isOnline = true;
+        }
+      }
+      const blobData = await exportDeliveryPdf(params);
+      const blob = new Blob([blobData], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().split("T")[0];
+      link.href = url;
+      link.setAttribute("download", `veggo-delivery-partners-${dateStr}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export Delivery PDF Error:", err);
+      alert(
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        "Failed to download delivery partner PDF ."
+      );
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   const handleViewPartner = async (partner) => {
@@ -260,7 +486,7 @@ export default function Delivery({ embedded = false }) {
       await approveDeliveryKyc(userId);
       setShowDetail(false);
       setSelectedPartner(null);
-      await fetchDeliveryPartners(activeTab, currentPage, searchQuery);
+      await fetchDeliveryPartners(activeTab, approvedFilter, onlineFilter, currentPage, searchQuery);
     } catch (err) {
       console.error("Delivery KYC Approve Error:", err);
       setActionError(
@@ -290,7 +516,7 @@ export default function Delivery({ embedded = false }) {
       setSelectedPartner(null);
       setRejectReason("");
       setShowRejectBox(false);
-      await fetchDeliveryPartners(activeTab, currentPage, searchQuery);
+      await fetchDeliveryPartners(activeTab, approvedFilter, onlineFilter, currentPage, searchQuery);
     } catch (err) {
       console.error("Delivery KYC Reject Error:", err);
       setActionError(
@@ -343,18 +569,41 @@ export default function Delivery({ embedded = false }) {
               : "All Delivery Directory"
           }
           subtitle="Directory and KYC status verification for delivery partners on VegGo."
-          stats={[
-            {
-              label:
-                activeTab === "all"
-                  ? "Total Partners"
-                  : "Pending Delivery",
-              value: totalElements,
-            },
-            { label: "On This Page", value: applications.length },
-          ]}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing || loading}
+          actions={
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleExportCsv}
+                disabled={isExportingCsv}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer disabled:opacity-60"
+                title="Export delivery partners to Excel / CSV (Limit: 500)"
+              >
+                <Download
+                  size={15}
+                  className={isExportingCsv ? "animate-bounce" : ""}
+                />
+                <span>{isExportingCsv ? "Exporting..." : "Export CSV"}</span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleExportPdf}
+                disabled={isExportingPdf}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-60"
+                title="Download Delivery Partner PDF  (Limit: 500)"
+              >
+                <FileText
+                  size={15}
+                  className={isExportingPdf ? "animate-spin text-emerald-600" : "text-slate-600"}
+                />
+                <span>{isExportingPdf ? "Downloading..." : "Download PDF"}</span>
+              </motion.button>
+            </div>
+          }
         />
 
         {/* Global Error Banner */}
@@ -365,7 +614,7 @@ export default function Delivery({ embedded = false }) {
           </div>
         )}
 
-        {/* Segmented View Tabs Navigation */}
+        {/* Segmented View Tabs Navigation (All Delivery / KYC Pending) */}
         <div className="bg-white p-2 rounded-2xl border border-emerald-100/80 shadow-2xs">
           <SegmentedTabs
             tabs={deliveryTabs}
@@ -374,9 +623,115 @@ export default function Delivery({ embedded = false }) {
           />
         </div>
 
+        {/* Sub-Filters: ONLY visible when "All Delivery" is selected */}
+        {activeTab === "all" && (
+          <div className="flex flex-wrap items-center gap-2.5 py-1">
+            {/* 1. All */}
+            <button
+              type="button"
+              onClick={handleSelectAllInAllTab}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${!approvedFilter && !onlineFilter
+                ? "bg-emerald-700 text-white shadow-xs"
+                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+                }`}
+            >
+              <Bike
+                size={14}
+                className={!approvedFilter && !onlineFilter ? "text-emerald-100" : "text-emerald-700"}
+              />
+              <span>All</span>
+              {counts.total > 0 && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${!approvedFilter && !onlineFilter
+                    ? "bg-emerald-800 text-emerald-100"
+                    : "bg-slate-100 text-slate-700"
+                    }`}
+                >
+                  {counts.total}
+                </span>
+              )}
+            </button>
+
+            {/* 2. KYC Approved */}
+            <button
+              type="button"
+              onClick={handleToggleKycApproved}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${approvedFilter
+                ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
+                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+                }`}
+            >
+              <CheckCircle2
+                size={14}
+                className={approvedFilter ? "text-emerald-200" : "text-emerald-600"}
+              />
+              <span>KYC Approved</span>
+              {counts.approved > 0 && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${approvedFilter
+                    ? "bg-emerald-800 text-emerald-100"
+                    : "bg-slate-100 text-slate-700"
+                    }`}
+                >
+                  {counts.approved}
+                </span>
+              )}
+            </button>
+
+            {/* 3. Online */}
+            <button
+              type="button"
+              onClick={handleToggleOnline}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${onlineFilter
+                ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
+                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+                }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${onlineFilter ? "bg-emerald-300" : "bg-emerald-500"
+                  } animate-pulse`}
+              />
+              <span>Online</span>
+              {counts.online > 0 && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${onlineFilter
+                    ? "bg-emerald-800 text-emerald-100"
+                    : "bg-slate-100 text-slate-700"
+                    }`}
+                >
+                  {counts.online}
+                </span>
+              )}
+            </button>
+
+            {/* Reset button if sub-filters are applied */}
+            {(approvedFilter || onlineFilter) && (
+              <button
+                type="button"
+                onClick={handleSelectAllInAllTab}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer"
+                title="Reset filters"
+              >
+                <X size={12} />
+                <span>Reset Filters</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Workflow Rules Information Bar */}
         <WorkflowRulesBar
-          rulesText={`Showing ${activeTab === 'all' ? 'all' : activeTab} delivery partners with real-time status and verification controls.`}
+          rulesText={
+            activeTab === "pending"
+              ? "Showing delivery partner applications pending KYC verification and document inspection."
+              : approvedFilter && onlineFilter
+                ? "Showing verified delivery riders with approved KYC who are currently online and ready for deliveries."
+                : approvedFilter
+                  ? "Showing verified delivery riders with approved KYC credentials."
+                  : onlineFilter
+                    ? "Showing all delivery riders currently online and active on duty."
+                    : "Complete delivery fleet directory across all verification and presence statuses."
+          }
           showingCount={filteredApplications.length}
           itemLabel="delivery partners"
         />
@@ -399,17 +754,29 @@ export default function Delivery({ embedded = false }) {
             <div className="py-20 text-center text-slate-400 bg-white rounded-3xl border border-slate-200/80">
               <div className="flex flex-col items-center justify-center gap-3 text-xs font-semibold text-slate-500">
                 <RefreshCw size={24} className="animate-spin text-emerald-600" />
-                Loading pending delivery partner applications...
+                Loading delivery partner records...
               </div>
             </div>
           ) : filteredApplications.length === 0 ? (
             <EmptyState
               icon={Bike}
-              title="No pending delivery partner applications"
+              title={
+                activeTab === "pending"
+                  ? "No pending KYC delivery partner applications"
+                  : approvedFilter && onlineFilter
+                    ? "No online approved delivery riders found"
+                    : approvedFilter
+                      ? "No KYC approved delivery riders found"
+                      : onlineFilter
+                        ? "No online delivery riders found"
+                        : "No delivery partners found"
+              }
               description={
                 searchQuery
                   ? `No riders matched "${searchQuery}". Try a different keyword.`
-                  : "All delivery partner KYC verification requests have been processed."
+                  : activeTab === "pending"
+                    ? "All delivery partner KYC verification requests have been processed."
+                    : "No delivery partner records matching the selected filter criteria."
               }
             />
           ) : (
@@ -422,10 +789,9 @@ export default function Delivery({ embedded = false }) {
                       <th className="py-3.5 px-5">Rider / Delivery Partner</th>
                       <th className="py-3.5 px-5">Vehicle & Credentials</th>
                       <th className="py-3.5 px-5">Operating City</th>
-                      <th className="py-3.5 px-5">Bank Account</th>
-                      <th className="py-3.5 px-5">Documents</th>
                       <th className="py-3.5 px-5">Applied Date</th>
-                      <th className="py-3.5 px-5 text-center">Status</th>
+                      <th className="py-3.5 px-5 text-center">Rider Presence</th>
+                      <th className="py-3.5 px-5 text-center">KYC Status</th>
                       <th className="py-3.5 px-5 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -481,69 +847,48 @@ export default function Delivery({ embedded = false }) {
                           </div>
                         </td>
 
-                        {/* 4. Bank Account */}
-                        <td className="py-4 px-5">
-                          {app.bank?.bankName ? (
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
-                                <Landmark size={12} className="text-emerald-600 shrink-0" />
-                                <span>{app.bank.bankName}</span>
-                              </div>
-                              <span className="text-[11px] text-slate-500 font-mono block">
-                                ••••{app.bank.accountNumber?.slice(-4) || "----"}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-slate-400 font-normal">-</span>
-                          )}
-                        </td>
-
-                        {/* 5. Documents */}
-                        <td className="py-4 px-5">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${app.allDocumentsUploaded ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                              <FileCheck size={11} />
-                              {app.documents?.filter((d) => d.uploaded)?.length || 0} / {app.documents?.length || 0} Docs
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* 6. Applied Date */}
-                        <td className="py-4 px-5 text-slate-500 font-normal">
+                        {/* 4. Applied Date */}
+                        <td className="py-4 px-5 text-slate-600 font-medium">
                           {app.date || "-"}
                         </td>
 
-                        {/* 7. Status */}
+                        {/* 5. Rider Presence (Online / Offline) */}
                         <td className="py-4 px-5 text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold ${
-                                app.status === "Approved"
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  : app.status === "Rejected"
-                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                  : "bg-amber-50 text-amber-700 border border-amber-200"
-                              }`}
-                            >
-                              {app.status === "Approved" ? (
-                                <CheckCircle2 size={11} className="text-emerald-600" />
-                              ) : app.status === "Rejected" ? (
-                                <XCircle size={11} className="text-rose-600" />
-                              ) : (
-                                <Clock size={11} className="text-amber-600" />
-                              )}
-                              {app.status}
+                          {app.isOnline ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Online
                             </span>
-                            {app.isOnline && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
-                                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-                                Online
-                              </span>
-                            )}
-                          </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                              Offline
+                            </span>
+                          )}
                         </td>
 
-                        {/* 8. Actions */}
+                        {/* 6. KYC Status (Approved / Pending / Rejected) */}
+                        <td className="py-4 px-5 text-center">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${app.status === "Approved"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : app.status === "Rejected"
+                                ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                              }`}
+                          >
+                            {app.status === "Approved" ? (
+                              <CheckCircle2 size={11} className="text-emerald-600" />
+                            ) : app.status === "Rejected" ? (
+                              <XCircle size={11} className="text-rose-600" />
+                            ) : (
+                              <Clock size={11} className="text-amber-600" />
+                            )}
+                            {app.status}
+                          </span>
+                        </td>
+
+                        {/* 7. Actions */}
                         <td className="py-4 px-5 text-right">
                           <button
                             type="button"
@@ -578,15 +923,16 @@ export default function Delivery({ embedded = false }) {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
+
+                      {/* Separate Badges for Presence & KYC */}
+                      <div className="flex flex-col items-end gap-1 shrink-0">
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                            app.status === "Approved"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : app.status === "Rejected"
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${app.status === "Approved"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : app.status === "Rejected"
                               ? "bg-rose-50 text-rose-700 border border-rose-200"
                               : "bg-amber-50 text-amber-700 border border-amber-200"
-                          }`}
+                            }`}
                         >
                           {app.status === "Approved" ? (
                             <CheckCircle2 size={10} className="text-emerald-600" />
@@ -597,24 +943,36 @@ export default function Delivery({ embedded = false }) {
                           )}
                           {app.status}
                         </span>
-                        {app.isOnline && (
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Online" />
+
+                        {app.isOnline ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Online
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                            Offline
+                          </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="p-2.5 rounded-xl bg-white border border-slate-200/60 text-xs space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400 text-[10px] uppercase font-bold">Vehicle</span>
-                        <span className="font-bold text-slate-800">{app.vehicleType} • {app.vehicleModel}</span>
+                    <div className="flex items-center gap-2.5 pt-2 border-t border-slate-200/60">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                        <Bike size={15} />
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400 text-[10px] uppercase font-bold">Plate / City</span>
-                        <span className="font-mono text-[11px] font-bold text-slate-700">{app.plateNumber} • {app.cityOfOperation}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400 text-[10px] uppercase font-bold">Documents</span>
-                        <span className="font-bold text-emerald-700">{app.documents?.filter((d) => d.uploaded)?.length || 0} / {app.documents?.length || 0} Uploaded</span>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-xs text-slate-900 truncate">
+                          {app.vehicleType} • {app.vehicleModel}
+                        </h4>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                          <span className="font-mono font-bold bg-slate-100 px-1 py-0.2 rounded border border-slate-200">
+                            {app.plateNumber}
+                          </span>
+                          <span>•</span>
+                          <span>{app.cityOfOperation}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -637,22 +995,25 @@ export default function Delivery({ embedded = false }) {
               {totalPages > 1 && (
                 <div className="p-4 border-t border-slate-100 bg-slate-50/40 flex items-center justify-between text-xs font-semibold text-slate-600">
                   <span>
-                    Page {currentPage + 1} of {totalPages} ({totalElements} total riders)
+                    Showing page <strong className="text-slate-800">{currentPage + 1}</strong> of{" "}
+                    <strong className="text-slate-800">{totalPages}</strong> ({totalElements} total riders)
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       disabled={currentPage === 0 || loading}
-                      onClick={() => fetchPendingDeliveryKyc(currentPage - 1)}
+                      onClick={() => handlePageChange(currentPage - 1)}
                       className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      title="Previous Page"
                     >
                       <ChevronLeft size={16} />
                     </button>
                     <button
                       type="button"
                       disabled={currentPage >= totalPages - 1 || loading}
-                      onClick={() => fetchPendingDeliveryKyc(currentPage + 1)}
+                      onClick={() => handlePageChange(currentPage + 1)}
                       className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      title="Next Page"
                     >
                       <ChevronRight size={16} />
                     </button>

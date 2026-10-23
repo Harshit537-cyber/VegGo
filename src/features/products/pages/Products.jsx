@@ -379,17 +379,20 @@ function SelectDropdown({
   };
 
   const handleSearchKeyDown = (e) => {
-    if (e.key === 'Enter' && allowCustom && trimmedSearch) {
+    if (e.key === 'Enter') {
       e.preventDefault();
+      e.stopPropagation();
 
-      const match = options.find(
-        (option) => String(option.name || '').toLowerCase() === trimmedSearch.toLowerCase()
-      );
+      if (allowCustom && trimmedSearch) {
+        const match = options.find(
+          (option) => String(option.name || '').toLowerCase() === trimmedSearch.toLowerCase()
+        );
 
-      if (match) {
-        handleSelect(match);
-      } else {
-        handleCustomSelect();
+        if (match) {
+          handleSelect(match);
+        } else {
+          handleCustomSelect();
+        }
       }
     }
   };
@@ -539,10 +542,12 @@ export default function Products({ defaultTab = 'products' }) {
   );
 
   useEffect(() => {
-    if (currentTabParam && currentTabParam !== currentTab) {
+    if (currentTabParam) {
       setCurrentTab(currentTabParam);
+    } else if (defaultTab) {
+      setCurrentTab(defaultTab);
     }
-  }, [currentTabParam, currentTab]);
+  }, [currentTabParam, defaultTab]);
 
   const handleTabChange = (tabId) => {
     setCurrentTab(tabId);
@@ -920,19 +925,44 @@ export default function Products({ defaultTab = 'products' }) {
       return;
     }
 
+    // Every product must have at least one image on the backend
+    if (productImages.length <= 1 && selectedImages.length === 0) {
+      setErrorMessage(
+        'Every product must have at least one image. Please click "Select Images" above to choose a new replacement image first, then delete or save.'
+      );
+      return;
+    }
+
     setImageLoading(true);
     setErrorMessage('');
 
     try {
+      // If user has chosen new image(s) and is deleting the only remaining server image,
+      // upload the new image(s) first so this is no longer the last remaining image
+      if (productImages.length <= 1 && selectedImages.length > 0) {
+        await addProductImages(editingProduct, selectedImages);
+        setSelectedImages([]);
+      }
+
       await deleteProductImage(editingProduct, imageId);
 
       await fetchProductImages(editingProduct);
     } catch (error) {
-      setErrorMessage(
+      const msg =
         error?.response?.data?.message ||
-          error?.message ||
-          'Failed to delete product image'
-      );
+        error?.message ||
+        'Failed to delete product image';
+
+      if (
+        msg.includes('last remaining image') ||
+        error?.response?.data?.errorCode === 'CATALOG_PRODUCT_LAST_IMAGE'
+      ) {
+        setErrorMessage(
+          'Cannot delete the only image. Every product must have at least one image. Please select a replacement image under "Select Images" first.'
+        );
+      } else {
+        setErrorMessage(msg);
+      }
 
       setImageLoading(false);
     }
@@ -982,7 +1012,10 @@ export default function Products({ defaultTab = 'products' }) {
   };
 
   const handleSave = async (e) => {
-    e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
 
     if (isViewMode) return;
 
@@ -1037,18 +1070,49 @@ export default function Products({ defaultTab = 'products' }) {
         if (selectedImages.length > 0) {
           await addProductImages(editingProduct, selectedImages);
         }
+
+        // Optimistically update the product in local state so UI updates instantly without any flicker
+        const matchedCategory = categories.find((c) => String(c.id) === String(payload.categoryId));
+        const matchedSubcategory = subcategories.find((s) => String(s.id) === String(payload.subcategoryId));
+
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === editingProduct
+              ? {
+                  ...p,
+                  name: payload.name,
+                  description: payload.description,
+                  categoryId: payload.categoryId,
+                  categoryName: matchedCategory?.name || p.categoryName,
+                  subcategoryId: payload.subcategoryId,
+                  subcategoryName: matchedSubcategory?.name || p.subcategoryName,
+                  price: payload.price,
+                  originalPrice: payload.originalPrice,
+                  unit: payload.unit,
+                  active: payload.active
+                }
+              : p
+          )
+        );
       } else {
         await createProduct(payload, selectedImages);
       }
 
-      await fetchProducts();
-
+      // Close panel immediately so the user gets fast, seamless interaction
       setIsPanelOpen(false);
       setEditingProduct(null);
       setIsViewMode(false);
       setProductImages([]);
       setSelectedImages([]);
       resetForm();
+
+      // Clear any navigation state that may have opened this product initially
+      if (location.state?.productId) {
+        window.history.replaceState({}, document.title);
+      }
+
+      // Re-fetch in background preserving current page and search without page reload
+      fetchProducts(currentPage, searchQuery);
     } catch (error) {
       console.error('Failed to save product:', error);
 
@@ -1263,12 +1327,12 @@ export default function Products({ defaultTab = 'products' }) {
                   <table className="w-full min-w-[760px] text-left border-collapse">
                     <thead>
                       <tr className="border-b border-slate-200 text-[11px] uppercase font-semibold tracking-wider text-slate-600 bg-slate-50/80">
-                        <th className="py-4 px-5">Product Details</th>
-                        <th className="py-4 px-5">Taxonomy / Category</th>
-                        <th className="py-4 px-5">Pricing</th>
-                        <th className="py-4 px-5">Unit Standard</th>
-                        <th className="py-4 px-5 text-center">Status</th>
-                        <th className="py-4 px-5 text-right min-w-[220px]">Actions</th>
+                        <th className="py-4 px-5 w-[28%] min-w-[200px]">Product Details</th>
+                        <th className="py-4 px-5 w-[20%]">Taxonomy / Category</th>
+                        <th className="py-4 px-5 w-[14%]">Pricing</th>
+                        <th className="py-4 px-5 w-[12%]">Unit Standard</th>
+                        <th className="py-4 px-5 text-center w-[12%]">Status</th>
+                        <th className="py-4 px-5 text-right min-w-[200px] w-[14%]">Actions</th>
                       </tr>
                     </thead>
 
@@ -1293,7 +1357,7 @@ export default function Products({ defaultTab = 'products' }) {
                           >
                             <td className="py-4 px-5">
                               <div className="flex items-center gap-3.5">
-                                <div className="w-11 h-11 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:border-emerald-300 transition-colors overflow-hidden">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:border-emerald-300 transition-colors overflow-hidden">
                                   {prod.imageUrl ? (
                                     <img
                                       src={prod.imageUrl}
@@ -1301,17 +1365,16 @@ export default function Products({ defaultTab = 'products' }) {
                                       className="w-full h-full object-cover"
                                     />
                                   ) : (
-                                    <Package size={20} className="text-emerald-600" />
+                                    <Package size={18} className="text-emerald-600" />
                                   )}
                                 </div>
 
-                                <div className="flex flex-col">
-                                  <span className="font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm">
+                                <div className="flex flex-col min-w-0">
+                                  <span
+                                    className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm truncate"
+                                    title={prod.name}
+                                  >
                                     {prod.name || '-'}
-                                  </span>
-
-                                  <span className="text-[11px] text-slate-500 line-clamp-1">
-                                    {prod.description || prod.subcategoryName || prod.categoryName || 'No description'}
                                   </span>
                                 </div>
                               </div>
@@ -1370,7 +1433,7 @@ export default function Products({ defaultTab = 'products' }) {
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
                                   type="button"
-                                  onClick={() => openEditPanel(prod, true)}
+                                  onClick={() => openViewPanel(prod)}
                                   className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300 text-xs font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer"
                                   title="View Details"
                                 >
@@ -1380,7 +1443,7 @@ export default function Products({ defaultTab = 'products' }) {
 
                                 <button
                                   type="button"
-                                  onClick={() => openEditPanel(prod, false)}
+                                  onClick={() => openEditPanel(prod)}
                                   className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200/90 hover:border-emerald-600 text-xs font-bold shadow-2xs hover:shadow-emerald-600/20 transition-all cursor-pointer"
                                   title="Edit Product"
                                 >
@@ -1483,14 +1546,14 @@ export default function Products({ defaultTab = 'products' }) {
                       <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                         <button
                           type="button"
-                          onClick={() => openEditPanel(prod, true)}
+                          onClick={() => openViewPanel(prod)}
                           className="h-9 px-3.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                         >
                           <Eye size={15} /> View
                         </button>
                         <button
                           type="button"
-                          onClick={() => openEditPanel(prod, false)}
+                          onClick={() => openEditPanel(prod)}
                           className="h-9 px-3.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-emerald-700 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                         >
                           <Edit3 size={15} /> Edit
@@ -1620,7 +1683,15 @@ export default function Products({ defaultTab = 'products' }) {
                 </div>
               </div>
 
-              <form onSubmit={handleSave} className="space-y-4">
+              <form
+                action="javascript:void(0);"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSave(e);
+                }}
+                className="space-y-4"
+              >
                 <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
                     Product Title
@@ -1992,9 +2063,10 @@ export default function Products({ defaultTab = 'products' }) {
 
                   {!isViewMode && (
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleSave}
                       disabled={saving || imageUploading}
-                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm transition-colors"
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm transition-colors cursor-pointer"
                     >
                       {saving ? (
                         <Loader2 size={14} className="animate-spin" />

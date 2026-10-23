@@ -75,7 +75,29 @@ const menuGroups = [
     color: "text-emerald-700",
     bgHover: "group-hover/item:text-emerald-800",
     path: ROUTES.PRODUCTS,
-    subItems: [],
+    subItems: [
+      {
+        id: "products-all",
+        label: "All Products",
+        path: ROUTES.PRODUCTS,
+        icon: Package,
+        color: "text-emerald-600",
+      },
+      {
+        id: "products-categories",
+        label: "Categories",
+        path: ROUTES.CATEGORIES,
+        icon: Layers,
+        color: "text-emerald-600",
+      },
+      {
+        id: "products-subcategories",
+        label: "Subcategories",
+        path: ROUTES.SUBCATEGORIES,
+        icon: Tag,
+        color: "text-emerald-600",
+      },
+    ],
   },
   {
     id: "payouts",
@@ -111,7 +133,8 @@ let persistedExpandedGroup = null;
 function getActiveGroupForPath(pathname) {
   const active = menuGroups.find((group) =>
     group.subItems.some((subItem) => pathname === subItem.path || pathname.startsWith(subItem.path)) ||
-    (group.id === "management" && pathname.startsWith("/management"))
+    (group.id === "management" && pathname.startsWith("/management")) ||
+    (group.id === "products" && pathname.startsWith("/products"))
   );
   return active ? active.id : null;
 }

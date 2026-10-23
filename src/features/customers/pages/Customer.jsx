@@ -5,7 +5,6 @@ import Sidebar from "../../../layouts/Sidebar";
 import ConfirmModal from "../../../components/common/ConfirmModal";
 import PageHeader from "../../../components/common/PageHeader";
 import SegmentedTabs from "../../../components/common/SegmentedTabs";
-import StatusFilterPills from "../../../components/common/StatusFilterPills";
 import WorkflowRulesBar from "../../../components/common/WorkflowRulesBar";
 import EmptyState from "../../../components/common/EmptyState";
 import { ROUTES } from "../../../constants/routes.constants";
@@ -21,6 +20,7 @@ import {
   getModerationStats,
   getModerationCustomers,
   searchModerationCustomers,
+  exportCustomersPdf,
 } from "../services/customerService";
 
 import {
@@ -37,7 +37,6 @@ import {
   ShieldAlert,
   Eye,
   Trash2,
-  Wallet,
   ShoppingBag,
   Phone,
   MapPin,
@@ -48,6 +47,9 @@ import {
   CreditCard,
   Check,
   X,
+  Download,
+  FileText,
+  ArrowUpDown,
 } from "lucide-react";
 
 /**
@@ -149,7 +151,7 @@ const normalizeCustomer = (item) => {
     item.mobileNumber ||
     item.phoneNumber ||
     item.user?.phone ||
-    "-";
+    "";
   const blocked = Boolean(
     item.blocked === true ||
     item.isBlocked === true ||
@@ -166,34 +168,26 @@ const normalizeCustomer = (item) => {
   );
   const registrationDate =
     item.registrationDate || item.registeredAt || item.createdAt || null;
-  const completedPurchases = Number(
-    item.completedPurchases ??
+  const totalOrders = Number(
     item.totalOrders ??
+    item.completedPurchases ??
     item.ordersCount ??
     item.orders ??
     0
   );
-  const lifetimeOutlay = Number(
-    item.lifetimeOutlay ??
-    item.totalSpent ??
-    item.totalAmount ??
-    item.outlay ??
+  const totalComplaints = Number(
+    item.totalComplaints ??
+    item.flagsRaised ??
+    item.flags ??
+    item.reportCount ??
     0
   );
-  const walletBalance = Number(
-    item.walletBalance ??
-    item.balance ??
-    item.wallet?.balance ??
-    0
-  );
-  const flagsRaised = Number(
-    item.flagsRaised ?? item.flags ?? item.reportCount ?? 0
-  );
+  const flagsRaised = totalComplaints;
   const primaryInfraction =
     item.primaryInfraction ||
     item.infractionReason ||
     item.reason ||
-    (flagsRaised > 0 ? "Under Review" : "None");
+    (totalComplaints > 0 ? "Under Review" : "None");
   const city =
     item.city ||
     item.cityOfOperation ||
@@ -212,9 +206,9 @@ const normalizeCustomer = (item) => {
     blocked,
     verified,
     registrationDate,
-    completedPurchases,
-    lifetimeOutlay,
-    walletBalance,
+    totalOrders,
+    totalComplaints,
+    completedPurchases: totalOrders,
     flagsRaised,
     primaryInfraction,
     city,
@@ -226,9 +220,12 @@ export default function Customer({ embedded = false }) {
 
   // Navigation & View Tabs
   const [activeCustomerTab, setActiveCustomerTab] = useState("roster");
-  const [activeFilterTab, setActiveFilterTab] = useState("all");
+  const [isBlockedFilter, setIsBlockedFilter] = useState(false);
+  const [sortOrder, setSortOrder] = useState(null); // null | "newest" | "oldest"
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(0);
@@ -242,6 +239,10 @@ export default function Customer({ embedded = false }) {
   const [moderationStats, setModerationStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [counts, setCounts] = useState({
+    total: 0,
+    blocked: 0,
+  });
 
   // Customer Details Modal State
   const [customerDetails, setCustomerDetails] = useState(null);
@@ -257,16 +258,20 @@ export default function Customer({ embedded = false }) {
 
   const customerTabs = [
     { id: "roster", label: "Customer Directory", icon: Users },
-    { id: "wallet", label: "Customer Wallets", icon: Wallet },
-    { id: "orders", label: "Order History", icon: ShoppingBag },
     { id: "moderation", label: "Account Moderation", icon: Flag },
   ];
 
   /**
-   * Fetch customer data according to the active tab and search query
+   * Fetch customer data according to the active tab, sub-filters, sorting, and search query
    */
   const fetchCustomerData = useCallback(
-    async (tab = activeCustomerTab, page = 0, search = searchQuery) => {
+    async (
+      tab = activeCustomerTab,
+      page = 0,
+      search = searchQuery,
+      blockedOnly = isBlockedFilter,
+      sort = sortOrder
+    ) => {
       setIsRefreshing(true);
       setErrorMessage("");
 
@@ -308,13 +313,27 @@ export default function Customer({ embedded = false }) {
             : await getModerationCustomers({ page, size: pageSize });
         } else {
           // Standard customer roster, wallet, or order views
+          const params = {
+            page,
+            size: pageSize,
+          };
+
+          if (sort === "oldest") {
+            params.sort = "oldest";
+          } else if (sort === "newest") {
+            params.sort = "newest";
+          }
+
+          if (tab === "roster" && blockedOnly) {
+            params.isBlocked = true;
+          }
+
+          if (trimmedSearch) {
+            params.search = trimmedSearch;
+          }
+
           try {
-            listResponse = trimmedSearch
-              ? await searchCustomers(trimmedSearch, {
-                page,
-                size: pageSize,
-              })
-              : await getCustomers({ page, size: pageSize });
+            listResponse = await getCustomers(params);
           } catch (customerFetchErr) {
             console.warn(
               "Regular customers endpoint fallback to moderation list:",
@@ -356,6 +375,21 @@ export default function Customer({ embedded = false }) {
         setTotalPages(Math.max(1, totalPagesCount));
         setTotalElements(totalElementsCount);
         setCurrentPage(page);
+
+        // Update counts intelligently
+        setCounts((prev) => {
+          if (tab === "roster" && !blockedOnly) {
+            const bCount = normalizedList.filter((a) => a.blocked).length;
+            return {
+              total: totalElementsCount,
+              blocked: bCount,
+            };
+          }
+
+          const updated = { ...prev };
+          if (blockedOnly) updated.blocked = totalElementsCount;
+          return updated;
+        });
       } catch (error) {
         console.error("Failed to fetch customer data:", error);
         setErrorMessage(
@@ -368,32 +402,201 @@ export default function Customer({ embedded = false }) {
         setLoading(false);
       }
     },
-    [activeCustomerTab, searchQuery, pageSize]
+    [activeCustomerTab, searchQuery, pageSize, isBlockedFilter, sortOrder]
   );
 
   // Debounced search query watcher
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchCustomerData(activeCustomerTab, 0, searchQuery);
+      fetchCustomerData(
+        activeCustomerTab,
+        0,
+        searchQuery,
+        isBlockedFilter,
+        sortOrder
+      );
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, activeCustomerTab, fetchCustomerData]);
+  }, [searchQuery, activeCustomerTab, fetchCustomerData, isBlockedFilter, sortOrder]);
 
   // Tab switch handler
   const handleTabChange = (tabId) => {
     setActiveCustomerTab(tabId);
     setCurrentPage(0);
-    fetchCustomerData(tabId, 0, searchQuery);
+    setIsBlockedFilter(false);
+    setSortOrder(null);
+    fetchCustomerData(tabId, 0, searchQuery, false, null);
+  };
+
+  const handleSelectAllInRoster = () => {
+    setIsBlockedFilter(false);
+    setSortOrder(null);
+    setCurrentPage(0);
+    fetchCustomerData("roster", 0, searchQuery, false, null);
+  };
+
+  const handleToggleBlocked = () => {
+    const nextBlocked = !isBlockedFilter;
+    setIsBlockedFilter(nextBlocked);
+    setCurrentPage(0);
+    fetchCustomerData("roster", 0, searchQuery, nextBlocked, sortOrder);
+  };
+
+  const handleSetSortOrder = (newSort) => {
+    const nextSort = sortOrder === newSort ? null : newSort;
+    setSortOrder(nextSort);
+    setCurrentPage(0);
+    fetchCustomerData("roster", 0, searchQuery, isBlockedFilter, nextSort);
   };
 
   const handleRefresh = () => {
-    fetchCustomerData(activeCustomerTab, currentPage, searchQuery);
+    fetchCustomerData(activeCustomerTab, currentPage, searchQuery, isBlockedFilter, sortOrder);
   };
 
   const handlePageChange = (newPage) => {
     if (newPage < 0 || newPage >= totalPages || loading) return;
-    fetchCustomerData(activeCustomerTab, newPage, searchQuery);
+    fetchCustomerData(activeCustomerTab, newPage, searchQuery, isBlockedFilter, sortOrder);
+  };
+
+  // Export CSV Handler
+  const handleExportCsv = async () => {
+    try {
+      setIsExportingCsv(true);
+
+      const params = {
+        page: 0,
+        size: 500,
+      };
+
+      if (sortOrder === "oldest") {
+        params.sort = "oldest";
+      } else if (sortOrder === "newest") {
+        params.sort = "newest";
+      }
+
+      if (activeCustomerTab === "roster") {
+        if (isBlockedFilter) params.isBlocked = true;
+      }
+
+      if (searchQuery && searchQuery.trim()) {
+        params.search = searchQuery.trim();
+      }
+
+      let exportList = accounts;
+      try {
+        const response = await getCustomers(params);
+        const rawData = response?.data ?? response ?? {};
+        let rawList = [];
+        if (Array.isArray(rawData?.content)) rawList = rawData.content;
+        else if (Array.isArray(rawData?.items)) rawList = rawData.items;
+        else if (Array.isArray(rawData?.customers)) rawList = rawData.customers;
+        else if (Array.isArray(rawData)) rawList = rawData;
+
+        if (rawList.length > 0) {
+          exportList = rawList.map(normalizeCustomer);
+        }
+      } catch (fetchErr) {
+        console.warn("Falling back to current customer records:", fetchErr);
+      }
+
+      if (!exportList || exportList.length === 0) {
+        alert("No customer records found to export.");
+        return;
+      }
+
+      const headers = [
+        "Customer ID",
+        "Full Name",
+        "Phone",
+        "Email",
+        "Account Status",
+        "Verified",
+        "Total Orders",
+        "Total Complaints",
+        "Registration Date",
+      ];
+
+      const escapeCell = (val) => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return `"${str}"`;
+      };
+
+      const rows = exportList.map((c) => [
+        escapeCell(c.customerId || c.userId || ""),
+        escapeCell(c.fullName || ""),
+        escapeCell(c.phone || ""),
+        escapeCell(c.email || ""),
+        escapeCell(c.blocked ? "Blocked" : "Active"),
+        escapeCell(c.verified ? "Yes" : "No"),
+        escapeCell(c.totalOrders ?? 0),
+        escapeCell(c.totalComplaints ?? 0),
+        escapeCell(c.registrationDate || ""),
+      ]);
+
+      const csvString = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+
+      // UTF-8 BOM ensures proper Unicode handling in Microsoft Excel
+      const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().split("T")[0];
+      link.href = url;
+      link.setAttribute("download", `veggo-customers-${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export Customer CSV Error:", err);
+      alert("Failed to export customer CSV. Please try again.");
+    } finally {
+      setIsExportingCsv(false);
+    }
+  };
+
+  // Export PDF Handler
+  const handleExportPdf = async () => {
+    try {
+      setIsExportingPdf(true);
+      const params = { limit: 500 };
+
+      if (sortOrder === "oldest") {
+        params.sort = "oldest";
+      } else if (sortOrder === "newest") {
+        params.sort = "newest";
+      }
+
+      if (activeCustomerTab === "roster") {
+        if (isBlockedFilter) params.isBlocked = true;
+      }
+
+      if (searchQuery && searchQuery.trim()) {
+        params.search = searchQuery.trim();
+      }
+
+      const blobData = await exportCustomersPdf(params);
+      const blob = new Blob([blobData], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().split("T")[0];
+      link.href = url;
+      link.setAttribute("download", `veggo-customers-${dateStr}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export Customer PDF Error:", err);
+      alert(
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        "Failed to download customer PDF ."
+      );
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   // Inspect customer detail
@@ -475,7 +678,13 @@ export default function Customer({ embedded = false }) {
       if (customerDetails?.userId === customerUserId) {
         setCustomerDetails(null);
       }
-      await fetchCustomerData(activeCustomerTab, currentPage, searchQuery);
+      await fetchCustomerData(
+        activeCustomerTab,
+        currentPage,
+        searchQuery,
+        isBlockedFilter,
+        sortOrder
+      );
     } catch (error) {
       console.error(`Failed to ${action} customer:`, error);
       setErrorMessage(
@@ -488,7 +697,7 @@ export default function Customer({ embedded = false }) {
     }
   };
 
-  // Real KPI stats computation
+  // Real KPI stats computation directly mapping to /api/admin/customers/stats
   const totalCustomersStat =
     customerStats?.totalCustomers ??
     customerStats?.totalUsers ??
@@ -498,41 +707,33 @@ export default function Customer({ embedded = false }) {
   const activeThisMonthStat =
     customerStats?.activeThisMonth ??
     customerStats?.activeUsers ??
-    Math.max(0, totalCustomersStat - (moderationStats?.suspendedOrBlocked ?? 0));
+    0;
 
   const premiumSubscribersStat =
     customerStats?.premiumSubscribers ??
     customerStats?.highValueCustomers ??
-    accounts.filter((a) => a.lifetimeOutlay >= 1000).length;
+    0;
 
   const suspendedOrBlockedStat =
-    moderationStats?.suspendedOrBlocked ??
     customerStats?.suspendedAccounts ??
+    moderationStats?.suspendedOrBlocked ??
     accounts.filter((a) => a.blocked).length;
 
-  // Client filtering
   const blockedCount = accounts.filter((a) => a.blocked).length;
-  const activeCount = Math.max(0, accounts.length - blockedCount);
   const flaggedCount = accounts.filter((a) => a.flagsRaised > 0).length;
 
-  const customerFilterPills = [
-    { id: "all", label: "All Records", count: accounts.length },
-    { id: "active", label: "Active & Verified", count: activeCount },
-    { id: "flagged", label: "Flagged / Review", count: flaggedCount },
-    { id: "blocked", label: "Suspended / Blocked", count: blockedCount },
-  ];
-
   const filteredAccounts = useMemo(() => {
-    let list = accounts;
-    if (activeFilterTab === "active") {
-      list = list.filter((a) => !a.blocked);
-    } else if (activeFilterTab === "flagged") {
-      list = list.filter((a) => a.flagsRaised > 0);
-    } else if (activeFilterTab === "blocked") {
-      list = list.filter((a) => a.blocked);
-    }
-    return list;
-  }, [accounts, activeFilterTab]);
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return accounts;
+
+    return accounts.filter(
+      (acc) =>
+        String(acc.fullName || "").toLowerCase().includes(query) ||
+        String(acc.email || "").toLowerCase().includes(query) ||
+        String(acc.phone || "").toLowerCase().includes(query) ||
+        String(acc.customerId || "").toLowerCase().includes(query)
+    );
+  }, [accounts, searchQuery]);
 
   return (
     <div
@@ -554,18 +755,47 @@ export default function Customer({ embedded = false }) {
         {/* Top Executive Page Header */}
         <PageHeader
           icon={Users}
-          title="Customer Management"
-          subtitle="View and manage customer accounts, orders, and wallet balances."
-          stats={[
-            { label: "Total Customers", value: totalCustomersStat },
-            {
-              label: "Need Review",
-              value: flaggedCount,
-              alert: flaggedCount > 0,
-            },
-          ]}
+          title={
+            activeCustomerTab === "roster"
+              ? "Customer Directory"
+              : "Account Moderation & Infractions"
+          }
+          subtitle="Directory, verification status, and moderation for VegGo customers."
           onRefresh={handleRefresh}
-          isRefreshing={isRefreshing}
+          isRefreshing={isRefreshing || loading}
+          actions={
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleExportCsv}
+                disabled={isExportingCsv}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer disabled:opacity-60"
+                title="Export customers to Excel / CSV (Limit: 500)"
+              >
+                <Download
+                  size={15}
+                  className={isExportingCsv ? "animate-bounce" : ""}
+                />
+                <span>{isExportingCsv ? "Exporting..." : "Export CSV"}</span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleExportPdf}
+                disabled={isExportingPdf}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-60"
+                title="Download Customer PDF  (Limit: 500)"
+              >
+                <FileText
+                  size={15}
+                  className={isExportingPdf ? "animate-spin text-emerald-600" : "text-slate-600"}
+                />
+                <span>{isExportingPdf ? "Downloading..." : "Download PDF"}</span>
+              </motion.button>
+            </div>
+          }
         />
 
         {/* Global Error Banner */}
@@ -591,7 +821,70 @@ export default function Customer({ embedded = false }) {
           )}
         </AnimatePresence>
 
-        {/* Segmented View Tabs Navigation */}
+        {/* Executive Metric Stat Cards from /api/admin/customers/stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500">Total Customers</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <Users size={16} />
+              </div>
+            </div>
+            <div className="text-2xl sm:text-3xl font-black text-slate-900">
+              <AnimatedValue value={totalCustomersStat} />
+            </div>
+            <span className="text-[11px] text-slate-400 font-medium">Customer base</span>
+          </div>
+
+          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500">Active This Month</span>
+              <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                <CheckCircle2 size={16} />
+              </div>
+            </div>
+            <div className="text-2xl sm:text-3xl font-black text-teal-700">
+              <AnimatedValue value={activeThisMonthStat} />
+            </div>
+            <span className="text-[11px] text-slate-400 font-medium">Active shoppers</span>
+          </div>
+
+          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500">Premium Customers</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                <Sparkles size={16} />
+              </div>
+            </div>
+            <div className="text-2xl sm:text-3xl font-black text-amber-600">
+              <AnimatedValue value={premiumSubscribersStat} />
+            </div>
+            <span className="text-[11px] text-slate-400 font-medium">Club members</span>
+          </div>
+
+          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-500">Suspended Accounts</span>
+              <div
+                className={`w-8 h-8 rounded-xl flex items-center justify-center ${suspendedOrBlockedStat > 0
+                  ? "bg-rose-50 text-rose-600"
+                  : "bg-slate-50 text-slate-500"
+                  }`}
+              >
+                <ShieldAlert size={16} />
+              </div>
+            </div>
+            <div
+              className={`text-2xl sm:text-3xl font-black ${suspendedOrBlockedStat > 0 ? "text-rose-600" : "text-slate-900"
+                }`}
+            >
+              <AnimatedValue value={suspendedOrBlockedStat} />
+            </div>
+            <span className="text-[11px] text-slate-400 font-medium">Restricted / blocked</span>
+          </div>
+        </div>
+
+        {/* Segmented View Tabs Navigation (Directory, Moderation) */}
         <div className="bg-white p-2 rounded-2xl border border-emerald-100/80 shadow-2xs">
           <SegmentedTabs
             tabs={customerTabs}
@@ -600,22 +893,121 @@ export default function Customer({ embedded = false }) {
           />
         </div>
 
-        {/* Status Filter Pills */}
-        <StatusFilterPills
-          filters={customerFilterPills}
-          activeFilter={activeFilterTab}
-          onFilterChange={setActiveFilterTab}
-        />
+        {/* Sub-Filters: ONLY visible when "Customer Directory" is selected */}
+        {activeCustomerTab === "roster" && (
+          <div className="flex flex-wrap items-center gap-2.5 py-1">
+            {/* 1. All Customers */}
+            <button
+              type="button"
+              onClick={handleSelectAllInRoster}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${!isBlockedFilter && !sortOrder
+                ? "bg-emerald-700 text-white shadow-xs"
+                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+                }`}
+            >
+              <Users
+                size={14}
+                className={!isBlockedFilter && !sortOrder ? "text-emerald-100" : "text-emerald-700"}
+              />
+              <span>All Customers</span>
+              {counts.total > 0 && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${!isBlockedFilter && !sortOrder
+                    ? "bg-emerald-800 text-emerald-100"
+                    : "bg-slate-100 text-slate-700"
+                    }`}
+                >
+                  {counts.total}
+                </span>
+              )}
+            </button>
+
+            {/* 2. Blocked Only */}
+            <button
+              type="button"
+              onClick={handleToggleBlocked}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${isBlockedFilter
+                ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
+                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+                }`}
+            >
+              <UserX
+                size={14}
+                className={isBlockedFilter ? "text-emerald-200" : "text-rose-600"}
+              />
+              <span>Blocked Only</span>
+              {counts.blocked > 0 && (
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${isBlockedFilter
+                    ? "bg-emerald-800 text-emerald-100"
+                    : "bg-slate-100 text-slate-700"
+                    }`}
+                >
+                  {counts.blocked}
+                </span>
+              )}
+            </button>
+
+            {/* 3. Sort by: Newest First */}
+            <button
+              type="button"
+              onClick={() => handleSetSortOrder("newest")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${sortOrder === "newest"
+                ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
+                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+                }`}
+              title="Sort customer records by newest registered first"
+            >
+              <Sparkles
+                size={14}
+                className={sortOrder === "newest" ? "text-emerald-200" : "text-amber-500"}
+              />
+              <span>Newest First</span>
+            </button>
+
+            {/* 4. Sort by: Oldest First */}
+            <button
+              type="button"
+              onClick={() => handleSetSortOrder("oldest")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${sortOrder === "oldest"
+                ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
+                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+                }`}
+              title="Sort customer records by oldest registered first"
+            >
+              <Clock
+                size={14}
+                className={sortOrder === "oldest" ? "text-emerald-200" : "text-slate-500"}
+              />
+              <span>Oldest First</span>
+            </button>
+
+            {/* Reset button if any filter/sort is applied */}
+            {(isBlockedFilter || sortOrder) && (
+              <button
+                type="button"
+                onClick={handleSelectAllInRoster}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer"
+                title="Reset filters"
+              >
+                <X size={12} />
+                <span>Reset Filters</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Workflow Rules Information Bar */}
         <WorkflowRulesBar
           rulesText={
             activeCustomerTab === "moderation"
               ? "Review customer infractions, reported flags, and security actions."
-              : activeCustomerTab === "wallet"
-                ? "Monitor customer prepaid balances, refunds, and lifetime platform purchases."
-                : activeCustomerTab === "orders"
-                  ? "Analyze consumer ordering patterns, frequencies, and lifetime outlay."
+              : isBlockedFilter
+                ? sortOrder === "oldest"
+                  ? "Showing suspended or blocked customer accounts sorted from oldest first."
+                  : "Showing customer accounts that are currently suspended or blocked from ordering."
+                : sortOrder === "oldest"
+                  ? "Showing customer directory sorted from oldest registered users first."
                   : "Complete consumer directory across registrations, contact information, and account access."
           }
           showingCount={filteredAccounts.length}
@@ -659,20 +1051,14 @@ export default function Customer({ embedded = false }) {
             </div>
           ) : filteredAccounts.length === 0 ? (
             <EmptyState
-              icon={
-                activeCustomerTab === "moderation"
-                  ? Flag
-                  : activeCustomerTab === "wallet"
-                    ? Wallet
-                    : activeCustomerTab === "orders"
-                      ? ShoppingBag
-                      : Users
-              }
+              icon={activeCustomerTab === "moderation" ? Flag : Users}
               title={`No ${activeCustomerTab === "moderation" ? "flagged accounts" : "customers"} found`}
               description={
                 searchQuery
                   ? `No records matched "${searchQuery}". Try searching with a different name, phone, or ID.`
-                  : `There are currently no records in the "${customerFilterPills.find((f) => f.id === activeFilterTab)?.label || "Selected"}" filter.`
+                  : isBlockedFilter
+                    ? "There are currently no suspended or blocked customer accounts."
+                    : "There are currently no customer records found matching the selected criteria."
               }
             />
           ) : (
@@ -684,57 +1070,32 @@ export default function Customer({ embedded = false }) {
                     <tr className="border-b border-slate-100 text-[11px] uppercase font-bold tracking-wider text-slate-500 bg-slate-50/60">
                       <th className="py-3.5 px-5">Customer Profile</th>
 
-                      {/* Tab-Specific Columns */}
-                      {activeCustomerTab === "roster" && (
+                      {activeCustomerTab === "roster" ? (
                         <>
                           <th className="py-3.5 px-5">Phone Number</th>
-                          <th className="py-3.5 px-5">Orders & Outlay</th>
-                          <th className="py-3.5 px-5">Joined Date</th>
+                          <th className="py-3.5 px-5 text-center">Total Orders</th>
+                          <th className="py-3.5 px-5 text-center">Total Complaints</th>
                         </>
-                      )}
-
-                      {activeCustomerTab === "wallet" && (
+                      ) : (
                         <>
-                          <th className="py-3.5 px-5">Wallet Balance</th>
-                          <th className="py-3.5 px-5">Lifetime Outlay</th>
-                          <th className="py-3.5 px-5">Completed Orders</th>
-                        </>
-                      )}
-
-                      {activeCustomerTab === "orders" && (
-                        <>
-                          <th className="py-3.5 px-5">Completed Orders</th>
-                          <th className="py-3.5 px-5">Lifetime Outlay</th>
-                          <th className="py-3.5 px-5">Avg Order Value</th>
-                          <th className="py-3.5 px-5">Joined Date</th>
-                        </>
-                      )}
-
-                      {activeCustomerTab === "moderation" && (
-                        <>
-                          <th className="py-3.5 px-5">Flags Raised</th>
+                          <th className="py-3.5 px-5 text-center">Flags Raised</th>
                           <th className="py-3.5 px-5">Primary Infraction</th>
                         </>
                       )}
 
                       <th className="py-3.5 px-5 text-center">Status</th>
-                      <th className="py-3.5 px-5 text-center min-w-[230px]">Actions</th>
+                      <th className="py-3.5 px-5 text-center min-w-[210px]">Actions</th>
                     </tr>
                   </thead>
 
                   <tbody className="divide-y divide-slate-100">
                     {filteredAccounts.map((account, index) => {
-                      const avgOrderValue =
-                        account.completedPurchases > 0
-                          ? account.lifetimeOutlay / account.completedPurchases
-                          : 0;
-
                       return (
                         <tr
                           key={account.customerId || account.userId || index}
                           className="text-xs font-semibold text-slate-800 hover:bg-emerald-50/30 transition-colors"
                         >
-                          {/* Common Profile Column */}
+                          {/* Common Profile Column - Customer Name only */}
                           <td className="py-4 px-5">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-xs">
@@ -753,94 +1114,68 @@ export default function Customer({ embedded = false }) {
                             </div>
                           </td>
 
-                          {/* Roster Tab Columns */}
-                          {activeCustomerTab === "roster" && (
+                          {/* Tab-Specific Columns */}
+                          {activeCustomerTab === "roster" ? (
                             <>
+                              {/* Phone Number */}
                               <td className="py-4 px-5">
-                                <div className="flex items-center gap-1.5 text-slate-700">
-                                  <Phone size={13} className="text-slate-400" />
-                                  <span>{account.phone}</span>
+                                <div className="flex items-center gap-1.5 text-slate-700 font-medium">
+                                  <Phone size={13} className="text-slate-400 shrink-0" />
+                                  <span>{account.phone || "-"}</span>
                                 </div>
                               </td>
-                              <td className="py-4 px-5">
-                                <span className="font-bold text-slate-900 block">
-                                  {formatCurrency(account.lifetimeOutlay)}
-                                </span>
-                                <span className="text-[11px] text-slate-500">
-                                  {account.completedPurchases} orders
-                                </span>
-                              </td>
-                              <td className="py-4 px-5 text-slate-500 font-mono text-[11px]">
-                                {formatDate(account.registrationDate)}
-                              </td>
-                            </>
-                          )}
 
-                          {/* Wallet Tab Columns */}
-                          {activeCustomerTab === "wallet" && (
-                            <>
-                              <td className="py-4 px-5">
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                  <Wallet size={12} />
-                                  {formatCurrency(account.walletBalance)}
+                              {/* Total Orders */}
+                              <td className="py-4 px-5 text-center">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800">
+                                  {account.totalOrders}
                                 </span>
                               </td>
-                              <td className="py-4 px-5 font-bold text-slate-900">
-                                {formatCurrency(account.lifetimeOutlay)}
-                              </td>
-                              <td className="py-4 px-5 text-slate-600">
-                                {account.completedPurchases} purchases
-                              </td>
-                            </>
-                          )}
 
-                          {/* Orders Tab Columns */}
-                          {activeCustomerTab === "orders" && (
-                            <>
-                              <td className="py-4 px-5">
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 text-slate-800 font-bold">
-                                  <ShoppingBag size={12} className="text-emerald-600" />
-                                  {account.completedPurchases} Orders
-                                </span>
-                              </td>
-                              <td className="py-4 px-5 font-bold text-slate-900">
-                                {formatCurrency(account.lifetimeOutlay)}
-                              </td>
-                              <td className="py-4 px-5 text-slate-600">
-                                {formatCurrency(avgOrderValue)}
-                              </td>
-                              <td className="py-4 px-5 text-slate-500 font-mono text-[11px]">
-                                {formatDate(account.registrationDate)}
-                              </td>
-                            </>
-                          )}
-
-                          {/* Moderation Tab Columns */}
-                          {activeCustomerTab === "moderation" && (
-                            <>
-                              <td className="py-4 px-5">
+                              {/* Total Complaints */}
+                              <td className="py-4 px-5 text-center">
                                 <span
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${account.flagsRaised > 0
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+                                    account.totalComplaints > 0
+                                      ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                      : "bg-slate-100 text-slate-600"
+                                  }`}
+                                >
+                                  {account.totalComplaints > 0 && <AlertCircle size={11} />}
+                                  {account.totalComplaints}
+                                </span>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              {/* Flags Raised */}
+                              <td className="py-4 px-5 text-center">
+                                <span
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                                    account.flagsRaised > 0
                                       ? "bg-amber-50 text-amber-700 border-amber-200"
                                       : "bg-slate-50 text-slate-600 border-slate-200"
-                                    }`}
+                                  }`}
                                 >
-                                  <Flag size={11} />
-                                  {account.flagsRaised} Flags
+                                  <Flag size={12} className={account.flagsRaised > 0 ? "text-amber-600" : "text-slate-400"} />
+                                  <span>{account.flagsRaised} Flags</span>
                                 </span>
                               </td>
+
+                              {/* Primary Infraction */}
                               <td className="py-4 px-5">
-                                <div className="flex items-center gap-2 max-w-[220px]">
+                                <div className="flex items-center gap-2 max-w-[240px]">
                                   <span
-                                    className={`p-1.5 rounded-lg shrink-0 ${account.flagsRaised > 0
+                                    className={`p-1.5 rounded-lg shrink-0 ${
+                                      account.flagsRaised > 0
                                         ? "bg-rose-50 text-rose-600"
                                         : "bg-slate-50 text-slate-400"
-                                      }`}
+                                    }`}
                                   >
                                     <ShieldAlert size={13} />
                                   </span>
-                                  <span className="truncate text-slate-700">
-                                    {account.primaryInfraction}
+                                  <span className="truncate text-slate-700 font-medium">
+                                    {account.primaryInfraction || "None"}
                                   </span>
                                 </div>
                               </td>
@@ -851,8 +1186,8 @@ export default function Customer({ embedded = false }) {
                           <td className="py-4 px-5 text-center">
                             <span
                               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${account.blocked
-                                  ? "bg-rose-50 text-rose-700 border-rose-200"
-                                  : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                ? "bg-rose-50 text-rose-700 border-rose-200"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
                                 }`}
                             >
                               {account.blocked ? (
@@ -882,11 +1217,10 @@ export default function Customer({ embedded = false }) {
                                 type="button"
                                 onClick={() => initiateToggleStatus(account)}
                                 disabled={isRefreshing}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-2xs cursor-pointer disabled:opacity-40 ${
-                                  account.blocked
-                                    ? "bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border-emerald-200/90 hover:border-emerald-600 hover:shadow-emerald-600/20"
-                                    : "bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white border-amber-200/90 hover:border-amber-600 hover:shadow-amber-600/20"
-                                }`}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-2xs cursor-pointer disabled:opacity-40 ${account.blocked
+                                  ? "bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border-emerald-200/90 hover:border-emerald-600 hover:shadow-emerald-600/20"
+                                  : "bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white border-amber-200/90 hover:border-amber-600 hover:shadow-amber-600/20"
+                                  }`}
                                 title={
                                   account.blocked
                                     ? "Restore Access"
@@ -941,16 +1275,18 @@ export default function Customer({ embedded = false }) {
                           <h4 className="font-bold text-sm text-slate-900 truncate">
                             {account.fullName}
                           </h4>
-                          <p className="text-xs text-slate-400 truncate">
-                            {account.phone || account.email}
-                          </p>
+                          {activeCustomerTab === "roster" && account.phone && (
+                            <p className="text-xs text-slate-400 truncate">
+                              {account.phone}
+                            </p>
+                          )}
                         </div>
                       </div>
 
                       <span
                         className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${account.blocked
-                            ? "bg-rose-50 text-rose-700 border-rose-200"
-                            : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          ? "bg-rose-50 text-rose-700 border-rose-200"
+                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
                           }`}
                       >
                         {account.blocked ? "Blocked" : "Active"}
@@ -959,23 +1295,47 @@ export default function Customer({ embedded = false }) {
 
                     {/* Metadata Grid */}
                     <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                          Lifetime Outlay
-                        </span>
-                        <span className="font-bold text-slate-900">
-                          {formatCurrency(account.lifetimeOutlay)}
-                        </span>
-                      </div>
+                      {activeCustomerTab === "roster" ? (
+                        <>
+                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Total Orders
+                            </span>
+                            <span className="font-bold text-slate-900">
+                              {account.totalOrders}
+                            </span>
+                          </div>
 
-                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                          Wallet Balance
-                        </span>
-                        <span className="font-bold text-emerald-700">
-                          {formatCurrency(account.walletBalance)}
-                        </span>
-                      </div>
+                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Total Complaints
+                            </span>
+                            <span className={`font-bold ${account.totalComplaints > 0 ? "text-rose-600" : "text-slate-700"}`}>
+                              {account.totalComplaints}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Flags Raised
+                            </span>
+                            <span className={`font-bold ${account.flagsRaised > 0 ? "text-amber-600" : "text-slate-700"}`}>
+                              {account.flagsRaised} Flags
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                              Primary Infraction
+                            </span>
+                            <span className="font-bold text-slate-900 truncate block">
+                              {account.primaryInfraction || "None"}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {/* Mobile Actions */}
@@ -993,8 +1353,8 @@ export default function Customer({ embedded = false }) {
                         onClick={() => initiateToggleStatus(account)}
                         disabled={isRefreshing}
                         className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border cursor-pointer disabled:opacity-40 ${account.blocked
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : "bg-amber-50 text-amber-700 border-amber-200"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
                           }`}
                       >
                         {account.blocked ? (
@@ -1148,53 +1508,72 @@ export default function Customer({ embedded = false }) {
                   </div>
                 ) : (
                   <>
-                    {/* Financial Summary Banner */}
-                    <div className="grid grid-cols-3 gap-3 p-3.5 bg-gradient-to-r from-emerald-50/70 to-teal-50/50 rounded-2xl border border-emerald-100/80">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                          Lifetime Outlay
-                        </span>
-                        <span className="text-sm sm:text-base font-black text-slate-900 font-mono">
-                          {formatCurrency(customerDetails.lifetimeOutlay)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                          Wallet Balance
-                        </span>
-                        <span className="text-sm sm:text-base font-black text-emerald-700 font-mono">
-                          {formatCurrency(customerDetails.walletBalance)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                          Total Orders
-                        </span>
-                        <span className="text-sm sm:text-base font-black text-slate-900 font-mono">
-                          {customerDetails.completedPurchases}
-                        </span>
-                      </div>
+                    {/* Summary Banner */}
+                    <div className="grid grid-cols-2 gap-3 p-3.5 bg-gradient-to-r from-emerald-50/70 to-teal-50/50 rounded-2xl border border-emerald-100/80">
+                      {activeCustomerTab === "roster" ? (
+                        <>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                              Total Orders
+                            </span>
+                            <span className="text-sm sm:text-base font-black text-slate-900 font-mono">
+                              {customerDetails.totalOrders ?? 0}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                              Total Complaints
+                            </span>
+                            <span className={`text-sm sm:text-base font-black font-mono ${(customerDetails.totalComplaints ?? 0) > 0 ? "text-rose-600" : "text-emerald-700"}`}>
+                              {customerDetails.totalComplaints ?? 0}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                              Flags Raised
+                            </span>
+                            <span className={`text-sm sm:text-base font-black font-mono ${(customerDetails.flagsRaised ?? 0) > 0 ? "text-amber-600" : "text-slate-900"}`}>
+                              {customerDetails.flagsRaised ?? 0} Flags
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                              Primary Infraction
+                            </span>
+                            <span className="text-sm sm:text-base font-black text-slate-900 truncate block">
+                              {customerDetails.primaryInfraction || "None"}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {/* Detailed Fields Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                          Phone Number
-                        </span>
-                        <p className="mt-1 font-semibold text-sm text-slate-800">
-                          {customerDetails.phone || "-"}
-                        </p>
-                      </div>
+                      {customerDetails.phone ? (
+                        <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                            Phone Number
+                          </span>
+                          <p className="mt-1 font-semibold text-sm text-slate-800">
+                            {customerDetails.phone}
+                          </p>
+                        </div>
+                      ) : null}
 
-                      <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                          Registration Date
-                        </span>
-                        <p className="mt-1 font-semibold text-sm text-slate-800 font-mono">
-                          {formatDate(customerDetails.registrationDate)}
-                        </p>
-                      </div>
+                      {customerDetails.registrationDate ? (
+                        <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                            Registration Date
+                          </span>
+                          <p className="mt-1 font-semibold text-sm text-slate-800 font-mono">
+                            {formatDate(customerDetails.registrationDate)}
+                          </p>
+                        </div>
+                      ) : null}
 
                       <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
                         <span className="text-[10px] uppercase font-bold text-slate-400 block">
@@ -1202,7 +1581,7 @@ export default function Customer({ embedded = false }) {
                         </span>
                         <p className="mt-1 font-semibold text-sm text-slate-800 flex items-center gap-1.5">
                           <Flag size={14} className="text-amber-500" />
-                          {customerDetails.flagsRaised} reports
+                          {customerDetails.flagsRaised ?? 0} reports
                         </p>
                       </div>
 
@@ -1211,7 +1590,7 @@ export default function Customer({ embedded = false }) {
                           Primary Infraction
                         </span>
                         <p className="mt-1 font-semibold text-sm text-slate-800 truncate">
-                          {customerDetails.primaryInfraction}
+                          {customerDetails.primaryInfraction || "None"}
                         </p>
                       </div>
                     </div>
@@ -1220,8 +1599,8 @@ export default function Customer({ embedded = false }) {
                     <div className="flex flex-wrap items-center gap-2 pt-1">
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${customerDetails.blocked
-                            ? "bg-rose-50 text-rose-700 border-rose-200"
-                            : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          ? "bg-rose-50 text-rose-700 border-rose-200"
+                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
                           }`}
                       >
                         {customerDetails.blocked ? (
@@ -1234,8 +1613,8 @@ export default function Customer({ embedded = false }) {
 
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${customerDetails.verified
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : "bg-slate-50 text-slate-600 border-slate-200"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-slate-50 text-slate-600 border-slate-200"
                           }`}
                       >
                         {customerDetails.verified ? (
@@ -1258,8 +1637,8 @@ export default function Customer({ embedded = false }) {
                   <button
                     onClick={() => initiateToggleStatus(customerDetails)}
                     className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border cursor-pointer transition-all ${customerDetails.blocked
-                        ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
-                        : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                      ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
+                      : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
                       }`}
                   >
                     {customerDetails.blocked ? (

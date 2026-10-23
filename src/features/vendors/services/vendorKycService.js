@@ -12,6 +12,18 @@ export const getVendors = async (params = {}) => {
   return response.data;
 };
 
+export const exportVendorsPdf = async (params = {}) => {
+  const response = await apiClient.get(
+    VENDOR_ENDPOINTS.EXPORT_PDF,
+    {
+      params,
+      responseType: "blob",
+    }
+  );
+
+  return response.data;
+};
+
 export const getPendingVendorKyc = async (page = 0, size = 20) => {
   const response = await apiClient.get(
     VENDOR_ENDPOINTS.KYC_PENDING,

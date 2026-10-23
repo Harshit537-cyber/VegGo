@@ -27,7 +27,8 @@ import {
   Upload,
   Image as ImageIcon,
   ChevronDown,
-  Check
+  Check,
+  AlertCircle
 } from 'lucide-react';
 
 import {
@@ -290,6 +291,12 @@ function CategorySelect({
           value={loading ? 'Loading...' : searchTerm}
           onFocus={handleFocus}
           onChange={handleInputChange}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
           placeholder={placeholder}
           className="w-full min-w-0 bg-transparent text-xs font-bold text-black placeholder:text-slate-400 placeholder:font-semibold focus:outline-none disabled:cursor-not-allowed"
         />
@@ -361,6 +368,7 @@ export default function Subcategories({ embedded = false }) {
   const [actionLoading, setActionLoading] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [subcategories, setSubcategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -369,6 +377,16 @@ export default function Subcategories({ embedded = false }) {
   // true = read-only "View" panel opened from the listing, false = normal edit
   const [isViewMode, setIsViewMode] = useState(false);
   const [viewImageUrl, setViewImageUrl] = useState('');
+
+  // Small popup modal state for when display order is already assigned
+  const [orderConflictModal, setOrderConflictModal] = useState({
+    isOpen: false,
+    subcategory: null,
+    conflictingItem: null,
+    newOrder: 1,
+    error: ''
+  });
+  const [orderModalSaving, setOrderModalSaving] = useState(false);
 
   const [formData, setFormData] = useState({
     id: '',
@@ -408,12 +426,15 @@ export default function Subcategories({ embedded = false }) {
   // without a categoryId (confirmed via Network tab), so a single
   // "fetch everything" call isn't possible here. We fetch per category
   // and merge/dedupe the results.
-  const fetchSubcategories = async (categoryList) => {
+  const fetchSubcategories = async (categoryList, showLoader = false) => {
     const list =
       Array.isArray(categoryList) && categoryList.length > 0
         ? categoryList
         : categories;
 
+    if (showLoader) {
+      setLoading(true);
+    }
     setIsRefreshing(true);
     setErrorMessage('');
 
@@ -523,6 +544,7 @@ export default function Subcategories({ embedded = false }) {
     setEditingSubcategory(null);
     setIsViewMode(false);
     setErrorMessage('');
+    setSuccessMessage('');
     resetForm();
     setIsPanelOpen(true);
 
@@ -638,8 +660,8 @@ export default function Subcategories({ embedded = false }) {
       return;
     }
 
-    if (file.size > 1 * 1024 * 1024) {
-      setErrorMessage('Image size must be less than 1MB');
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMessage('Image size must be less than 5MB');
       return;
     }
 
@@ -673,7 +695,10 @@ export default function Subcategories({ embedded = false }) {
   };
 
   const handleSave = async (e) => {
-    e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
 
     if (isViewMode) return;
 
@@ -691,32 +716,116 @@ export default function Subcategories({ embedded = false }) {
 
     setSaving(true);
     setErrorMessage('');
+    setSuccessMessage('');
+
+    const targetOrder = Number(formData.displayOrder) || 1;
+    const isActivating = formData.status === 'Active';
+
+    // If activating (or keeping active), check if this display order is already assigned to another active subcategory
+    if (isActivating) {
+      const conflictingItem = subcategories.find(
+        (item) =>
+          String(item.id) !== String(editingSubcategory || '') &&
+          String(item.categoryId) === String(formData.categoryId) &&
+          Number(item.displayOrder) === targetOrder &&
+          item.active !== false
+      );
+
+      if (conflictingItem) {
+        setErrorMessage(
+          `Please assign new display order. Display order #${targetOrder} is already assigned to "${conflictingItem.name}".`
+        );
+        setSaving(false);
+        return;
+      }
+    }
 
     const payload = new FormData();
 
+    payload.append('categoryId', String(formData.categoryId));
     payload.append('name', name);
-    payload.append('categoryId', formData.categoryId);
-    payload.append('description', String(formData.description || '').trim());
-    payload.append('displayOrder', String(Number(formData.displayOrder) || 1));
-    payload.append('active', String(formData.status === 'Active'));
+    payload.append('displayOrder', String(targetOrder));
+
+    if (formData.description && String(formData.description).trim()) {
+      payload.append('description', String(formData.description).trim());
+    }
+
+    const oldSubcategory = editingSubcategory
+      ? subcategories.find(
+          (item) => String(item.id) === String(editingSubcategory)
+        )
+      : null;
+
+    const hadImage = Boolean(oldSubcategory?.imageUrl || oldSubcategory?.image);
+    const isImageRemoved = hadImage && !formData.imageUrl && !formData.imageFile;
 
     if (formData.imageFile) {
       payload.append('image', formData.imageFile);
+    } else if (isImageRemoved) {
+      payload.append('removeImage', 'true');
+      payload.append('deleteImage', 'true');
+      payload.append('imageUrl', '');
     }
 
     try {
       if (editingSubcategory) {
+        if (formData.status !== undefined) {
+          payload.append('active', String(formData.status === 'Active'));
+        }
         await updateSubcategory(editingSubcategory, payload);
+
+        // Explicitly activate or deactivate via status endpoint
+        if (formData.status === 'Active') {
+          await activateSubcategory(editingSubcategory);
+        } else if (formData.status === 'Inactive') {
+          await deactivateSubcategory(editingSubcategory);
+        }
+
+        setSuccessMessage('Subcategory updated successfully');
+
+        // Optimistically update subcategory in local state so UI updates instantly without any flicker
+        const matchedCategory = categories.find((c) => String(c.id) === String(formData.categoryId));
+        setSubcategories((prev) =>
+          prev.map((s) =>
+            s.id === editingSubcategory
+              ? {
+                  ...s,
+                  name: name,
+                  categoryId: formData.categoryId,
+                  categoryName: matchedCategory?.name || s.categoryName,
+                  description: String(formData.description || '').trim(),
+                  displayOrder: targetOrder,
+                  active: formData.status === 'Active',
+                  imageUrl: formData.imageFile
+                    ? formData.imageUrl
+                    : isImageRemoved
+                    ? ''
+                    : (s.imageUrl || s.image)
+                }
+              : s
+          )
+        );
       } else {
-        await createSubcategory(payload);
+        const createRes = await createSubcategory(payload);
+        const createdId = createRes?.data?.id || createRes?.id;
+        if (formData.status === 'Inactive' && createdId) {
+          try {
+            await deactivateSubcategory(createdId);
+          } catch (e) {
+            console.warn('Could not deactivate new subcategory:', e);
+          }
+        }
+        setSuccessMessage('Subcategory created successfully');
       }
 
-      await fetchSubcategories();
-
+      // Close panel immediately so the user gets fast, seamless interaction
       setIsPanelOpen(false);
       setEditingSubcategory(null);
       setIsViewMode(false);
       resetForm();
+
+      // Background re-fetch without destroying the table layout
+      fetchSubcategories(undefined, false);
     } catch (error) {
       console.error('Failed to save subcategory:', error);
 
@@ -726,33 +835,195 @@ export default function Subcategories({ embedded = false }) {
     }
   };
 
+  const closeOrderConflictModal = () => {
+    if (orderModalSaving) return;
+    setOrderConflictModal({
+      isOpen: false,
+      subcategory: null,
+      conflictingItem: null,
+      newOrder: 1,
+      error: ''
+    });
+  };
+
+  const handleAssignOrderAndEnable = async () => {
+    if (!orderConflictModal?.subcategory) return;
+
+    const sub = orderConflictModal.subcategory;
+    const chosenOrder = Number(orderConflictModal.newOrder);
+
+    if (!chosenOrder || chosenOrder < 1) {
+      setOrderConflictModal((prev) => ({
+        ...prev,
+        error: 'Please enter a valid display order (1 or greater)'
+      }));
+      return;
+    }
+
+    // Check if the chosen order is also assigned to another active subcategory
+    const stillConflicting = subcategories.find(
+      (item) =>
+        String(item.id) !== String(sub.id) &&
+        String(item.categoryId) === String(sub.categoryId) &&
+        Number(item.displayOrder) === chosenOrder &&
+        item.active !== false
+    );
+
+    if (stillConflicting) {
+      setOrderConflictModal((prev) => ({
+        ...prev,
+        error: `Display order #${chosenOrder} is already assigned to "${stillConflicting.name}". Please assign a different display order.`
+      }));
+      return;
+    }
+
+    setOrderModalSaving(true);
+    setOrderConflictModal((prev) => ({ ...prev, error: '' }));
+
+    try {
+      // 1. Update display order on the subcategory via updateSubcategory
+      const payload = new FormData();
+      payload.append('categoryId', String(sub.categoryId));
+      payload.append('name', String(sub.name));
+      payload.append('displayOrder', String(chosenOrder));
+      if (sub.description && String(sub.description).trim()) {
+        payload.append('description', String(sub.description).trim());
+      }
+      payload.append('active', 'true');
+
+      await updateSubcategory(sub.id, payload);
+
+      // 2. Activate via activateSubcategory
+      await activateSubcategory(sub.id);
+
+      // 3. Optimistic update
+      setSubcategories((prev) =>
+        prev.map((s) =>
+          s.id === sub.id
+            ? { ...s, displayOrder: chosenOrder, active: true }
+            : s
+        )
+      );
+
+      setSuccessMessage(
+        `Subcategory "${sub.name}" display order updated to #${chosenOrder} and enabled successfully`
+      );
+
+      closeOrderConflictModal();
+
+      // Background re-fetch
+      fetchSubcategories(undefined, false);
+    } catch (error) {
+      console.error('Failed to assign order and enable:', error);
+      setOrderConflictModal((prev) => ({
+        ...prev,
+        error: getErrorMessage(
+          error,
+          'Failed to assign display order and enable subcategory'
+        )
+      }));
+    } finally {
+      setOrderModalSaving(false);
+    }
+  };
+
   const handleStatusChange = async (subcategory) => {
     if (!subcategory?.id) return;
 
-    setActionLoading(subcategory.id);
+    if (subcategory.active === false) {
+      // User wants to enable this subcategory.
+      // Check if displayOrder is already assigned to another subcategory in the same parent category
+      const targetOrder = Number(subcategory.displayOrder) || 1;
+      const conflictingItem =
+        subcategories.find(
+          (item) =>
+            String(item.id) !== String(subcategory.id) &&
+            String(item.categoryId) === String(subcategory.categoryId) &&
+            Number(item.displayOrder) === targetOrder &&
+            item.active !== false
+        ) ||
+        subcategories.find(
+          (item) =>
+            String(item.id) !== String(subcategory.id) &&
+            String(item.categoryId) === String(subcategory.categoryId) &&
+            Number(item.displayOrder) === targetOrder
+        );
 
-    setErrorMessage('');
+      if (conflictingItem) {
+        // Display order is already assigned -> Show the small popup: "Please assign new display order"
+        const suggestedOrder = getNextDisplayOrder(
+          subcategory.categoryId,
+          subcategory.id
+        );
+        setOrderConflictModal({
+          isOpen: true,
+          subcategory,
+          conflictingItem,
+          newOrder: suggestedOrder,
+          error: ''
+        });
+        return;
+      }
 
-    try {
-      if (subcategory.active === false) {
+      // No conflict -> Enable directly
+      setActionLoading(subcategory.id);
+      setErrorMessage('');
+      try {
         await activateSubcategory(subcategory.id);
-      } else {
+
+        setSubcategories((prev) =>
+          prev.map((s) =>
+            s.id === subcategory.id ? { ...s, active: true } : s
+          )
+        );
+
+        setSuccessMessage(
+          `Subcategory "${subcategory.name}" enabled successfully`
+        );
+
+        fetchSubcategories(undefined, false);
+
+        if (editingSubcategory === subcategory.id) {
+          closePanel();
+        }
+      } catch (error) {
+        console.error('Failed to enable subcategory:', error);
+        setErrorMessage(
+          getErrorMessage(error, 'Failed to enable subcategory')
+        );
+      } finally {
+        setActionLoading(null);
+      }
+    } else {
+      // User wants to disable this subcategory
+      setActionLoading(subcategory.id);
+      setErrorMessage('');
+      try {
         await deactivateSubcategory(subcategory.id);
+
+        setSubcategories((prev) =>
+          prev.map((s) =>
+            s.id === subcategory.id ? { ...s, active: false } : s
+          )
+        );
+
+        setSuccessMessage(
+          `Subcategory "${subcategory.name}" disabled successfully`
+        );
+
+        fetchSubcategories(undefined, false);
+
+        if (editingSubcategory === subcategory.id) {
+          closePanel();
+        }
+      } catch (error) {
+        console.error('Failed to disable subcategory:', error);
+        setErrorMessage(
+          getErrorMessage(error, 'Failed to disable subcategory')
+        );
+      } finally {
+        setActionLoading(null);
       }
-
-      await fetchSubcategories();
-
-      if (editingSubcategory === subcategory.id) {
-        closePanel();
-      }
-    } catch (error) {
-      console.error('Failed to change subcategory status:', error);
-
-      setErrorMessage(
-        getErrorMessage(error, 'Failed to update subcategory status')
-      );
-    } finally {
-      setActionLoading(null);
     }
   };
 
@@ -860,34 +1131,31 @@ export default function Subcategories({ embedded = false }) {
         }
       >
         <PageHeader
+          icon={Layers3}
           badge="Product Management"
           badgeIcon={Layers3}
           title="Subcategory Catalog"
           subtitle="Manage subcategories and department mappings."
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
-          rightActions={
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={openAddPanel}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
-            >
-              <Plus size={15} />
-              Add Subcategory
-            </motion.button>
-          }
+          actionButtonText="Add Subcategory"
+          actionButtonIcon={Plus}
+          onActionClick={openAddPanel}
         />
 
         <AnimatePresence>
-          {errorMessage && (
+          {(errorMessage || successMessage) && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="px-5 py-3.5 rounded-2xl border text-xs font-semibold bg-rose-50 border-rose-200 text-rose-700"
+              className={`px-5 py-3.5 rounded-2xl border text-xs font-semibold ${
+                errorMessage
+                  ? 'bg-rose-50 border-rose-200 text-rose-700'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              }`}
             >
-              {errorMessage}
+              {errorMessage || successMessage}
             </motion.div>
           )}
         </AnimatePresence>
@@ -956,6 +1224,16 @@ export default function Subcategories({ embedded = false }) {
                     </button>
                   ))}
                 </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={openAddPanel}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer shrink-0"
+                >
+                  <Plus size={14} />
+                  <span>Add Subcategory</span>
+                </motion.button>
               </div>
             </div>
 
@@ -1122,6 +1400,14 @@ export default function Subcategories({ embedded = false }) {
                         <p className="text-xs font-semibold text-slate-400">
                           No matching subcategory records found.
                         </p>
+                        <button
+                          type="button"
+                          onClick={openAddPanel}
+                          className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                        >
+                          <Plus size={14} />
+                          <span>Add New Subcategory</span>
+                        </button>
                       </td>
                     </tr>
                   )}
@@ -1274,6 +1560,14 @@ export default function Subcategories({ embedded = false }) {
                   <p className="text-xs font-semibold text-slate-400">
                     No subcategories found.
                   </p>
+                  <button
+                    type="button"
+                    onClick={openAddPanel}
+                    className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>Add New Subcategory</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -1326,7 +1620,15 @@ export default function Subcategories({ embedded = false }) {
                 </div>
               </div>
 
-              <form onSubmit={handleSave} className="space-y-4">
+              <form
+                action="javascript:void(0);"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSave(e);
+                }}
+                className="space-y-4"
+              >
                 <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
                     Parent Category
@@ -1362,9 +1664,28 @@ export default function Subcategories({ embedded = false }) {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                      Display Order
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-[10px] font-bold text-black uppercase tracking-wider">
+                        Display Order
+                      </label>
+                      {!isViewMode && formData.categoryId && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              displayOrder: getNextDisplayOrder(
+                                prev.categoryId,
+                                editingSubcategory
+                              )
+                            }))
+                          }
+                          className="text-[10px] text-emerald-600 hover:text-emerald-700 font-semibold cursor-pointer"
+                        >
+                          Suggest next #{getNextDisplayOrder(formData.categoryId, editingSubcategory)}
+                        </button>
+                      )}
+                    </div>
 
                     <input
                       type="number"
@@ -1500,7 +1821,7 @@ export default function Subcategories({ embedded = false }) {
                           PNG, JPG, JPEG or WEBP
                         </span>
 
-                        <span className="text-[10px] text-slate-400">Maximum size 1MB</span>
+                        <span className="text-[10px] text-slate-400">Maximum size 5MB</span>
                       </label>
                     )}
 
@@ -1527,9 +1848,10 @@ export default function Subcategories({ embedded = false }) {
 
                   {!isViewMode && (
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleSave}
                       disabled={saving}
-                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm transition-colors"
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm transition-colors cursor-pointer"
                     >
                       {saving ? (
                         <Loader2 size={14} className="animate-spin" />
@@ -1553,6 +1875,109 @@ export default function Subcategories({ embedded = false }) {
       <AnimatePresence>
         {viewImageUrl && (
           <ImageLightbox url={viewImageUrl} onClose={() => setViewImageUrl('')} />
+        )}
+      </AnimatePresence>
+
+      {/* Small Popup: Please assign new display order */}
+      <AnimatePresence>
+        {orderConflictModal.isOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 relative text-left"
+            >
+              <button
+                type="button"
+                onClick={closeOrderConflictModal}
+                disabled={orderModalSaving}
+                className="absolute right-4 top-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/80 flex items-center justify-center shrink-0">
+                  <AlertCircle size={20} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                    Please assign new display order
+                  </h4>
+                  <span className="text-[11px] font-medium text-slate-400 block">
+                    {orderConflictModal.subcategory?.categoryName || 'Subcategory'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50/70 border border-amber-100 rounded-xl mb-4 text-xs text-amber-800 leading-relaxed">
+                Display order <span className="font-bold">#{orderConflictModal.subcategory?.displayOrder || 1}</span> is already assigned
+                {orderConflictModal.conflictingItem?.name ? (
+                  <> to <span className="font-bold">"{orderConflictModal.conflictingItem.name}"</span></>
+                ) : ''}.
+                Please assign a new display order to enable <span className="font-bold">"{orderConflictModal.subcategory?.name}"</span>.
+              </div>
+
+              {orderConflictModal.error && (
+                <div className="mb-3 px-3 py-2 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-xl">
+                  {orderConflictModal.error}
+                </div>
+              )}
+
+              <div className="mb-5">
+                <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
+                  New Display Order
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={orderConflictModal.newOrder}
+                  disabled={orderModalSaving}
+                  onChange={(e) =>
+                    setOrderConflictModal((prev) => ({
+                      ...prev,
+                      newOrder: e.target.value,
+                      error: ''
+                    }))
+                  }
+                  className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                  placeholder="e.g. 2"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={closeOrderConflictModal}
+                  disabled={orderModalSaving}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAssignOrderAndEnable}
+                  disabled={orderModalSaving}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {orderModalSaving ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin text-white" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={13} />
+                      <span>Assign & Enable</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

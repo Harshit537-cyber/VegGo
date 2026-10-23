@@ -16,9 +16,12 @@ export default function PageHeader({
   onRefresh,
   isRefreshing = false,
   actions,
+  rightActions,
   children,
   className = ''
 }) {
+  const renderedActions = actions || rightActions;
+
   return (
     <div className={`flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-2 ${className}`}>
       {/* Left: Big Icon Badge Box + Title + Subtitle */}
@@ -92,7 +95,7 @@ export default function PageHeader({
           </motion.button>
         )}
 
-        {actions}
+        {renderedActions}
         {children}
       </div>
     </div>

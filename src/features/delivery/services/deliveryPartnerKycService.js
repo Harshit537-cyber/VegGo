@@ -69,3 +69,16 @@ export const rejectDeliveryKyc = async (
 
   return response.data;
 };
+
+// Export Delivery Partners PDF Dossier
+export const exportDeliveryPdf = async (params = {}) => {
+  const response = await apiClient.get(
+    DELIVERY_ENDPOINTS.EXPORT_PDF,
+    {
+      params,
+      responseType: "blob",
+    }
+  );
+
+  return response.data;
+};

@@ -164,9 +164,11 @@ export default function Categories({ embedded = false }) {
     });
   };
 
-  const fetchCategories = async (filter = statusFilter) => {
+  const fetchCategories = async (filter = statusFilter, showLoader = false) => {
     try {
-      setLoading(true);
+      if (showLoader) {
+        setLoading(true);
+      }
       setIsRefreshing(true);
       setErrorMessage("");
 
@@ -201,12 +203,12 @@ export default function Categories({ embedded = false }) {
   };
 
   useEffect(() => {
-    fetchCategories("All");
+    fetchCategories("All", true);
   }, []);
 
   const handleStatusFilter = (status) => {
     setStatusFilter(status);
-    fetchCategories(status);
+    fetchCategories(status, true);
   };
 
   const openAddPanel = () => {
@@ -357,7 +359,10 @@ export default function Categories({ embedded = false }) {
   };
 
   const handleSave = async (e) => {
-    e.preventDefault();
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
 
     if (isViewMode) return;
 
@@ -380,8 +385,21 @@ export default function Categories({ embedded = false }) {
         String(Number(formData.displayOrder) || 1)
       );
 
+      const oldCategory = editingCategory
+        ? categories.find(
+            (item) => String(item.id) === String(editingCategory)
+          )
+        : null;
+
+      const hadImage = Boolean(oldCategory?.imageUrl);
+      const isImageRemoved = hadImage && !formData.imageUrl && !formData.imageFile;
+
       if (formData.imageFile) {
         payload.append("image", formData.imageFile);
+      } else if (isImageRemoved) {
+        payload.append("removeImage", "true");
+        payload.append("deleteImage", "true");
+        payload.append("imageUrl", "");
       }
 
       let response;
@@ -417,6 +435,26 @@ export default function Categories({ embedded = false }) {
             return;
           }
         }
+
+        // Optimistically update category in local state for instantaneous response
+        setCategories((prev) =>
+          prev.map((c) =>
+            c.id === editingCategory
+              ? {
+                  ...c,
+                  name: formData.name.trim(),
+                  description: formData.description.trim(),
+                  displayOrder: Number(formData.displayOrder) || 1,
+                  active: formData.active,
+                  imageUrl: formData.imageFile
+                    ? formData.imageUrl
+                    : isImageRemoved
+                    ? ''
+                    : c.imageUrl
+                }
+              : c
+          )
+        );
       }
 
       setSuccessMessage(
@@ -430,12 +468,14 @@ export default function Categories({ embedded = false }) {
         URL.revokeObjectURL(formData.imageUrl);
       }
 
+      // Close panel immediately for snappy feel
       setIsPanelOpen(false);
       setEditingCategory(null);
       setIsViewMode(false);
       resetForm();
 
-      await fetchCategories(statusFilter);
+      // Background re-fetch without destroying the table layout
+      fetchCategories(statusFilter, false);
     } catch (error) {
       setErrorMessage(
         error?.response?.data?.message ||
@@ -542,23 +582,16 @@ export default function Categories({ embedded = false }) {
         }
       >
         <PageHeader
+          icon={FolderTree}
           badge="Product Management"
           badgeIcon={FolderTree}
           title="Category Directory"
           subtitle="Manage product categories and visibility status."
           onRefresh={() => fetchCategories(statusFilter)}
           isRefreshing={isRefreshing}
-          rightActions={
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={openAddPanel}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
-            >
-              <Plus size={15} />
-              New Category
-            </motion.button>
-          }
+          actionButtonText="Add Category"
+          actionButtonIcon={Plus}
+          onActionClick={openAddPanel}
         />
 
         <AnimatePresence>
@@ -632,6 +665,16 @@ export default function Categories({ embedded = false }) {
                     </button>
                   ))}
                 </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={openAddPanel}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer shrink-0"
+                >
+                  <Plus size={14} />
+                  <span>Add Category</span>
+                </motion.button>
               </div>
             </div>
 
@@ -790,6 +833,14 @@ export default function Categories({ embedded = false }) {
                         <p className="text-xs font-semibold text-slate-400">
                           No matching category records found.
                         </p>
+                        <button
+                          type="button"
+                          onClick={openAddPanel}
+                          className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                        >
+                          <Plus size={14} />
+                          <span>Add New Category</span>
+                        </button>
                       </td>
                     </tr>
                   )}
@@ -940,6 +991,14 @@ export default function Categories({ embedded = false }) {
                 <div className="py-10 text-center">
                   <FolderTree size={35} className="mx-auto text-slate-300 mb-3" />
                   <p className="text-xs font-semibold text-slate-400">No categories found.</p>
+                  <button
+                    type="button"
+                    onClick={openAddPanel}
+                    className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>Add New Category</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -992,7 +1051,15 @@ export default function Categories({ embedded = false }) {
                 </div>
               </div>
 
-              <form onSubmit={handleSave} className="space-y-4">
+              <form
+                action="javascript:void(0);"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSave(e);
+                }}
+                className="space-y-4"
+              >
                 <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
                     Category Name
@@ -1189,9 +1256,10 @@ export default function Categories({ embedded = false }) {
 
                   {!isViewMode && (
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleSave}
                       disabled={saving || !formData.name.trim()}
-                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm transition-colors"
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm transition-colors cursor-pointer"
                     >
                       {saving ? (
                         <Loader2 size={14} className="animate-spin" />
