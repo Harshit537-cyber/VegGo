@@ -53,10 +53,10 @@ import {
   addProductImages,
   getProductImages,
   deleteProductImage,
-  reorderProductImages,
-  getCategories,
-  getSubcategories
+  reorderProductImages
 } from '../services/productService';
+import { getAllCategories } from '../services/categoryService';
+import { getAllSubcategories } from '../services/subcategoryService';
 
 const UNIT_OPTIONS = [
   { id: '250g', name: '250 g' },
@@ -663,7 +663,8 @@ export default function Products({ defaultTab = 'products' }) {
     setCategoriesLoading(true);
 
     try {
-      const response = await getCategories();
+      // Product form needs active categories only (same as the old default list)
+      const response = await getAllCategories('active');
       const list = extractCategories(response).map(normalizeCategory);
       setCategories(list);
     } catch (error) {
@@ -685,7 +686,7 @@ export default function Products({ defaultTab = 'products' }) {
     setSubcategoriesLoading(true);
 
     try {
-      const response = await getSubcategories(categoryId);
+      const response = await getAllSubcategories(categoryId, 'all');
       const list = extractSubcategories(response).map(normalizeSubcategory);
       setSubcategories(list);
     } catch (error) {

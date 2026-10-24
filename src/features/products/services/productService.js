@@ -171,23 +171,7 @@ export const reorderProductImages = async (
   return response.data;
 };
 
-export const getCategories = async () => {
-  const response = await apiClient.get(
-    CATALOG_ENDPOINTS.CATEGORIES
-  );
+// Backwards-compatible re-exports
+export { getAllCategories as getCategories } from './categoryService';
+export { getAllSubcategories as getSubcategories } from './subcategoryService';
 
-  return response.data;
-};
-
-export const getSubcategories = async (categoryId) => {
-  const response = await apiClient.get(
-    CATALOG_ENDPOINTS.SUBCATEGORIES,
-    {
-      params: {
-        categoryId,
-      },
-    }
-  );
-
-  return response.data;
-};

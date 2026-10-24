@@ -53,6 +53,12 @@ const formatDate = (value) => {
   });
 };
 
+const isKycApproved = (vendor) => {
+  if (!vendor) return false;
+  const kyc = String(vendor.kycStatus || vendor.status || "").toUpperCase();
+  return kyc === "APPROVED";
+};
+
 const normalizeVendor = (item) => {
   const kyc =
     item?.kycStatus ||
@@ -909,15 +915,27 @@ export default function Vendor({ embedded = false }) {
 
                         {/* 7. Actions */}
                         <td className="py-4 px-5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleViewVendor(app)}
-                            disabled={!app.shopId && !app.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-40 cursor-pointer font-bold text-xs shadow-2xs"
-                          >
-                            <Eye size={13} />
-                            Inspect KYC
-                          </button>
+                          {isKycApproved(app) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleViewVendor(app)}
+                              disabled={!app.shopId && !app.id}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all disabled:opacity-40 cursor-pointer font-bold text-xs shadow-2xs"
+                            >
+                              <FileText size={13} />
+                              View Doc
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleViewVendor(app)}
+                              disabled={!app.shopId && !app.id}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80 hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-40 cursor-pointer font-bold text-xs shadow-2xs"
+                            >
+                              <Eye size={13} />
+                              Inspect KYC
+                            </button>
+                          )}
                         </td>
                       </motion.tr>
                     ))}
@@ -1021,14 +1039,25 @@ export default function Vendor({ embedded = false }) {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleViewVendor(app)}
-                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer shadow-xs"
-                    >
-                      <Eye size={14} />
-                      Inspect & Verify Dossier
-                    </button>
+                    {isKycApproved(app) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleViewVendor(app)}
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-all cursor-pointer shadow-xs border border-slate-200"
+                      >
+                        <FileText size={14} />
+                        View Doc
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleViewVendor(app)}
+                        className="w-full inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all cursor-pointer shadow-xs"
+                      >
+                        <Eye size={14} />
+                        Inspect KYC
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1088,8 +1117,22 @@ export default function Vendor({ embedded = false }) {
                       <h3 className="text-base sm:text-lg font-bold text-slate-900">
                         {selectedVendor?.businessName || selectedVendor?.shopName || "Merchant KYC Verification"}
                       </h3>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
-                        <Clock size={10} />
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
+                          isKycApproved(selectedVendor)
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : selectedVendor?.status === "Rejected" || String(selectedVendor?.kycStatus).toUpperCase() === "REJECTED"
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : "bg-amber-100 text-amber-800 border border-amber-200"
+                        }`}
+                      >
+                        {isKycApproved(selectedVendor) ? (
+                          <CheckCircle2 size={10} className="text-emerald-600" />
+                        ) : selectedVendor?.status === "Rejected" || String(selectedVendor?.kycStatus).toUpperCase() === "REJECTED" ? (
+                          <XCircle size={10} className="text-rose-600" />
+                        ) : (
+                          <Clock size={10} className="text-amber-600" />
+                        )}
                         {selectedVendor?.status || "Pending"}
                       </span>
                     </div>
@@ -1511,29 +1554,50 @@ export default function Vendor({ embedded = false }) {
               {/* Modal Actions Footer */}
               {!detailLoading && !showRejectBox && (
                 <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowRejectBox(true)}
-                    disabled={actionLoading}
-                    className="w-full sm:flex-1 py-3 px-4 rounded-xl border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-2"
-                  >
-                    <XCircle size={16} />
-                    Reject Application
-                  </button>
+                  {isKycApproved(selectedVendor) ? (
+                    <div className="w-full flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                        <CheckCircle2 size={14} className="text-emerald-600" />
+                        <span>KYC Approved & Verified</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowDetail(false);
+                          setSelectedVendor(null);
+                        }}
+                        className="px-5 py-2 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-100 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowRejectBox(true)}
+                        disabled={actionLoading}
+                        className="w-full sm:flex-1 py-3 px-4 rounded-xl border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-2"
+                      >
+                        <XCircle size={16} />
+                        Reject Application
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={handleApprove}
-                    disabled={actionLoading}
-                    className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-2 shadow-sm"
-                  >
-                    {actionLoading ? (
-                      <RefreshCw size={16} className="animate-spin" />
-                    ) : (
-                      <CheckCircle2 size={16} />
-                    )}
-                    Approve Application
-                  </button>
+                      <button
+                        type="button"
+                        onClick={handleApprove}
+                        disabled={actionLoading}
+                        className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        {actionLoading ? (
+                          <RefreshCw size={16} className="animate-spin" />
+                        ) : (
+                          <CheckCircle2 size={16} />
+                        )}
+                        Approve Application
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </motion.div>

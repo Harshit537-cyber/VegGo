@@ -55,12 +55,18 @@ export const CATALOG_ENDPOINTS = Object.freeze({
   PRODUCT_IMAGES: (productId) => `/api/admin/catalog/products/${productId}/images`,
   PRODUCT_IMAGE_DELETE: (productId, imageId) => `/api/admin/catalog/products/${productId}/images/${imageId}`,
   PRODUCT_IMAGES_REORDER: (productId) => `/api/admin/catalog/products/${productId}/images/reorder`,
+  // CATEGORIES / SUBCATEGORIES are used for CREATE (POST) only.
+  // Listing now goes through the paginated *_SEARCH endpoints below.
   CATEGORIES: '/api/admin/catalog/categories',
+  CATEGORIES_SEARCH: '/api/admin/catalog/categories/search',
   CATEGORY_BY_ID: (categoryId) => `/api/admin/catalog/categories/${categoryId}`,
   CATEGORY_STATUS: (categoryId) => `/api/admin/catalog/categories/${categoryId}/status`,
+  CATEGORY_MOVE: (categoryId) => `/api/admin/catalog/categories/${categoryId}/move`,
   SUBCATEGORIES: '/api/admin/catalog/subcategories',
+  SUBCATEGORIES_SEARCH: '/api/admin/catalog/subcategories/search',
   SUBCATEGORY_BY_ID: (subcategoryId) => `/api/admin/catalog/subcategories/${subcategoryId}`,
   SUBCATEGORY_STATUS: (subcategoryId) => `/api/admin/catalog/subcategories/${subcategoryId}/status`,
+  SUBCATEGORY_MOVE: (subcategoryId) => `/api/admin/catalog/subcategories/${subcategoryId}/move`,
 });
 
 // Payouts & Platform Wallet

@@ -27,20 +27,32 @@ import {
   Upload,
   Image as ImageIcon,
   ChevronDown,
-  Check,
-  AlertCircle
+  Check
 } from 'lucide-react';
 
 import {
-  getSubcategories,
+  searchSubcategories,
   createSubcategory,
   getSubcategoryById,
   updateSubcategory,
+  moveSubcategory,
   deactivateSubcategory,
   activateSubcategory
 } from '../services/subcategoryService';
 
-import { getCategories } from '../services/productService';
+import { getAllCategories } from '../services/categoryService';
+
+import PaginationBar from '../components/PaginationBar';
+import OrderControls from '../components/OrderControls';
+
+const PAGE_SIZE = 20;
+
+// UI filter label -> API `status` query value
+const STATUS_PARAM = {
+  All: 'all',
+  Active: 'active',
+  Inactive: 'inactive'
+};
 
 function AnimatedValue({ value }) {
   const [displayValue, setDisplayValue] = useState('');
@@ -360,8 +372,19 @@ function CategorySelect({
 export default function Subcategories({ embedded = false }) {
   const [currentTab, setCurrentTab] = useState('subcategories');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  // The subcategory search API is scoped to ONE category, so a category is
+  // always selected (the first one by default).
   const [categoryFilterId, setCategoryFilterId] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [movingId, setMovingId] = useState(null);
+  const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+  const fetchRequestId = useRef(0);
+  const isFirstLoad = useRef(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -378,23 +401,12 @@ export default function Subcategories({ embedded = false }) {
   const [isViewMode, setIsViewMode] = useState(false);
   const [viewImageUrl, setViewImageUrl] = useState('');
 
-  // Small popup modal state for when display order is already assigned
-  const [orderConflictModal, setOrderConflictModal] = useState({
-    isOpen: false,
-    subcategory: null,
-    conflictingItem: null,
-    newOrder: 1,
-    error: ''
-  });
-  const [orderModalSaving, setOrderModalSaving] = useState(false);
-
   const [formData, setFormData] = useState({
     id: '',
     name: '',
     categoryId: '',
     categoryName: '',
     description: '',
-    displayOrder: 1,
     status: 'Active',
     imageFile: null,
     imageUrl: ''
@@ -404,7 +416,8 @@ export default function Subcategories({ embedded = false }) {
     setCategoriesLoading(true);
 
     try {
-      const response = await getCategories();
+      // active categories only (same as the old default category list)
+      const response = await getAllCategories('active');
 
       const list = extractCategories(response).map(normalizeCategory);
 
@@ -422,15 +435,19 @@ export default function Subcategories({ embedded = false }) {
     }
   };
 
-  // NOTE: the backend's GET /subcategories endpoint 500s when called
-  // without a categoryId (confirmed via Network tab), so a single
-  // "fetch everything" call isn't possible here. We fetch per category
-  // and merge/dedupe the results.
-  const fetchSubcategories = async (categoryList, showLoader = false) => {
-    const list =
-      Array.isArray(categoryList) && categoryList.length > 0
-        ? categoryList
-        : categories;
+  // Server-side search + status filter + pagination, scoped to one category
+  // (GET /api/admin/catalog/subcategories/search?categoryId=...)
+  const fetchSubcategories = async ({
+    categoryId = categoryFilterId,
+    page: pageToLoad = page,
+    status = statusFilter,
+    search = debouncedSearch,
+    categoryList = categories,
+    showLoader = false
+  } = {}) => {
+    if (!categoryId) return;
+
+    const requestId = ++fetchRequestId.current;
 
     if (showLoader) {
       setLoading(true);
@@ -438,80 +455,220 @@ export default function Subcategories({ embedded = false }) {
     setIsRefreshing(true);
     setErrorMessage('');
 
-    if (!list.length) {
-      setSubcategories([]);
-      setLoading(false);
-      setIsRefreshing(false);
-      return;
-    }
-
     try {
-      const results = await Promise.all(
-        list.map(async (category) => {
-          try {
-            const response = await getSubcategories({
-              categoryId: category.id
-            });
+      const response = await searchSubcategories({
+        categoryId,
+        search,
+        status: STATUS_PARAM[status] || 'all',
+        page: pageToLoad,
+        size: PAGE_SIZE
+      });
 
-            let items = [];
+      // a newer request has been fired - ignore this stale response
+      if (requestId !== fetchRequestId.current) return;
 
-            if (response?.success) {
-              if (Array.isArray(response?.data)) {
-                items = response.data;
-              } else if (Array.isArray(response?.data?.content)) {
-                items = response.data.content;
-              } else if (Array.isArray(response?.data?.items)) {
-                items = response.data.items;
-              } else if (Array.isArray(response?.data?.subcategories)) {
-                items = response.data.subcategories;
-              }
-            }
+      if (response?.success) {
+        const pageData = response?.data || {};
+        const content = Array.isArray(pageData.content) ? pageData.content : [];
+        const pages = Math.max(1, Number(pageData.totalPages) || 1);
 
-            return items.map((item) => normalizeSubcategory(item, category));
-          } catch (err) {
-            console.error(
-              `Failed to fetch subcategories for ${category.name}:`,
-              err
-            );
+        // The page we asked for no longer exists - step back, the effect re-fetches.
+        if (content.length === 0 && pageToLoad > 0 && pageToLoad >= pages) {
+          setPage(pages - 1);
+          return;
+        }
 
-            return [];
-          }
-        })
-      );
+        const category =
+          categoryList.find((c) => String(c.id) === String(categoryId)) || {};
 
-      const merged = results.flat();
-
-      const unique = Array.from(
-        new Map(merged.map((item) => [item.id, item])).values()
-      );
-
-      setSubcategories(unique);
-      setRefreshKey((prev) => prev + 1);
+        setSubcategories(
+          content.map((item) => normalizeSubcategory(item, category))
+        );
+        setTotalElements(Number(pageData.totalElements) || content.length);
+        setTotalPages(pages);
+        setRefreshKey((prev) => prev + 1);
+      } else {
+        setSubcategories([]);
+        setTotalElements(0);
+        setTotalPages(1);
+        setErrorMessage(response?.message || 'Failed to load subcategories');
+      }
     } catch (error) {
+      if (requestId !== fetchRequestId.current) return;
+
       console.error('Failed to fetch subcategories:', error);
 
       setSubcategories([]);
+      setTotalElements(0);
+      setTotalPages(1);
 
       setErrorMessage(getErrorMessage(error, 'Failed to load subcategories'));
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (requestId === fetchRequestId.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
     }
   };
 
   const refreshAll = async () => {
     const list = await fetchCategoriesList();
 
-    await fetchSubcategories(list);
+    if (!list.length) {
+      setSubcategories([]);
+      setTotalElements(0);
+      setTotalPages(1);
+      setLoading(false);
+      return;
+    }
+
+    const selectionStillValid = list.some(
+      (category) => String(category.id) === String(categoryFilterId)
+    );
+
+    if (!selectionStillValid) {
+      // pick the first category - the effect below loads its subcategories
+      setCategoryFilterId(list[0].id);
+      setPage(0);
+      return;
+    }
+
+    await fetchSubcategories({ categoryList: list });
   };
 
   useEffect(() => {
     refreshAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Debounce the search box so we don't hit the API on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setPage(0);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // (Re)load whenever category / search / status / page change
+  useEffect(() => {
+    if (!categoryFilterId) return;
+
+    fetchSubcategories({ showLoader: isFirstLoad.current });
+    isFirstLoad.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryFilterId, debouncedSearch, statusFilter, page]);
 
   const handleRefresh = () => {
     refreshAll();
   };
+
+  const handleCategoryFilterChange = (option) => {
+    const nextId = option?.id || '';
+
+    if (!nextId || String(nextId) === String(categoryFilterId)) return;
+
+    setCategoryFilterId(nextId);
+    setPage(0);
+  };
+
+  const handleStatusFilter = (status) => {
+    if (status === statusFilter) return;
+
+    setStatusFilter(status);
+    setPage(0);
+  };
+
+  const handlePageChange = (nextPage) => {
+    if (nextPage < 0 || nextPage > totalPages - 1) return;
+
+    setPage(nextPage);
+  };
+
+  // Reordering is only meaningful on the full, unfiltered list of a category
+  const canReorder =
+    statusFilter === 'All' && !debouncedSearch && !searchQuery.trim();
+
+  // Move a subcategory inside its category. body = { position } or { afterId }
+  // (PATCH /api/admin/catalog/subcategories/{id}/move)
+  const handleMove = async (subcategory, body) => {
+    if (!subcategory?.id || movingId) return;
+
+    setErrorMessage('');
+    setSuccessMessage('');
+    setMovingId(subcategory.id);
+
+    try {
+      const response = await moveSubcategory(subcategory.id, body);
+
+      if (response?.success === false) {
+        setErrorMessage(response?.message || 'Failed to move subcategory');
+      } else {
+        setSuccessMessage(
+          response?.message || `"${subcategory.name}" moved successfully`
+        );
+        await fetchSubcategories();
+      }
+    } catch (error) {
+      console.error('Failed to move subcategory:', error);
+
+      setErrorMessage(getErrorMessage(error, 'Failed to move subcategory'));
+    } finally {
+      setMovingId(null);
+    }
+  };
+
+  const handleMoveUp = (subcategory, index) => {
+    const previous = subcategories[index - 1];
+
+    handleMove(subcategory, {
+      position: previous
+        ? Number(previous.displayOrder)
+        : Math.max(1, Number(subcategory.displayOrder) - 1)
+    });
+  };
+
+  const handleMoveDown = (subcategory, index) => {
+    const next = subcategories[index + 1];
+
+    handleMove(
+      subcategory,
+      next
+        ? { afterId: next.id }
+        : { position: Number(subcategory.displayOrder) + 1 }
+    );
+  };
+
+  const handleDrop = (target) => {
+    const dragged = subcategories.find((item) => item.id === dragId);
+
+    setDragId(null);
+    setDragOverId(null);
+
+    if (!canReorder || !dragged || !target || dragged.id === target.id) return;
+
+    if (Number(dragged.displayOrder) < Number(target.displayOrder)) {
+      handleMove(dragged, { afterId: target.id });
+    } else {
+      handleMove(dragged, { position: Number(target.displayOrder) });
+    }
+  };
+
+  const getDragHandleProps = (subcategory) => ({
+    onDragStart: (e) => {
+      setDragId(subcategory.id);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(subcategory.id));
+
+      const row = e.currentTarget.closest('tr');
+      if (row) e.dataTransfer.setDragImage(row, 0, 0);
+    },
+    onDragEnd: () => {
+      setDragId(null);
+      setDragOverId(null);
+    }
+  });
 
   const resetForm = () => {
     setFormData({
@@ -520,7 +677,6 @@ export default function Subcategories({ embedded = false }) {
       categoryId: '',
       categoryName: '',
       description: '',
-      displayOrder: 1,
       status: 'Active',
       imageFile: null,
       imageUrl: ''
@@ -551,20 +707,6 @@ export default function Subcategories({ embedded = false }) {
     if (categories.length === 0) {
       await fetchCategoriesList();
     }
-  };
-
-  const getNextDisplayOrder = (categoryId, excludeId) => {
-    if (!categoryId) return 1;
-
-    const maxOrder = subcategories
-      .filter(
-        (item) =>
-          String(item.categoryId) === String(categoryId) &&
-          item.id !== excludeId
-      )
-      .reduce((max, item) => Math.max(max, Number(item.displayOrder) || 0), 0);
-
-    return maxOrder + 1;
   };
 
   // Shared loader for both "Edit" and read-only "View" — viewOnly=true opens
@@ -612,7 +754,6 @@ export default function Subcategories({ embedded = false }) {
         categoryId: data?.categoryId || subcategory?.categoryId || '',
         categoryName: data?.categoryName || subcategory?.categoryName || '',
         description: description || '',
-        displayOrder: data?.displayOrder || subcategory?.displayOrder || 1,
         status: data?.active === true ? 'Active' : 'Inactive',
         imageFile: null,
         imageUrl: existingImage
@@ -643,8 +784,7 @@ export default function Subcategories({ embedded = false }) {
     setFormData((prev) => ({
       ...prev,
       categoryId: category?.id || '',
-      categoryName: category?.name || '',
-      displayOrder: getNextDisplayOrder(category?.id, editingSubcategory)
+      categoryName: category?.name || ''
     }));
   };
 
@@ -718,33 +858,12 @@ export default function Subcategories({ embedded = false }) {
     setErrorMessage('');
     setSuccessMessage('');
 
-    const targetOrder = Number(formData.displayOrder) || 1;
-    const isActivating = formData.status === 'Active';
-
-    // If activating (or keeping active), check if this display order is already assigned to another active subcategory
-    if (isActivating) {
-      const conflictingItem = subcategories.find(
-        (item) =>
-          String(item.id) !== String(editingSubcategory || '') &&
-          String(item.categoryId) === String(formData.categoryId) &&
-          Number(item.displayOrder) === targetOrder &&
-          item.active !== false
-      );
-
-      if (conflictingItem) {
-        setErrorMessage(
-          `Please assign new display order. Display order #${targetOrder} is already assigned to "${conflictingItem.name}".`
-        );
-        setSaving(false);
-        return;
-      }
-    }
-
     const payload = new FormData();
 
     payload.append('categoryId', String(formData.categoryId));
     payload.append('name', name);
-    payload.append('displayOrder', String(targetOrder));
+    // NOTE: displayOrder is no longer sent - the server appends new
+    // subcategories at the bottom and only the /move endpoint changes order.
 
     if (formData.description && String(formData.description).trim()) {
       payload.append('description', String(formData.description).trim());
@@ -794,7 +913,6 @@ export default function Subcategories({ embedded = false }) {
                   categoryId: formData.categoryId,
                   categoryName: matchedCategory?.name || s.categoryName,
                   description: String(formData.description || '').trim(),
-                  displayOrder: targetOrder,
                   active: formData.status === 'Active',
                   imageUrl: formData.imageFile
                     ? formData.imageUrl
@@ -824,8 +942,15 @@ export default function Subcategories({ embedded = false }) {
       setIsViewMode(false);
       resetForm();
 
-      // Background re-fetch without destroying the table layout
-      fetchSubcategories(undefined, false);
+      // The list is scoped to one category: if the saved subcategory belongs to
+      // a different category, switch to it so the record stays visible
+      // (the effect then loads it). Otherwise just re-fetch in the background.
+      if (String(formData.categoryId) !== String(categoryFilterId)) {
+        setCategoryFilterId(formData.categoryId);
+        setPage(0);
+      } else {
+        fetchSubcategories();
+      }
     } catch (error) {
       console.error('Failed to save subcategory:', error);
 
@@ -835,220 +960,53 @@ export default function Subcategories({ embedded = false }) {
     }
   };
 
-  const closeOrderConflictModal = () => {
-    if (orderModalSaving) return;
-    setOrderConflictModal({
-      isOpen: false,
-      subcategory: null,
-      conflictingItem: null,
-      newOrder: 1,
-      error: ''
-    });
-  };
+  const handleStatusChange = async (subcategory) => {
+    if (!subcategory?.id) return;
 
-  const handleAssignOrderAndEnable = async () => {
-    if (!orderConflictModal?.subcategory) return;
+    const enabling = subcategory.active === false;
 
-    const sub = orderConflictModal.subcategory;
-    const chosenOrder = Number(orderConflictModal.newOrder);
-
-    if (!chosenOrder || chosenOrder < 1) {
-      setOrderConflictModal((prev) => ({
-        ...prev,
-        error: 'Please enter a valid display order (1 or greater)'
-      }));
-      return;
-    }
-
-    // Check if the chosen order is also assigned to another active subcategory
-    const stillConflicting = subcategories.find(
-      (item) =>
-        String(item.id) !== String(sub.id) &&
-        String(item.categoryId) === String(sub.categoryId) &&
-        Number(item.displayOrder) === chosenOrder &&
-        item.active !== false
-    );
-
-    if (stillConflicting) {
-      setOrderConflictModal((prev) => ({
-        ...prev,
-        error: `Display order #${chosenOrder} is already assigned to "${stillConflicting.name}". Please assign a different display order.`
-      }));
-      return;
-    }
-
-    setOrderModalSaving(true);
-    setOrderConflictModal((prev) => ({ ...prev, error: '' }));
+    setActionLoading(subcategory.id);
+    setErrorMessage('');
 
     try {
-      // 1. Update display order on the subcategory via updateSubcategory
-      const payload = new FormData();
-      payload.append('categoryId', String(sub.categoryId));
-      payload.append('name', String(sub.name));
-      payload.append('displayOrder', String(chosenOrder));
-      if (sub.description && String(sub.description).trim()) {
-        payload.append('description', String(sub.description).trim());
+      if (enabling) {
+        await activateSubcategory(subcategory.id);
+      } else {
+        await deactivateSubcategory(subcategory.id);
       }
-      payload.append('active', 'true');
 
-      await updateSubcategory(sub.id, payload);
-
-      // 2. Activate via activateSubcategory
-      await activateSubcategory(sub.id);
-
-      // 3. Optimistic update
       setSubcategories((prev) =>
         prev.map((s) =>
-          s.id === sub.id
-            ? { ...s, displayOrder: chosenOrder, active: true }
-            : s
+          s.id === subcategory.id ? { ...s, active: enabling } : s
         )
       );
 
       setSuccessMessage(
-        `Subcategory "${sub.name}" display order updated to #${chosenOrder} and enabled successfully`
+        `Subcategory "${subcategory.name}" ${
+          enabling ? 'enabled' : 'disabled'
+        } successfully`
       );
 
-      closeOrderConflictModal();
+      fetchSubcategories();
 
-      // Background re-fetch
-      fetchSubcategories(undefined, false);
+      if (editingSubcategory === subcategory.id) {
+        closePanel();
+      }
     } catch (error) {
-      console.error('Failed to assign order and enable:', error);
-      setOrderConflictModal((prev) => ({
-        ...prev,
-        error: getErrorMessage(
+      console.error(
+        `Failed to ${enabling ? 'enable' : 'disable'} subcategory:`,
+        error
+      );
+      setErrorMessage(
+        getErrorMessage(
           error,
-          'Failed to assign display order and enable subcategory'
+          `Failed to ${enabling ? 'enable' : 'disable'} subcategory`
         )
-      }));
+      );
     } finally {
-      setOrderModalSaving(false);
+      setActionLoading(null);
     }
   };
-
-  const handleStatusChange = async (subcategory) => {
-    if (!subcategory?.id) return;
-
-    if (subcategory.active === false) {
-      // User wants to enable this subcategory.
-      // Check if displayOrder is already assigned to another subcategory in the same parent category
-      const targetOrder = Number(subcategory.displayOrder) || 1;
-      const conflictingItem =
-        subcategories.find(
-          (item) =>
-            String(item.id) !== String(subcategory.id) &&
-            String(item.categoryId) === String(subcategory.categoryId) &&
-            Number(item.displayOrder) === targetOrder &&
-            item.active !== false
-        ) ||
-        subcategories.find(
-          (item) =>
-            String(item.id) !== String(subcategory.id) &&
-            String(item.categoryId) === String(subcategory.categoryId) &&
-            Number(item.displayOrder) === targetOrder
-        );
-
-      if (conflictingItem) {
-        // Display order is already assigned -> Show the small popup: "Please assign new display order"
-        const suggestedOrder = getNextDisplayOrder(
-          subcategory.categoryId,
-          subcategory.id
-        );
-        setOrderConflictModal({
-          isOpen: true,
-          subcategory,
-          conflictingItem,
-          newOrder: suggestedOrder,
-          error: ''
-        });
-        return;
-      }
-
-      // No conflict -> Enable directly
-      setActionLoading(subcategory.id);
-      setErrorMessage('');
-      try {
-        await activateSubcategory(subcategory.id);
-
-        setSubcategories((prev) =>
-          prev.map((s) =>
-            s.id === subcategory.id ? { ...s, active: true } : s
-          )
-        );
-
-        setSuccessMessage(
-          `Subcategory "${subcategory.name}" enabled successfully`
-        );
-
-        fetchSubcategories(undefined, false);
-
-        if (editingSubcategory === subcategory.id) {
-          closePanel();
-        }
-      } catch (error) {
-        console.error('Failed to enable subcategory:', error);
-        setErrorMessage(
-          getErrorMessage(error, 'Failed to enable subcategory')
-        );
-      } finally {
-        setActionLoading(null);
-      }
-    } else {
-      // User wants to disable this subcategory
-      setActionLoading(subcategory.id);
-      setErrorMessage('');
-      try {
-        await deactivateSubcategory(subcategory.id);
-
-        setSubcategories((prev) =>
-          prev.map((s) =>
-            s.id === subcategory.id ? { ...s, active: false } : s
-          )
-        );
-
-        setSuccessMessage(
-          `Subcategory "${subcategory.name}" disabled successfully`
-        );
-
-        fetchSubcategories(undefined, false);
-
-        if (editingSubcategory === subcategory.id) {
-          closePanel();
-        }
-      } catch (error) {
-        console.error('Failed to disable subcategory:', error);
-        setErrorMessage(
-          getErrorMessage(error, 'Failed to disable subcategory')
-        );
-      } finally {
-        setActionLoading(null);
-      }
-    }
-  };
-
-  const filteredSubcategories = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-
-    return subcategories.filter((item) => {
-      const name = String(item?.name || '').toLowerCase();
-
-      const category = String(item?.categoryName || '').trim().toLowerCase();
-
-      const matchesSearch =
-        !query || name.includes(query) || category.includes(query);
-
-      const status = item?.active === true ? 'Active' : 'Inactive';
-
-      const matchesStatus = statusFilter === 'All' || status === statusFilter;
-
-      const matchesCategory =
-        !categoryFilterId ||
-        String(item?.categoryId) === String(categoryFilterId);
-
-      return matchesSearch && matchesStatus && matchesCategory;
-    });
-  }, [subcategories, searchQuery, statusFilter, categoryFilterId]);
 
   const totalSubcategories = subcategories.length;
 
@@ -1188,10 +1146,10 @@ export default function Subcategories({ embedded = false }) {
                 <div className="w-full sm:w-44">
                   <CategorySelect
                     value={categoryFilterId}
-                    options={[{ id: '', name: 'All Categories' }, ...categories]}
-                    placeholder="All Categories"
+                    options={categories}
+                    placeholder="Select category"
                     loading={categoriesLoading}
-                    onChange={(option) => setCategoryFilterId(option?.id || '')}
+                    onChange={handleCategoryFilterChange}
                   />
                 </div>
 
@@ -1213,7 +1171,7 @@ export default function Subcategories({ embedded = false }) {
                   {['All', 'Active', 'Inactive'].map((status) => (
                     <button
                       key={status}
-                      onClick={() => setStatusFilter(status)}
+                      onClick={() => handleStatusFilter(status)}
                       className={`flex-1 sm:flex-none px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all whitespace-nowrap ${
                         statusFilter === status
                           ? 'bg-white text-emerald-700 shadow-sm'
@@ -1236,6 +1194,12 @@ export default function Subcategories({ embedded = false }) {
                 </motion.button>
               </div>
             </div>
+
+            <p className="text-[10px] font-semibold text-slate-400 mb-3">
+              {canReorder
+                ? 'Use the arrows (or drag the handle on desktop) to change the display order inside this category.'
+                : 'Reordering is available when status is All and the search box is empty.'}
+            </p>
 
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full min-w-[760px] text-left border-collapse">
@@ -1261,14 +1225,29 @@ export default function Subcategories({ embedded = false }) {
                         </div>
                       </td>
                     </tr>
-                  ) : filteredSubcategories.length > 0 ? (
-                    filteredSubcategories.map((subcategory, idx) => (
+                  ) : subcategories.length > 0 ? (
+                    subcategories.map((subcategory, idx) => (
                       <motion.tr
                         key={subcategory.id || idx}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: 0.3 + idx * 0.05 }}
-                        className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group"
+                        onDragOver={(e) => {
+                          if (canReorder && dragId) {
+                            e.preventDefault();
+                            setDragOverId(subcategory.id);
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          handleDrop(subcategory);
+                        }}
+                        className={`text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group ${
+                          dragOverId === subcategory.id &&
+                          dragId !== subcategory.id
+                            ? 'bg-emerald-50'
+                            : ''
+                        } ${dragId === subcategory.id ? 'opacity-50' : ''}`}
                       >
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3">
@@ -1304,9 +1283,19 @@ export default function Subcategories({ embedded = false }) {
                         </td>
 
                         <td className="py-3.5 px-4 text-center">
-                          <span className="inline-flex items-center justify-center min-w-8 h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg font-mono text-[10px]">
-                            {subcategory.displayOrder ?? '-'}
-                          </span>
+                          <OrderControls
+                            order={subcategory.displayOrder}
+                            canReorder={canReorder}
+                            busy={Boolean(movingId)}
+                            upDisabled={page === 0 && idx === 0}
+                            downDisabled={
+                              page >= totalPages - 1 &&
+                              idx === subcategories.length - 1
+                            }
+                            onUp={() => handleMoveUp(subcategory, idx)}
+                            onDown={() => handleMoveDown(subcategory, idx)}
+                            dragHandleProps={getDragHandleProps(subcategory)}
+                          />
                         </td>
 
                         <td className="py-3.5 px-4 text-center">
@@ -1420,8 +1409,8 @@ export default function Subcategories({ embedded = false }) {
                 <div className="py-10 text-center text-xs font-semibold text-slate-400">
                   Loading subcategories...
                 </div>
-              ) : filteredSubcategories.length > 0 ? (
-                filteredSubcategories.map((subcategory) => (
+              ) : subcategories.length > 0 ? (
+                subcategories.map((subcategory, idx) => (
                   <motion.div
                     key={subcategory.id}
                     whileHover={{ scale: 1.01 }}
@@ -1485,9 +1474,18 @@ export default function Subcategories({ embedded = false }) {
                         <span className="text-[10px] uppercase font-semibold text-black block">
                           Display Order
                         </span>
-                        <span className="text-slate-500 font-semibold">
-                          {subcategory.displayOrder ?? '-'}
-                        </span>
+                        <OrderControls
+                          order={subcategory.displayOrder}
+                          canReorder={canReorder}
+                          busy={Boolean(movingId)}
+                          upDisabled={page === 0 && idx === 0}
+                          downDisabled={
+                            page >= totalPages - 1 &&
+                            idx === subcategories.length - 1
+                          }
+                          onUp={() => handleMoveUp(subcategory, idx)}
+                          onDown={() => handleMoveDown(subcategory, idx)}
+                        />
                       </div>
                     </div>
 
@@ -1571,6 +1569,17 @@ export default function Subcategories({ embedded = false }) {
                 </div>
               )}
             </div>
+
+            <PaginationBar
+              page={page}
+              totalPages={totalPages}
+              totalElements={totalElements}
+              pageSize={PAGE_SIZE}
+              itemsOnPage={subcategories.length}
+              disabled={loading || isRefreshing}
+              label="subcategories"
+              onPageChange={handlePageChange}
+            />
           </motion.div>
         </section>
       </div>
@@ -1662,47 +1671,7 @@ export default function Subcategories({ embedded = false }) {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-[10px] font-bold text-black uppercase tracking-wider">
-                        Display Order
-                      </label>
-                      {!isViewMode && formData.categoryId && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              displayOrder: getNextDisplayOrder(
-                                prev.categoryId,
-                                editingSubcategory
-                              )
-                            }))
-                          }
-                          className="text-[10px] text-emerald-600 hover:text-emerald-700 font-semibold cursor-pointer"
-                        >
-                          Suggest next #{getNextDisplayOrder(formData.categoryId, editingSubcategory)}
-                        </button>
-                      )}
-                    </div>
-
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="e.g. 1"
-                      value={formData.displayOrder}
-                      disabled={isViewMode}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          displayOrder: e.target.value
-                        }))
-                      }
-                      className="w-full h-[38px] px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] disabled:opacity-60 disabled:cursor-not-allowed"
-                    />
-                  </div>
-
+                <div>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
                     <div>
                       <span className="text-[10px] font-bold text-black uppercase tracking-wider block">
@@ -1875,109 +1844,6 @@ export default function Subcategories({ embedded = false }) {
       <AnimatePresence>
         {viewImageUrl && (
           <ImageLightbox url={viewImageUrl} onClose={() => setViewImageUrl('')} />
-        )}
-      </AnimatePresence>
-
-      {/* Small Popup: Please assign new display order */}
-      <AnimatePresence>
-        {orderConflictModal.isOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-slate-100 relative text-left"
-            >
-              <button
-                type="button"
-                onClick={closeOrderConflictModal}
-                disabled={orderModalSaving}
-                className="absolute right-4 top-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/80 flex items-center justify-center shrink-0">
-                  <AlertCircle size={20} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 leading-snug">
-                    Please assign new display order
-                  </h4>
-                  <span className="text-[11px] font-medium text-slate-400 block">
-                    {orderConflictModal.subcategory?.categoryName || 'Subcategory'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-amber-50/70 border border-amber-100 rounded-xl mb-4 text-xs text-amber-800 leading-relaxed">
-                Display order <span className="font-bold">#{orderConflictModal.subcategory?.displayOrder || 1}</span> is already assigned
-                {orderConflictModal.conflictingItem?.name ? (
-                  <> to <span className="font-bold">"{orderConflictModal.conflictingItem.name}"</span></>
-                ) : ''}.
-                Please assign a new display order to enable <span className="font-bold">"{orderConflictModal.subcategory?.name}"</span>.
-              </div>
-
-              {orderConflictModal.error && (
-                <div className="mb-3 px-3 py-2 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-xl">
-                  {orderConflictModal.error}
-                </div>
-              )}
-
-              <div className="mb-5">
-                <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                  New Display Order
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={orderConflictModal.newOrder}
-                  disabled={orderModalSaving}
-                  onChange={(e) =>
-                    setOrderConflictModal((prev) => ({
-                      ...prev,
-                      newOrder: e.target.value,
-                      error: ''
-                    }))
-                  }
-                  className="w-full h-10 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                  placeholder="e.g. 2"
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={closeOrderConflictModal}
-                  disabled={orderModalSaving}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAssignOrderAndEnable}
-                  disabled={orderModalSaving}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {orderModalSaving ? (
-                    <>
-                      <Loader2 size={13} className="animate-spin text-white" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check size={13} />
-                      <span>Assign & Enable</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
         )}
       </AnimatePresence>
     </div>
