@@ -74,15 +74,8 @@ const menuGroups = [
     icon: Package,
     color: "text-emerald-700",
     bgHover: "group-hover/item:text-emerald-800",
-    path: ROUTES.PRODUCTS,
+    path: ROUTES.CATEGORIES,
     subItems: [
-      {
-        id: "products-all",
-        label: "All Products",
-        path: ROUTES.PRODUCTS,
-        icon: Package,
-        color: "text-emerald-600",
-      },
       {
         id: "products-categories",
         label: "Categories",
@@ -95,6 +88,13 @@ const menuGroups = [
         label: "Subcategories",
         path: ROUTES.SUBCATEGORIES,
         icon: Tag,
+        color: "text-emerald-600",
+      },
+      {
+        id: "products-all",
+        label: "All Products",
+        path: ROUTES.PRODUCTS,
+        icon: Package,
         color: "text-emerald-600",
       },
     ],

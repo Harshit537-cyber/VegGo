@@ -32,6 +32,7 @@ import {
 
 import {
   searchSubcategories,
+  getAllSubcategoriesAcrossCategories,
   createSubcategory,
   getSubcategoryById,
   updateSubcategory,
@@ -42,7 +43,7 @@ import {
 
 import { getAllCategories } from '../services/categoryService';
 
-import PaginationBar from '../components/PaginationBar';
+import InfiniteScrollFooter from '../components/InfiniteScrollFooter';
 import OrderControls from '../components/OrderControls';
 
 const PAGE_SIZE = 20;
@@ -164,7 +165,7 @@ const extractCategories = (response) => {
   return [];
 };
 
-const normalizeSubcategory = (item, category = {}) => {
+const normalizeSubcategory = (item, category = {}, allCategories = []) => {
   const source = item?.subcategory || item?.data || item || {};
 
   return {
@@ -190,7 +191,7 @@ const normalizeSubcategory = (item, category = {}) => {
       getValue(
         item,
         ['categoryName', 'parentCategoryName'],
-        category.name || ''
+        category.name || allCategories.find((c) => String(c.id) === String(source.categoryId || item.categoryId || source.parentCategoryId || item.parentCategoryId))?.name || ''
       )
     ),
     description: getValue(
@@ -263,6 +264,19 @@ function CategorySelect({
     );
   }, [options, searchTerm]);
 
+  const toggleDropdown = () => {
+    if (disabled || loading) return;
+    if (open) {
+      setOpen(false);
+      setSearchTerm(selectedOption ? selectedOption.name : '');
+      inputRef.current?.blur();
+    } else {
+      setOpen(true);
+      setSearchTerm('');
+      inputRef.current?.focus();
+    }
+  };
+
   const handleFocus = () => {
     if (disabled || loading) return;
 
@@ -288,11 +302,12 @@ function CategorySelect({
   return (
     <div ref={dropdownRef} className="relative w-full">
       <div
-        className={`w-full h-[38px] px-3.5 bg-slate-50 border rounded-xl flex items-center gap-2 transition-all ${
+        onClick={toggleDropdown}
+        className={`w-full h-[38px] px-3.5 bg-slate-50 border rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
           open
             ? 'border-emerald-500 bg-white ring-2 ring-emerald-500/10'
             : 'border-slate-200 hover:border-emerald-300'
-        } ${disabled ? 'opacity-50' : ''}`}
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         <Search size={14} className="text-emerald-600 shrink-0" />
 
@@ -301,27 +316,46 @@ function CategorySelect({
           type="text"
           disabled={disabled}
           value={loading ? 'Loading...' : searchTerm}
+          onClick={(e) => {
+            if (open) {
+              e.stopPropagation();
+            }
+          }}
           onFocus={handleFocus}
           onChange={handleInputChange}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
               e.stopPropagation();
+            } else if (e.key === 'Escape') {
+              setOpen(false);
+              inputRef.current?.blur();
             }
           }}
           placeholder={placeholder}
-          className="w-full min-w-0 bg-transparent text-xs font-bold text-black placeholder:text-slate-400 placeholder:font-semibold focus:outline-none disabled:cursor-not-allowed"
+          className="w-full min-w-0 bg-transparent text-xs font-bold text-black placeholder:text-slate-400 placeholder:font-semibold focus:outline-none disabled:cursor-not-allowed cursor-text"
         />
 
         {loading ? (
           <Loader2 size={14} className="animate-spin text-emerald-600 shrink-0" />
         ) : (
-          <ChevronDown
-            size={15}
-            className={`text-emerald-600 transition-transform duration-200 shrink-0 ${
-              open ? 'rotate-180' : ''
-            }`}
-          />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleDropdown();
+            }}
+            tabIndex={-1}
+            className="p-1 -mr-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer shrink-0"
+            title={open ? 'Close dropdown' : 'Open dropdown'}
+          >
+            <ChevronDown
+              size={15}
+              className={`transition-transform duration-200 ${
+                open ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
         )}
       </div>
 
@@ -374,17 +408,20 @@ export default function Subcategories({ embedded = false }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  // The subcategory search API is scoped to ONE category, so a category is
-  // always selected (the first one by default).
-  const [categoryFilterId, setCategoryFilterId] = useState('');
+  // 'all' = search and show subcategories across all categories; otherwise scoped to category ID
+  const [categoryFilterId, setCategoryFilterId] = useState('all');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(null);
+  const hasMore = page < totalPages - 1;
   const [movingId, setMovingId] = useState(null);
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const fetchRequestId = useRef(0);
   const isFirstLoad = useRef(true);
+  const allSubcategoriesCacheRef = useRef(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -395,6 +432,13 @@ export default function Subcategories({ embedded = false }) {
   const [subcategories, setSubcategories] = useState([]);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+
+  const categoryFilterOptions = useMemo(() => {
+    return [
+      { id: 'all', name: 'All Categories' },
+      ...categories
+    ];
+  }, [categories]);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [editingSubcategory, setEditingSubcategory] = useState(null);
   // true = read-only "View" panel opened from the listing, false = normal edit
@@ -435,78 +479,157 @@ export default function Subcategories({ embedded = false }) {
     }
   };
 
-  // Server-side search + status filter + pagination, scoped to one category
-  // (GET /api/admin/catalog/subcategories/search?categoryId=...)
+  // Server-side search + status filter + pagination
+  // When categoryId === 'all', searches across all categories
   const fetchSubcategories = async ({
     categoryId = categoryFilterId,
-    page: pageToLoad = page,
+    page: pageToLoad = 0,
     status = statusFilter,
     search = debouncedSearch,
     categoryList = categories,
-    showLoader = false
+    showLoader = false,
+    isAppend = false
   } = {}) => {
     if (!categoryId) return;
 
     const requestId = ++fetchRequestId.current;
 
-    if (showLoader) {
-      setLoading(true);
+    if (isAppend) {
+      setIsLoadingMore(true);
+      setLoadMoreError(null);
+    } else {
+      if (showLoader) {
+        setLoading(true);
+      }
+      setIsRefreshing(true);
+      setErrorMessage('');
     }
-    setIsRefreshing(true);
-    setErrorMessage('');
 
     try {
-      const response = await searchSubcategories({
-        categoryId,
-        search,
-        status: STATUS_PARAM[status] || 'all',
-        page: pageToLoad,
-        size: PAGE_SIZE
-      });
+      let content = [];
+      let pages = 1;
+      let total = 0;
 
-      // a newer request has been fired - ignore this stale response
-      if (requestId !== fetchRequestId.current) return;
+      if (categoryId === 'all') {
+        const catList = (categoryList.length > 0 ? categoryList : categories)
+          .filter((c) => c && c.id && c.id !== 'all');
 
-      if (response?.success) {
-        const pageData = response?.data || {};
-        const content = Array.isArray(pageData.content) ? pageData.content : [];
-        const pages = Math.max(1, Number(pageData.totalPages) || 1);
+        let allItems = [];
 
-        // The page we asked for no longer exists - step back, the effect re-fetches.
-        if (content.length === 0 && pageToLoad > 0 && pageToLoad >= pages) {
-          setPage(pages - 1);
-          return;
+        if (allSubcategoriesCacheRef.current) {
+          allItems = allSubcategoriesCacheRef.current;
+        } else if (catList.length > 0) {
+          const aggResponse = await getAllSubcategoriesAcrossCategories(
+            catList,
+            'all'
+          );
+
+          if (requestId !== fetchRequestId.current) return;
+
+          if (aggResponse?.success && Array.isArray(aggResponse.data)) {
+            allSubcategoriesCacheRef.current = aggResponse.data;
+            allItems = aggResponse.data;
+          }
         }
 
-        const category =
-          categoryList.find((c) => String(c.id) === String(categoryId)) || {};
+        if (status && status !== 'All') {
+          const isActive = status === 'Active';
+          allItems = allItems.filter((item) => Boolean(item.active) === isActive);
+        }
 
-        setSubcategories(
-          content.map((item) => normalizeSubcategory(item, category))
-        );
-        setTotalElements(Number(pageData.totalElements) || content.length);
-        setTotalPages(pages);
-        setRefreshKey((prev) => prev + 1);
+        if (search && String(search).trim()) {
+          const q = String(search).trim().toLowerCase();
+          allItems = allItems.filter(
+            (item) =>
+              String(item.name || '').toLowerCase().includes(q) ||
+              String(item.categoryName || '').toLowerCase().includes(q) ||
+              String(item.description || '').toLowerCase().includes(q)
+          );
+        }
+
+        total = allItems.length;
+        pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+        const start = pageToLoad * PAGE_SIZE;
+        content = allItems.slice(start, start + PAGE_SIZE);
       } else {
-        setSubcategories([]);
-        setTotalElements(0);
-        setTotalPages(1);
-        setErrorMessage(response?.message || 'Failed to load subcategories');
+        const response = await searchSubcategories({
+          categoryId,
+          search,
+          status: STATUS_PARAM[status] || 'all',
+          page: pageToLoad,
+          size: PAGE_SIZE
+        });
+
+        if (response?.success) {
+          const pageData = response?.data || {};
+          content = Array.isArray(pageData.content) ? pageData.content : [];
+          pages = Math.max(1, Number(pageData.totalPages) || 1);
+          total = Number(pageData.totalElements) || 0;
+        } else {
+          if (isAppend) {
+            setLoadMoreError(response?.message || 'Failed to load more subcategories');
+          } else {
+            setSubcategories([]);
+            setTotalElements(0);
+            setTotalPages(1);
+            setErrorMessage(response?.message || 'Failed to load subcategories');
+          }
+          return;
+        }
       }
+
+      if (requestId !== fetchRequestId.current) return;
+
+      const activeCategoryObj =
+        categoryId === 'all'
+          ? {}
+          : (categoryList.length > 0 ? categoryList : categories).find(
+              (c) => String(c.id) === String(categoryId)
+            ) || {};
+
+      const normalized = content.map((item) =>
+        normalizeSubcategory(
+          item,
+          activeCategoryObj,
+          categoryList.length > 0 ? categoryList : categories
+        )
+      );
+
+      if (isAppend) {
+        setSubcategories((prev) => {
+          const existingIds = new Set(prev.map((s) => String(s.id)));
+          const unique = normalized.filter((s) => s?.id && !existingIds.has(String(s.id)));
+          return [...prev, ...unique];
+        });
+        setPage(pageToLoad);
+      } else {
+        setSubcategories(normalized);
+        setPage(0);
+      }
+
+      setTotalElements(total);
+      setTotalPages(pages);
+      setRefreshKey((prev) => prev + 1);
     } catch (error) {
       if (requestId !== fetchRequestId.current) return;
 
       console.error('Failed to fetch subcategories:', error);
+      const msg = getErrorMessage(error, 'Failed to load subcategories');
 
-      setSubcategories([]);
-      setTotalElements(0);
-      setTotalPages(1);
-
-      setErrorMessage(getErrorMessage(error, 'Failed to load subcategories'));
+      if (isAppend) {
+        setLoadMoreError(msg);
+      } else {
+        setSubcategories([]);
+        setTotalElements(0);
+        setTotalPages(1);
+        setErrorMessage(msg);
+      }
     } finally {
       if (requestId === fetchRequestId.current) {
         setLoading(false);
         setIsRefreshing(false);
+        setIsLoadingMore(false);
       }
     }
   };
@@ -522,18 +645,17 @@ export default function Subcategories({ embedded = false }) {
       return;
     }
 
-    const selectionStillValid = list.some(
-      (category) => String(category.id) === String(categoryFilterId)
-    );
+    const selectionStillValid =
+      categoryFilterId === 'all' ||
+      list.some((category) => String(category.id) === String(categoryFilterId));
 
     if (!selectionStillValid) {
-      // pick the first category - the effect below loads its subcategories
-      setCategoryFilterId(list[0].id);
+      setCategoryFilterId('all');
       setPage(0);
       return;
     }
 
-    await fetchSubcategories({ categoryList: list });
+    await fetchSubcategories({ categoryId: categoryFilterId, categoryList: list, page: 0, isAppend: false });
   };
 
   useEffect(() => {
@@ -545,56 +667,68 @@ export default function Subcategories({ embedded = false }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery.trim());
-      setPage(0);
     }, 350);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // (Re)load whenever category / search / status / page change
+  // (Re)load whenever category / search / status change
   useEffect(() => {
+    if (isFirstLoad.current) {
+      isFirstLoad.current = false;
+      return;
+    }
     if (!categoryFilterId) return;
 
-    fetchSubcategories({ showLoader: isFirstLoad.current });
-    isFirstLoad.current = false;
+    fetchSubcategories({ page: 0, isAppend: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryFilterId, debouncedSearch, statusFilter, page]);
+  }, [categoryFilterId, debouncedSearch, statusFilter]);
 
   const handleRefresh = () => {
+    allSubcategoriesCacheRef.current = null;
     refreshAll();
   };
 
   const handleCategoryFilterChange = (option) => {
-    const nextId = option?.id || '';
+    const nextId = option?.id || 'all';
 
-    if (!nextId || String(nextId) === String(categoryFilterId)) return;
+    if (String(nextId) === String(categoryFilterId)) return;
 
     setCategoryFilterId(nextId);
-    setPage(0);
   };
 
   const handleStatusFilter = (status) => {
     if (status === statusFilter) return;
 
     setStatusFilter(status);
-    setPage(0);
   };
 
-  const handlePageChange = (nextPage) => {
-    if (nextPage < 0 || nextPage > totalPages - 1) return;
-
-    setPage(nextPage);
+  const handleLoadMore = () => {
+    if (isLoadingMore || !hasMore || loading) return;
+    fetchSubcategories({ page: page + 1, isAppend: true });
   };
 
-  // Reordering is only meaningful on the full, unfiltered list of a category
+  const handleRetryLoadMore = () => {
+    if (isLoadingMore || loading) return;
+    fetchSubcategories({ page: page + 1, isAppend: true });
+  };
+
+  // Reordering is only meaningful on the full, unfiltered list of a single category
   const canReorder =
-    statusFilter === 'All' && !debouncedSearch && !searchQuery.trim();
+    categoryFilterId !== 'all' &&
+    statusFilter === 'All' &&
+    !debouncedSearch &&
+    !searchQuery.trim();
+
+  const movingRef = useRef(false);
 
   // Move a subcategory inside its category. body = { position } or { afterId }
   // (PATCH /api/admin/catalog/subcategories/{id}/move)
   const handleMove = async (subcategory, body) => {
-    if (!subcategory?.id || movingId) return;
+    if (!subcategory?.id || movingRef.current) return;
 
+    movingRef.current = true;
+    allSubcategoriesCacheRef.current = null;
     setErrorMessage('');
     setSuccessMessage('');
     setMovingId(subcategory.id);
@@ -604,17 +738,19 @@ export default function Subcategories({ embedded = false }) {
 
       if (response?.success === false) {
         setErrorMessage(response?.message || 'Failed to move subcategory');
+        await fetchSubcategories({ page: 0, isAppend: false });
       } else {
         setSuccessMessage(
           response?.message || `"${subcategory.name}" moved successfully`
         );
-        await fetchSubcategories();
+        await fetchSubcategories({ page: 0, isAppend: false });
       }
     } catch (error) {
       console.error('Failed to move subcategory:', error);
-
       setErrorMessage(getErrorMessage(error, 'Failed to move subcategory'));
+      await fetchSubcategories({ page: 0, isAppend: false });
     } finally {
+      movingRef.current = false;
       setMovingId(null);
     }
   };
@@ -638,6 +774,13 @@ export default function Subcategories({ embedded = false }) {
         ? { afterId: next.id }
         : { position: Number(subcategory.displayOrder) + 1 }
     );
+  };
+
+  const handleMoveToPosition = (subcategory, targetPosition) => {
+    const pos = parseInt(targetPosition, 10);
+    if (!pos || pos < 1 || pos === Number(subcategory.displayOrder)) return;
+
+    handleMove(subcategory, { position: pos });
   };
 
   const handleDrop = (target) => {
@@ -937,6 +1080,7 @@ export default function Subcategories({ embedded = false }) {
       }
 
       // Close panel immediately so the user gets fast, seamless interaction
+      allSubcategoriesCacheRef.current = null;
       setIsPanelOpen(false);
       setEditingSubcategory(null);
       setIsViewMode(false);
@@ -969,6 +1113,7 @@ export default function Subcategories({ embedded = false }) {
     setErrorMessage('');
 
     try {
+      allSubcategoriesCacheRef.current = null;
       if (enabling) {
         await activateSubcategory(subcategory.id);
       } else {
@@ -1125,78 +1270,61 @@ export default function Subcategories({ embedded = false }) {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-                  <Layers3 size={18} />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-semibold text-black tracking-tight">
-                    Subcategory Records
-                  </h2>
-
-                  <p className="text-xs font-semibold text-black">
-                    Subcategory inventory management directory
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto sm:flex-wrap">
-                <div className="w-full sm:w-44">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
+              {/* Left Side: Category Dropdown & Search Input */}
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full lg:w-auto flex-1 max-w-2xl">
+                <div className="w-full sm:w-56 shrink-0">
                   <CategorySelect
                     value={categoryFilterId}
-                    options={categories}
-                    placeholder="Select category"
+                    options={categoryFilterOptions}
+                    placeholder="All Categories"
                     loading={categoriesLoading}
                     onChange={handleCategoryFilterChange}
                   />
                 </div>
 
-                <div className="relative w-full sm:flex-1 sm:w-64">
-                  <Search className="absolute left-3 top-2.5 text-slate-400" size={15} />
+                <div className="relative w-full flex-1">
+                  <Search className="absolute left-3.5 top-2.5 text-slate-400" size={15} />
 
                   <input
                     type="text"
                     placeholder="Search subcategories..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400"
                   />
                 </div>
+              </div>
 
-                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-0.5 w-full sm:w-auto overflow-x-auto">
-                  <Filter size={13} className="text-slate-400 ml-2 shrink-0" />
-
-                  {['All', 'Active', 'Inactive'].map((status) => (
+              {/* Right Side: Status Filter Buttons in Emerald Green */}
+              <div className="flex items-center gap-2 shrink-0">
+                {['All', 'Active', 'Inactive'].map((status) => {
+                  const isSelected = statusFilter === status;
+                  return (
                     <button
                       key={status}
+                      type="button"
                       onClick={() => handleStatusFilter(status)}
-                      className={`flex-1 sm:flex-none px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all whitespace-nowrap ${
-                        statusFilter === status
-                          ? 'bg-white text-emerald-700 shadow-sm'
-                          : 'text-slate-500 hover:text-slate-800'
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20 border border-emerald-600'
+                          : 'bg-slate-50 hover:bg-emerald-50/70 hover:text-emerald-700 text-slate-600 border border-slate-200 hover:border-emerald-200'
                       }`}
                     >
-                      {status}
+                      {isSelected && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                      )}
+                      <span>{status}</span>
                     </button>
-                  ))}
-                </div>
-
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={openAddPanel}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer shrink-0"
-                >
-                  <Plus size={14} />
-                  <span>Add Subcategory</span>
-                </motion.button>
+                  );
+                })}
               </div>
             </div>
 
             <p className="text-[10px] font-semibold text-slate-400 mb-3">
-              {canReorder
+              {categoryFilterId === 'all'
+                ? 'Showing subcategories across all categories. Select a specific category from the dropdown to reorder items.'
+                : canReorder
                 ? 'Use the arrows (or drag the handle on desktop) to change the display order inside this category.'
                 : 'Reordering is available when status is All and the search box is empty.'}
             </p>
@@ -1287,13 +1415,12 @@ export default function Subcategories({ embedded = false }) {
                             order={subcategory.displayOrder}
                             canReorder={canReorder}
                             busy={Boolean(movingId)}
-                            upDisabled={page === 0 && idx === 0}
-                            downDisabled={
-                              page >= totalPages - 1 &&
-                              idx === subcategories.length - 1
-                            }
+                            isMoving={movingId === subcategory.id}
+                            upDisabled={idx === 0}
+                            downDisabled={idx === subcategories.length - 1 && !hasMore}
                             onUp={() => handleMoveUp(subcategory, idx)}
                             onDown={() => handleMoveDown(subcategory, idx)}
+                            onMoveToPosition={(pos) => handleMoveToPosition(subcategory, pos)}
                             dragHandleProps={getDragHandleProps(subcategory)}
                           />
                         </td>
@@ -1478,13 +1605,12 @@ export default function Subcategories({ embedded = false }) {
                           order={subcategory.displayOrder}
                           canReorder={canReorder}
                           busy={Boolean(movingId)}
-                          upDisabled={page === 0 && idx === 0}
-                          downDisabled={
-                            page >= totalPages - 1 &&
-                            idx === subcategories.length - 1
-                          }
+                          isMoving={movingId === subcategory.id}
+                          upDisabled={idx === 0}
+                          downDisabled={idx === subcategories.length - 1 && !hasMore}
                           onUp={() => handleMoveUp(subcategory, idx)}
                           onDown={() => handleMoveDown(subcategory, idx)}
+                          onMoveToPosition={(pos) => handleMoveToPosition(subcategory, pos)}
                         />
                       </div>
                     </div>
@@ -1570,15 +1696,15 @@ export default function Subcategories({ embedded = false }) {
               )}
             </div>
 
-            <PaginationBar
-              page={page}
-              totalPages={totalPages}
+            <InfiniteScrollFooter
+              loading={isLoadingMore}
+              hasMore={hasMore}
+              error={loadMoreError}
               totalElements={totalElements}
-              pageSize={PAGE_SIZE}
-              itemsOnPage={subcategories.length}
-              disabled={loading || isRefreshing}
+              loadedCount={subcategories.length}
               label="subcategories"
-              onPageChange={handlePageChange}
+              onLoadMore={handleLoadMore}
+              onRetry={handleRetryLoadMore}
             />
           </motion.div>
         </section>

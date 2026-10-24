@@ -13,7 +13,7 @@ import {
   activateCategory,
 } from "../services/categoryService";
 
-import PaginationBar from "../components/PaginationBar";
+import InfiniteScrollFooter from "../components/InfiniteScrollFooter";
 import OrderControls from "../components/OrderControls";
 
 import {
@@ -127,6 +127,9 @@ export default function Categories({ embedded = false }) {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(null);
+  const hasMore = page < totalPages - 1;
   const [movingId, setMovingId] = useState(null);
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
@@ -191,15 +194,21 @@ export default function Categories({ embedded = false }) {
     status = statusFilter,
     search = debouncedSearch,
     showLoader = false,
+    isAppend = false,
   } = {}) => {
     const requestId = ++fetchRequestId.current;
 
     try {
-      if (showLoader) {
-        setLoading(true);
+      if (isAppend) {
+        setIsLoadingMore(true);
+        setLoadMoreError(null);
+      } else {
+        if (showLoader) {
+          setLoading(true);
+        }
+        setIsRefreshing(true);
+        setErrorMessage("");
       }
-      setIsRefreshing(true);
-      setErrorMessage("");
 
       const response = await searchCategories({
         search,
@@ -215,39 +224,55 @@ export default function Categories({ embedded = false }) {
         const pageData = response?.data || {};
         const content = Array.isArray(pageData.content) ? pageData.content : [];
         const pages = Math.max(1, Number(pageData.totalPages) || 1);
+        const total = Number(pageData.totalElements) || content.length;
+        const normalized = content.map((category) => normalizeCategory(category));
 
-        // The page we asked for no longer exists (e.g. the last row on it was
-        // just disabled while filtering) - step back, the effect re-fetches.
-        if (content.length === 0 && pageToLoad > 0 && pageToLoad >= pages) {
-          setPage(pages - 1);
-          return;
+        if (isAppend) {
+          setCategories((prev) => {
+            const existingIds = new Set(prev.map((c) => String(c.id)));
+            const unique = normalized.filter((c) => c?.id && !existingIds.has(String(c.id)));
+            return [...prev, ...unique];
+          });
+          setPage(pageToLoad);
+        } else {
+          setCategories(normalized);
+          setPage(0);
         }
 
-        setCategories(content.map((category) => normalizeCategory(category)));
-        setTotalElements(Number(pageData.totalElements) || content.length);
+        setTotalElements(total);
         setTotalPages(pages);
         setRefreshKey((prev) => prev + 1);
       } else {
-        setCategories([]);
-        setTotalElements(0);
-        setTotalPages(1);
-        setErrorMessage(response?.message || "Failed to fetch categories");
+        if (isAppend) {
+          setLoadMoreError(response?.message || "Failed to load more categories");
+        } else {
+          setCategories([]);
+          setTotalElements(0);
+          setTotalPages(1);
+          setErrorMessage(response?.message || "Failed to fetch categories");
+        }
       }
     } catch (error) {
       if (requestId !== fetchRequestId.current) return;
 
-      setCategories([]);
-      setTotalElements(0);
-      setTotalPages(1);
-      setErrorMessage(
+      const msg =
         error?.response?.data?.message ||
-          error?.message ||
-          "Failed to fetch categories"
-      );
+        error?.message ||
+        "Failed to fetch categories";
+
+      if (isAppend) {
+        setLoadMoreError(msg);
+      } else {
+        setCategories([]);
+        setTotalElements(0);
+        setTotalPages(1);
+        setErrorMessage(msg);
+      }
     } finally {
       if (requestId === fetchRequestId.current) {
         setLoading(false);
         setIsRefreshing(false);
+        setIsLoadingMore(false);
       }
     }
   };
@@ -256,41 +281,46 @@ export default function Categories({ embedded = false }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery.trim());
-      setPage(0);
     }, 350);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // (Re)load whenever search / status / page change (also does the first load)
+  // (Re)load whenever search / status change (also does the first load)
   useEffect(() => {
-    fetchCategories({ showLoader: isFirstLoad.current });
+    fetchCategories({ page: 0, isAppend: false, showLoader: isFirstLoad.current });
     isFirstLoad.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, statusFilter, page]);
+  }, [debouncedSearch, statusFilter]);
 
   const handleStatusFilter = (status) => {
     if (status === statusFilter) return;
 
     setStatusFilter(status);
-    setPage(0);
   };
 
-  const handlePageChange = (nextPage) => {
-    if (nextPage < 0 || nextPage > totalPages - 1) return;
+  const handleLoadMore = () => {
+    if (isLoadingMore || !hasMore || loading) return;
+    fetchCategories({ page: page + 1, isAppend: true });
+  };
 
-    setPage(nextPage);
+  const handleRetryLoadMore = () => {
+    if (isLoadingMore || loading) return;
+    fetchCategories({ page: page + 1, isAppend: true });
   };
 
   // Reordering is only meaningful on the full, unfiltered list
   const canReorder =
     statusFilter === "All" && !debouncedSearch && !searchQuery.trim();
 
+  const movingRef = useRef(false);
+
   // Move a category. body = { position } or { afterId }
   // (PATCH /api/admin/catalog/categories/{id}/move)
   const handleMove = async (category, body) => {
-    if (!category?.id || movingId) return;
+    if (!category?.id || movingRef.current) return;
 
+    movingRef.current = true;
     clearMessages();
     setMovingId(category.id);
 
@@ -301,9 +331,10 @@ export default function Categories({ embedded = false }) {
         setSuccessMessage(
           response?.message || `"${category.name}" moved successfully`
         );
-        await fetchCategories();
+        await fetchCategories({ page: 0, isAppend: false });
       } else {
         setErrorMessage(response?.message || "Failed to move category");
+        await fetchCategories({ page: 0, isAppend: false });
       }
     } catch (error) {
       setErrorMessage(
@@ -311,7 +342,9 @@ export default function Categories({ embedded = false }) {
           error?.message ||
           "Failed to move category"
       );
+      await fetchCategories({ page: 0, isAppend: false });
     } finally {
+      movingRef.current = false;
       setMovingId(null);
     }
   };
@@ -333,6 +366,13 @@ export default function Categories({ embedded = false }) {
       category,
       next ? { afterId: next.id } : { position: category.displayOrder + 1 }
     );
+  };
+
+  const handleMoveToPosition = (category, targetPosition) => {
+    const pos = parseInt(targetPosition, 10);
+    if (!pos || pos < 1 || pos === category.displayOrder) return;
+
+    handleMove(category, { position: pos });
   };
 
   const handleDrop = (target) => {
@@ -754,63 +794,42 @@ export default function Categories({ embedded = false }) {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-                  <FolderTree size={18} />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-semibold text-black tracking-tight">
-                    Category Records
-                  </h2>
-
-                  <p className="text-xs font-semibold text-black">
-                    Category catalog management directory
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="relative flex-1 sm:w-72">
-                  <Search className="absolute left-3 top-2.5 text-slate-400" size={15} />
-
-                  <input
-                    type="text"
-                    placeholder="Search categories..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
-                  />
-                </div>
-
-                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl p-0.5">
-                  <Filter size={13} className="text-slate-400 ml-2" />
-
-                  {["All", "Active", "Inactive"].map((status) => (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
+              {/* Left Side: Status Filter Buttons in Emerald Green */}
+              <div className="flex items-center gap-2">
+                {["All", "Active", "Inactive"].map((status) => {
+                  const isSelected = statusFilter === status;
+                  return (
                     <button
                       key={status}
+                      type="button"
                       onClick={() => handleStatusFilter(status)}
-                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
-                        statusFilter === status
-                          ? "bg-white text-emerald-700 shadow-sm"
-                          : "text-slate-500 hover:text-slate-800"
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-600/20 border border-emerald-600"
+                          : "bg-slate-50 hover:bg-emerald-50/70 hover:text-emerald-700 text-slate-600 border border-slate-200 hover:border-emerald-200"
                       }`}
                     >
-                      {status}
+                      {isSelected && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                      )}
+                      <span>{status}</span>
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
+              </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={openAddPanel}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer shrink-0"
-                >
-                  <Plus size={14} />
-                  <span>Add Category</span>
-                </motion.button>
+              {/* Right Side: Search Categories */}
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3.5 top-2.5 text-slate-400" size={15} />
+
+                <input
+                  type="text"
+                  placeholder="Search categories..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400"
+                />
               </div>
             </div>
 
@@ -903,13 +922,12 @@ export default function Categories({ embedded = false }) {
                             order={category.displayOrder}
                             canReorder={canReorder}
                             busy={Boolean(movingId)}
-                            upDisabled={page === 0 && idx === 0}
-                            downDisabled={
-                              page >= totalPages - 1 &&
-                              idx === categories.length - 1
-                            }
+                            isMoving={movingId === category.id}
+                            upDisabled={idx === 0}
+                            downDisabled={idx === categories.length - 1 && !hasMore}
                             onUp={() => handleMoveUp(category, idx)}
                             onDown={() => handleMoveDown(category, idx)}
+                            onMoveToPosition={(pos) => handleMoveToPosition(category, pos)}
                             dragHandleProps={getDragHandleProps(category)}
                           />
                         </td>
@@ -1074,13 +1092,12 @@ export default function Categories({ embedded = false }) {
                           order={category.displayOrder}
                           canReorder={canReorder}
                           busy={Boolean(movingId)}
-                          upDisabled={page === 0 && idx === 0}
-                          downDisabled={
-                            page >= totalPages - 1 &&
-                            idx === categories.length - 1
-                          }
+                          isMoving={movingId === category.id}
+                          upDisabled={idx === 0}
+                          downDisabled={idx === categories.length - 1 && !hasMore}
                           onUp={() => handleMoveUp(category, idx)}
                           onDown={() => handleMoveDown(category, idx)}
+                          onMoveToPosition={(pos) => handleMoveToPosition(category, pos)}
                         />
                       </div>
 
@@ -1178,15 +1195,15 @@ export default function Categories({ embedded = false }) {
               )}
             </div>
 
-            <PaginationBar
-              page={page}
-              totalPages={totalPages}
+            <InfiniteScrollFooter
+              loading={isLoadingMore}
+              hasMore={hasMore}
+              error={loadMoreError}
               totalElements={totalElements}
-              pageSize={PAGE_SIZE}
-              itemsOnPage={categories.length}
-              disabled={loading || isRefreshing}
+              loadedCount={categories.length}
               label="categories"
-              onPageChange={handlePageChange}
+              onLoadMore={handleLoadMore}
+              onRetry={handleRetryLoadMore}
             />
           </motion.div>
         </section>

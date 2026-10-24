@@ -9,6 +9,7 @@ import EmptyState from '../../../components/common/EmptyState';
 import { motion, AnimatePresence } from 'framer-motion';
 import Categories from './Categories';
 import Subcategories from './Subcategories';
+import InfiniteScrollFooter from '../components/InfiniteScrollFooter';
 
 import {
   Calendar,
@@ -571,10 +572,14 @@ export default function Products({ defaultTab = 'products' }) {
   const [editingProduct, setEditingProduct] = useState(null);
   const [isViewMode, setIsViewMode] = useState(false);
 
-  // Pagination State
+  // Pagination State & Infinite Scrolling
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(null);
+  const hasMore = currentPage < totalPages - 1;
+  const fetchRequestId = useRef(0);
   const pageSize = 20;
 
   const [productImages, setProductImages] = useState([]);
@@ -624,9 +629,35 @@ export default function Products({ defaultTab = 'products' }) {
     resetForm();
   };
 
-  const fetchProducts = async (page = 0, search = searchQuery) => {
-    setIsRefreshing(true);
-    setErrorMessage('');
+  const fetchProducts = async (pageOrOptions = 0, maybeSearch = searchQuery, maybeAppend = false) => {
+    let page = 0;
+    let search = searchQuery;
+    let isAppend = false;
+    let showLoader = false;
+
+    if (typeof pageOrOptions === 'object' && pageOrOptions !== null) {
+      page = pageOrOptions.page ?? 0;
+      search = pageOrOptions.search ?? searchQuery;
+      isAppend = pageOrOptions.isAppend ?? false;
+      showLoader = pageOrOptions.showLoader ?? false;
+    } else {
+      page = pageOrOptions ?? 0;
+      search = maybeSearch ?? searchQuery;
+      isAppend = maybeAppend ?? false;
+    }
+
+    const requestId = ++fetchRequestId.current;
+
+    if (isAppend) {
+      setIsLoadingMore(true);
+      setLoadMoreError(null);
+    } else {
+      if (showLoader) {
+        setLoading(true);
+      }
+      setIsRefreshing(true);
+      setErrorMessage('');
+    }
 
     try {
       const response = await getProducts({
@@ -635,28 +666,64 @@ export default function Products({ defaultTab = 'products' }) {
         search: (search || '').trim()
       });
 
+      if (requestId !== fetchRequestId.current) return;
+
       const rawData = response?.data ?? response;
       const productList = extractProducts(response).map(normalizeProduct);
-
-      setProducts(productList);
-      setTotalPages(Math.max(1, rawData?.totalPages ?? rawData?.pages ?? 1));
-      setTotalElements(
+      const pages = Math.max(1, rawData?.totalPages ?? rawData?.pages ?? 1);
+      const total =
         rawData?.totalElements ??
         rawData?.totalCount ??
-        productList.length
-      );
-      setCurrentPage(page);
+        productList.length;
+
+      if (isAppend) {
+        setProducts((prev) => {
+          const existingIds = new Set(prev.map((p) => String(p.id)));
+          const unique = productList.filter((p) => p?.id && !existingIds.has(String(p.id)));
+          return [...prev, ...unique];
+        });
+        setCurrentPage(page);
+      } else {
+        setProducts(productList);
+        setCurrentPage(0);
+      }
+
+      setTotalPages(pages);
+      setTotalElements(total);
       setRefreshKey((prev) => prev + 1);
     } catch (error) {
+      if (requestId !== fetchRequestId.current) return;
+
       console.error('Failed to fetch products:', error);
 
-      setErrorMessage(
-        error?.response?.data?.message || error?.message || 'Failed to load products'
-      );
+      const msg =
+        error?.response?.data?.message || error?.message || 'Failed to load products';
+
+      if (isAppend) {
+        setLoadMoreError(msg);
+      } else {
+        setProducts([]);
+        setTotalPages(1);
+        setTotalElements(0);
+        setErrorMessage(msg);
+      }
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (requestId === fetchRequestId.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+        setIsLoadingMore(false);
+      }
     }
+  };
+
+  const handleLoadMore = () => {
+    if (isLoadingMore || !hasMore || loading) return;
+    fetchProducts({ page: currentPage + 1, search: searchQuery, isAppend: true });
+  };
+
+  const handleRetryLoadMore = () => {
+    if (isLoadingMore || loading) return;
+    fetchProducts({ page: currentPage + 1, search: searchQuery, isAppend: true });
   };
 
   const fetchCategoriesList = async () => {
@@ -1227,9 +1294,9 @@ export default function Products({ defaultTab = 'products' }) {
     'w-full h-[38px] px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] disabled:opacity-60 disabled:cursor-not-allowed';
 
   const productTabs = [
-    { id: 'products', label: 'All Products', icon: Package },
     { id: 'categories', label: 'Categories', icon: Layers },
     { id: 'subcategories', label: 'Subcategories', icon: Tag },
+    { id: 'products', label: 'All Products', icon: Package },
   ];
 
   const filterPills = [
@@ -1586,39 +1653,17 @@ export default function Products({ defaultTab = 'products' }) {
                   ))}
                 </div>
 
-                {/* Table Footer with Pagination Controls */}
-                {totalPages > 1 && (
-                  <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-semibold text-slate-600">
-                    <span>
-                      Showing Page {currentPage + 1} of {totalPages} ({totalElements} total products)
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={currentPage === 0 || loading}
-                        onClick={() => fetchProducts(currentPage - 1, searchQuery)}
-                        className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 shadow-2xs"
-                      >
-                        <ChevronLeft size={16} />
-                        <span className="hidden sm:inline">Prev</span>
-                      </button>
-
-                      <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 font-mono">
-                        {currentPage + 1}
-                      </span>
-
-                      <button
-                        type="button"
-                        disabled={currentPage >= totalPages - 1 || loading}
-                        onClick={() => fetchProducts(currentPage + 1, searchQuery)}
-                        className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 shadow-2xs"
-                      >
-                        <span className="hidden sm:inline">Next</span>
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {/* Infinite Scroll Footer */}
+                <InfiniteScrollFooter
+                  loading={isLoadingMore}
+                  hasMore={hasMore}
+                  error={loadMoreError}
+                  totalElements={totalElements}
+                  loadedCount={products.length}
+                  label="products"
+                  onLoadMore={handleLoadMore}
+                  onRetry={handleRetryLoadMore}
+                />
               </div>
             )}
           </div>

@@ -24,6 +24,14 @@ export const searchSubcategories = async ({
   page = 0,
   size = 20
 } = {}) => {
+  if (!categoryId || categoryId === 'all') {
+    return {
+      success: false,
+      message: 'Category ID is required for scoped subcategory search',
+      data: { content: [], totalPages: 1, totalElements: 0, page: 0, size }
+    };
+  }
+
   const params = { categoryId, status, page, size };
 
   if (search && String(search).trim()) {
@@ -38,6 +46,41 @@ export const searchSubcategories = async ({
   );
 
   return response.data;
+};
+
+/**
+ * Fetches all subcategories across multiple categories.
+ * If categoryList is provided, fetches each in parallel.
+ */
+export const getAllSubcategoriesAcrossCategories = async (categoryList = [], status = 'all') => {
+  const validCategories = Array.isArray(categoryList)
+    ? categoryList.filter((cat) => cat && cat.id && cat.id !== 'all')
+    : [];
+
+  if (validCategories.length === 0) {
+    return { success: true, data: [] };
+  }
+
+  const fetchPromises = validCategories.map(async (cat) => {
+    try {
+      const res = await getAllSubcategories(cat.id, status);
+      if (res?.success && Array.isArray(res.data)) {
+        return res.data.map((sub) => ({
+          ...sub,
+          categoryId: sub.categoryId || cat.id,
+          categoryName: sub.categoryName || cat.name,
+        }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  });
+
+  const allArrays = await Promise.all(fetchPromises);
+  const flattened = allArrays.flat();
+
+  return { success: true, data: flattened };
 };
 
 /**
