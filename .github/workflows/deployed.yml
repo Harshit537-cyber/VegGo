@@ -28,5 +28,6 @@ jobs:
           script: |
             set -e
             cd "$DEPLOY_PATH"
+            sudo su
             chmod +x deployed_admin.sh
             .deploy_frontend.sh
