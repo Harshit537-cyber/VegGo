@@ -29,6 +29,16 @@ export const createProduct = async (
   formData.append('subcategoryId', productData.subcategoryId || '');
   formData.append('price', String(productData.price ?? ''));
   formData.append('originalPrice', String(productData.originalPrice ?? ''));
+
+  // Optional. > 0 and <= price. Omitted = same as price (no margin).
+  if (
+    productData.vendorPrice !== undefined &&
+    productData.vendorPrice !== null &&
+    productData.vendorPrice !== '' &&
+    Number(productData.vendorPrice) > 0
+  ) {
+    formData.append('vendorPrice', String(productData.vendorPrice));
+  }
   formData.append('unit', productData.unit || 'Kg');
   formData.append('stockQuantity', String(productData.stockQuantity ?? '0'));
   formData.append('sku', productData.sku || '');

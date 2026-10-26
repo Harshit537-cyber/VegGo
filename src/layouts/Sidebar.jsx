@@ -21,7 +21,10 @@ import {
   Tag,
   Layers,
   TrendingUp,
-  MessageSquareWarning
+  MessageSquareWarning,
+  Megaphone,
+  Ticket,
+  Image as ImageIcon
 } from "lucide-react";
 import LogoutModal from "../components/common/LogoutModal";
 import { clearAuthSession } from "../utils/auth";
@@ -100,6 +103,30 @@ const menuGroups = [
     ],
   },
   {
+    id: "marketing",
+    label: "Marketing",
+    icon: Megaphone,
+    color: "text-emerald-700",
+    bgHover: "group-hover/item:text-emerald-800",
+    path: ROUTES.COUPONS,
+    subItems: [
+      {
+        id: "marketing-coupons",
+        label: "Coupons",
+        path: ROUTES.COUPONS,
+        icon: Ticket,
+        color: "text-emerald-600",
+      },
+      {
+        id: "marketing-banners",
+        label: "Banners",
+        path: ROUTES.BANNERS,
+        icon: ImageIcon,
+        color: "text-emerald-600",
+      },
+    ],
+  },
+  {
     id: "payouts",
     label: "Payouts & Wallet",
     icon: Wallet,
@@ -134,7 +161,8 @@ function getActiveGroupForPath(pathname) {
   const active = menuGroups.find((group) =>
     group.subItems.some((subItem) => pathname === subItem.path || pathname.startsWith(subItem.path)) ||
     (group.id === "management" && pathname.startsWith("/management")) ||
-    (group.id === "products" && pathname.startsWith("/products"))
+    (group.id === "products" && pathname.startsWith("/products")) ||
+    (group.id === "marketing" && pathname.startsWith("/marketing"))
   );
   return active ? active.id : null;
 }

@@ -45,6 +45,10 @@ export const ROUTES = Object.freeze({
   CATEGORIES: '/products/categories',
   SUBCATEGORIES: '/products/subcategories',
 
+  // Marketing
+  COUPONS: '/marketing/coupons',
+  BANNERS: '/marketing/banners',
+
   // Other Modules
   LOGISTICS: '/logistics',
   ANALYTICS: '/analytics',

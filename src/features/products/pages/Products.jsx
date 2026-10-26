@@ -189,6 +189,17 @@ const normalizeProduct = (product) => {
 
   const originalPrice = Number(getValue(product, ['originalPrice'], 0)) || 0;
 
+  // Admin-only: what the vendor is paid per unit. Margin = price - vendorPrice (platform's share).
+  const vendorPrice = Number(getValue(product, ['vendorPrice'], 0)) || 0;
+
+  const rawMargin = Number(getValue(product, ['margin'], NaN));
+
+  const margin = Number.isFinite(rawMargin)
+    ? rawMargin
+    : vendorPrice > 0
+    ? Math.max(price - vendorPrice, 0)
+    : 0;
+
   const unit = getValue(product, ['unit'], '');
 
   const active = product?.active === true || product?.active === 'true';
@@ -211,6 +222,8 @@ const normalizeProduct = (product) => {
     subcategoryName,
     price,
     originalPrice,
+    vendorPrice,
+    margin,
     unit,
     active,
     status: active ? 'Active' : 'Inactive',
@@ -598,6 +611,7 @@ export default function Products({ defaultTab = 'products' }) {
     subcategoryName: '',
     price: '',
     originalPrice: '',
+    vendorPrice: '',
     unit: '',
     active: true
   });
@@ -613,6 +627,7 @@ export default function Products({ defaultTab = 'products' }) {
       subcategoryName: '',
       price: '',
       originalPrice: '',
+      vendorPrice: '',
       unit: '',
       active: true
     });
@@ -861,6 +876,7 @@ export default function Products({ defaultTab = 'products' }) {
           normalized.originalPrice !== undefined
             ? String(normalized.originalPrice)
             : '',
+        vendorPrice: normalized.vendorPrice > 0 ? String(normalized.vendorPrice) : '',
         unit: normalized.unit || '',
         active: normalized.active
       });
@@ -1107,6 +1123,21 @@ export default function Products({ defaultTab = 'products' }) {
       return;
     }
 
+    if (formData.vendorPrice !== '') {
+      const vendorPriceValue = parseFloat(formData.vendorPrice);
+      const customerPriceValue = parseFloat(formData.price);
+
+      if (!(vendorPriceValue > 0)) {
+        setErrorMessage('Vendor price must be greater than 0');
+        return;
+      }
+
+      if (vendorPriceValue > customerPriceValue) {
+        setErrorMessage('Vendor price cannot be higher than the customer price');
+        return;
+      }
+    }
+
     if (!formData.unit.trim()) {
       setErrorMessage('Product unit is required');
       return;
@@ -1130,6 +1161,11 @@ export default function Products({ defaultTab = 'products' }) {
       unit: formData.unit.trim(),
       active: Boolean(formData.active)
     };
+
+    // Omitted = keep current on update / same as price on create
+    if (formData.vendorPrice !== '') {
+      payload.vendorPrice = parseFloat(formData.vendorPrice);
+    }
 
     try {
       if (editingProduct) {
@@ -1156,6 +1192,11 @@ export default function Products({ defaultTab = 'products' }) {
                   subcategoryName: matchedSubcategory?.name || p.subcategoryName,
                   price: payload.price,
                   originalPrice: payload.originalPrice,
+                  vendorPrice: payload.vendorPrice ?? p.vendorPrice,
+                  margin:
+                    payload.vendorPrice !== undefined
+                      ? Math.max(payload.price - payload.vendorPrice, 0)
+                      : p.margin,
                   unit: payload.unit,
                   active: payload.active
                 }
@@ -1471,6 +1512,21 @@ export default function Products({ defaultTab = 'products' }) {
                                     ₹{prod.originalPrice}
                                   </span>
                                 )}
+
+                                <span
+                                  className="mt-1 text-[10px] font-semibold text-slate-500 font-mono"
+                                  title="Vendor price (paid to vendor) / platform margin"
+                                >
+                                  Vendor ₹{prod.vendorPrice || prod.price || 0}
+                                </span>
+
+                                <span
+                                  className={`text-[10px] font-bold font-mono ${
+                                    prod.margin > 0 ? 'text-emerald-600' : 'text-slate-400'
+                                  }`}
+                                >
+                                  Margin ₹{Number(prod.margin || 0).toFixed(2).replace(/\.00$/, '')}
+                                </span>
                               </div>
                             </td>
 
@@ -1604,6 +1660,10 @@ export default function Products({ defaultTab = 'products' }) {
                         <div>
                           <span className="text-[10px] text-slate-400 block font-medium">Price</span>
                           <span className="font-semibold text-slate-900 font-mono">₹{prod.price || 0}</span>
+                          <span className="block text-[10px] font-semibold text-slate-500 font-mono">
+                            Vendor ₹{prod.vendorPrice || prod.price || 0} · Margin ₹
+                            {Number(prod.margin || 0).toFixed(2).replace(/\.00$/, '')}
+                          </span>
                         </div>
                         <div>
                           <span className="text-[10px] text-slate-400 block font-medium">Unit</span>
@@ -1846,6 +1906,58 @@ export default function Products({ defaultTab = 'products' }) {
                       className={priceInputClass}
                     />
                   </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="block text-[10px] font-bold text-black uppercase tracking-wider">
+                      Vendor Price (₹)
+                    </label>
+
+                    {(() => {
+                      const customerPrice = parseFloat(formData.price);
+                      const vendorPrice = parseFloat(formData.vendorPrice);
+
+                      if (!(customerPrice > 0)) return null;
+
+                      const effectiveVendor = vendorPrice > 0 ? vendorPrice : customerPrice;
+                      const marginValue = customerPrice - effectiveVendor;
+
+                      return (
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            marginValue < 0
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : marginValue > 0
+                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                              : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          Platform margin: ₹{marginValue.toFixed(2).replace(/\.00$/, '')}
+                        </span>
+                      );
+                    })()}
+                  </div>
+
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Same as price (no margin)"
+                    value={formData.vendorPrice}
+                    disabled={isViewMode}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, vendorPrice: e.target.value }))
+                    }
+                    className={priceInputClass}
+                  />
+
+                  <p className="text-[10px] font-medium text-slate-500 leading-snug">
+                    What the vendor is paid per unit. Must be above 0 and not higher than the
+                    price. The margin (price − vendor price) stays with the platform and pays for
+                    coupons. Customers never see this; vendors see it as their price.
+                    {editingProduct && ' Leave empty to keep the current vendor price.'}
+                  </p>
                 </div>
 
                 <div>

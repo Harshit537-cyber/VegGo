@@ -15,6 +15,9 @@ const Products = lazy(() => import('../features/products/pages/Products'));
 const Categories = lazy(() => import('../features/products/pages/Categories'));
 const Subcategories = lazy(() => import('../features/products/pages/Subcategories'));
 
+// Marketing Feature (coupons + banners)
+const Marketing = lazy(() => import('../features/marketing/pages/Marketing'));
+
 // Management Feature
 const Management = lazy(() => import('../features/management/pages/Management'));
 
@@ -89,6 +92,9 @@ export default function AppRoutes() {
           <Route path={ROUTES.CATEGORIES} element={<Products defaultTab="categories" />} />
           <Route path={ROUTES.SUBCATEGORIES} element={<Products defaultTab="subcategories" />} />
           <Route path={ROUTES.PRODUCTS} element={<Products defaultTab="products" />} />
+
+          <Route path={ROUTES.COUPONS} element={<Marketing defaultTab="coupons" />} />
+          <Route path={ROUTES.BANNERS} element={<Marketing defaultTab="banners" />} />
 
           <Route path={ROUTES.LOGISTICS} element={<ColdChain />} />
           <Route path={ROUTES.ANALYTICS} element={<Navigate to={ROUTES.DASHBOARD} replace />} />

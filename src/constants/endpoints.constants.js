@@ -91,6 +91,21 @@ export const SETTINGS_ENDPOINTS = Object.freeze({
   SETTINGS: '/api/admin/settings',
 });
 
+// Marketing: Coupons (admin)
+export const COUPON_ENDPOINTS = Object.freeze({
+  BASE: '/api/admin/coupons',
+  BY_ID: (couponId) => `/api/admin/coupons/${couponId}`,
+  STATUS: (couponId) => `/api/admin/coupons/${couponId}/status`,
+  REDEMPTIONS: (couponId) => `/api/admin/coupons/${couponId}/redemptions`,
+});
+
+// Marketing: Banners (admin)
+export const BANNER_ENDPOINTS = Object.freeze({
+  BASE: '/api/admin/banners',
+  BY_ID: (bannerId) => `/api/admin/banners/${bannerId}`,
+  STATUS: (bannerId) => `/api/admin/banners/${bannerId}/status`,
+});
+
 // Unified Endpoints Registry
 export const ENDPOINTS = Object.freeze({
   AUTH: AUTH_ENDPOINTS,
@@ -102,6 +117,8 @@ export const ENDPOINTS = Object.freeze({
   PAYOUTS: PAYOUT_ENDPOINTS,
   COMPLAINTS: COMPLAINT_ENDPOINTS,
   SETTINGS: SETTINGS_ENDPOINTS,
+  COUPONS: COUPON_ENDPOINTS,
+  BANNERS: BANNER_ENDPOINTS,
 });
 
 export default ENDPOINTS;
