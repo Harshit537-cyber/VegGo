@@ -7,7 +7,7 @@ on:
 
 env:
   APP_NAME: vegfresh
-  DEPLOY_PATH: /var/www/frontend/veg-go-fresh-website
+  DEPLOY_PATH: /var/www/admin_veggo
   SERVER_PASS: pVEpnfh@Ue2NSI3k
 
 jobs:
@@ -27,5 +27,5 @@ jobs:
             set -e
             sudo su
             cd "$DEPLOY_PATH"
-            chmod +x deploy_frontend.sh
+            chmod +x deployed_admin.sh
             echo "$SERVER_PASS" | sudo -S ./deploy_frontend.sh
