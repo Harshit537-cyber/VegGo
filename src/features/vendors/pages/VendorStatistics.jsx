@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Sidebar from '../../../layouts/Sidebar';
 import PageHeader from '../../../components/common/PageHeader';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Calendar, 
-  RefreshCw, 
   TrendingUp, 
   TrendingDown, 
   ArrowUpRight, 
@@ -17,78 +14,14 @@ import {
   Users,
   ShoppingBag,
   Star,
-  ArrowRight,
-  Sparkles,
-  Zap,
-  AlertCircle
+  ArrowRight
 } from 'lucide-react';
 
-// Animated Value Counter Component
 function AnimatedValue({ value }) {
-  const [displayValue, setDisplayValue] = useState('');
-
-  useEffect(() => {
-    const stringValue = String(value ?? '');
-    const match = stringValue.match(/([₹\d,.]+)\s*(.*)/);
-    if (!match) {
-      setDisplayValue(stringValue);
-      return;
-    }
-
-    const isRupee = stringValue.startsWith('₹');
-    const rawNumberStr = match[1].replace(/[₹,]/g, '');
-    const targetNum = parseFloat(rawNumberStr);
-    const suffix = match[2] || '';
-    const isDecimal = rawNumberStr.includes('.');
-    const hasComma = match[1].includes(',');
-
-    if (Number.isNaN(targetNum)) {
-      setDisplayValue(stringValue);
-      return;
-    }
-
-    const duration = 1000;
-    const startTime = performance.now();
-    let animationFrameId;
-
-    const updateCount = (timestamp) => {
-      const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      const currentVal = easeProgress * targetNum;
-
-      let formatted;
-      if (isDecimal) {
-        formatted = currentVal.toFixed(2);
-      } else {
-        formatted = Math.floor(currentVal).toString();
-      }
-
-      if (hasComma) {
-        const parts = formatted.split('.');
-        parts[0] = parseInt(parts[0], 10).toLocaleString('en-IN');
-        formatted = parts.join('.');
-      }
-
-      setDisplayValue(`${isRupee ? '₹' : ''}${formatted}${suffix ? ' ' + suffix : ''}`);
-
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(updateCount);
-      } else {
-        setDisplayValue(stringValue);
-      }
-    };
-
-    animationFrameId = requestAnimationFrame(updateCount);
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [value]);
-
-  return <span>{displayValue}</span>;
+  return <span>{value ?? ''}</span>;
 }
 
 export default function VendorStatistics() {
-  const [currentTab, setCurrentTab] = useState('vendor-statistics');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -183,47 +116,41 @@ export default function VendorStatistics() {
           {vendorStats.map((stat, idx) => {
             const IconComponent = stat.icon;
             return (
-              <motion.div 
+              <div 
                 key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: idx * 0.1 }}
-                whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-emerald-300/80 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group cursor-pointer"
+                className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col justify-between group cursor-pointer"
               >
-                <div className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor} transition-all duration-300 group-hover:h-2`} />
-                <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-50 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none group-hover:scale-125" />
+                <div className={`absolute top-0 left-0 right-0 h-1.5 ${stat.accentColor}`} />
                 
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700 transition-colors duration-200">
+                    <span className="text-[11px] font-semibold text-black uppercase tracking-wider group-hover:text-emerald-700">
                       {stat.label}
                     </span>
-                    <motion.div 
-                      whileHover={{ rotate: 12, scale: 1.1 }}
-                      className={`${stat.iconBg} p-2.5 rounded-2xl transition-all shadow-xs`}
+                    <div 
+                      className={`${stat.iconBg} p-2.5 rounded-2xl shadow-xs`}
                     >
                       <IconComponent size={18} />
-                    </motion.div>
+                    </div>
                   </div>
                   
-                  <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono group-hover:text-emerald-800 transition-colors duration-200">
+                  <h3 className="text-2xl sm:text-3xl font-semibold text-black tracking-tight font-mono group-hover:text-emerald-800">
                     <AnimatedValue value={stat.value} key={refreshKey} />
                   </h3>
                 </div>
                 
                 <div className="mt-5 pt-3.5 border-t border-slate-100 flex items-center justify-between relative z-10">
-                  <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-transform duration-300 group-hover:scale-105 ${stat.tagColor}`}>
+                  <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${stat.tagColor}`}>
                     {stat.up ? (
-                      <ArrowUpRight size={13} className="text-emerald-600 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      <ArrowUpRight size={13} className="text-emerald-600" />
                     ) : (
-                      <ArrowDownRight size={13} className="text-rose-600 transition-transform group-hover:translate-x-0.5 group-hover:translate-y-0.5" />
+                      <ArrowDownRight size={13} className="text-rose-600" />
                     )}
                     {stat.change}
                   </span>
                   <span className="text-[11px] text-black font-semibold">Monthly Period</span>
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </section>
@@ -232,11 +159,8 @@ export default function VendorStatistics() {
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           
           {/* Vendor Category Breakdown */}
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="lg:col-span-1 bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6 flex flex-col justify-between"
+          <div 
+            className="lg:col-span-1 bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-6 flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
@@ -251,25 +175,21 @@ export default function VendorStatistics() {
               
               <div className="space-y-4">
                 {vendorCategories.map((category, idx) => (
-                  <motion.div 
+                  <div 
                     key={idx}
-                    whileHover={{ scale: 1.02, x: 2 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                    className="p-4 rounded-2xl border border-slate-200/70 bg-slate-50/50 hover:bg-white hover:border-emerald-200 hover:shadow-md transition-all group cursor-pointer"
+                    className="p-4 rounded-2xl border border-slate-200/70 bg-slate-50/50 hover:bg-white hover:border-emerald-200 transition-colors group cursor-pointer"
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-black group-hover:text-emerald-700 transition-colors duration-200">{category.source}</span>
+                      <span className="text-xs font-semibold text-black group-hover:text-emerald-700">{category.source}</span>
                       <span className="text-[10px] font-semibold bg-white border border-slate-200 text-black px-2.5 py-0.5 rounded-full shadow-2xs">
                         {category.share}
                       </span>
                     </div>
 
-                    {/* Animated Progress Bar */}
+                    {/* Progress Bar */}
                     <div className="w-full bg-slate-200/70 rounded-full h-1.5 mb-3 overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${category.percentage}%` }}
-                        transition={{ duration: 1.2, delay: 0.2 + idx * 0.1, ease: 'easeOut' }}
+                      <div 
+                        style={{ width: `${category.percentage}%` }}
                         className={`h-full rounded-full ${category.trendUp ? 'bg-emerald-600' : 'bg-slate-400'}`}
                       />
                     </div>
@@ -277,22 +197,19 @@ export default function VendorStatistics() {
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-base font-semibold text-black">{category.amount}</span>
                       <span className={`flex items-center gap-1 text-[11px] font-semibold ${category.trendUp ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        {category.trendUp ? <TrendingUp size={13} className="animate-pulse" /> : <TrendingDown size={13} />}
+                        {category.trendUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
                         {category.status}
                       </span>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* Table Container */}
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6 flex flex-col justify-between"
+          <div 
+            className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-6 flex flex-col justify-between"
           >
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
@@ -306,14 +223,13 @@ export default function VendorStatistics() {
                   </div>
                 </div>
                 
-                <motion.button 
-                  whileHover={{ x: 3 }}
-                  whileTap={{ scale: 0.96 }}
-                  className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/70 border border-emerald-200/80 px-3.5 py-2 rounded-xl transition-all self-start sm:self-auto group"
+                <button 
+                  type="button"
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/70 border border-emerald-200/80 px-3.5 py-2 rounded-xl transition-colors self-start sm:self-auto cursor-pointer group"
                 >
                   <span>Export Vendors</span>
                   <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />
-                </motion.button>
+                </button>
               </div>
 
               {/* Desktop Dynamic Table */}
@@ -331,12 +247,9 @@ export default function VendorStatistics() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {topVendors.map((vendor, idx) => (
-                      <motion.tr 
+                      <tr 
                         key={idx}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.4 + idx * 0.05 }}
-                        className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group cursor-pointer"
+                        className="text-xs font-semibold text-black hover:bg-emerald-50/40 group cursor-pointer"
                       >
                         <td className="py-3.5 px-3 font-mono text-black font-semibold group-hover:text-emerald-700 transition-colors">{vendor.id}</td>
                         <td className="py-3.5 px-3 font-semibold text-black group-hover:translate-x-1 group-hover:text-emerald-700 transition-all duration-200">{vendor.name}</td>
@@ -344,7 +257,7 @@ export default function VendorStatistics() {
                         <td className="py-3.5 px-3 font-mono text-center text-black">{vendor.orders}</td>
                         <td className="py-3.5 px-3 font-mono text-emerald-700 font-semibold">{vendor.sales}</td>
                         <td className="py-3.5 px-3 text-right">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold border transition-all duration-300 group-hover:scale-105 ${
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold border ${
                             vendor.status === 'Active'
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 shadow-2xs'
                               : 'bg-amber-50 text-amber-700 border-amber-200/80 shadow-2xs'
@@ -352,12 +265,12 @@ export default function VendorStatistics() {
                             {vendor.status === 'Active' ? (
                               <CheckCircle2 size={12} className="text-emerald-600" />
                             ) : (
-                              <Clock size={12} className="text-amber-600 animate-spin" style={{ animationDuration: '4s' }} />
+                              <Clock size={12} className="text-amber-600" />
                             )}
                             {vendor.status}
                           </span>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -366,10 +279,9 @@ export default function VendorStatistics() {
               {/* Mobile Card List View */}
               <div className="md:hidden space-y-3">
                 {topVendors.map((vendor, idx) => (
-                  <motion.div 
+                  <div 
                     key={idx}
-                    whileHover={{ scale: 1.01 }}
-                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3 group cursor-pointer"
+                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 space-y-3 group cursor-pointer"
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-xs text-black font-semibold">{vendor.id}</span>
@@ -381,7 +293,7 @@ export default function VendorStatistics() {
                         {vendor.status === 'Active' ? (
                           <CheckCircle2 size={11} className="text-emerald-600" />
                         ) : (
-                          <Clock size={11} className="text-amber-600 animate-spin" style={{ animationDuration: '4s' }} />
+                          <Clock size={11} className="text-amber-600" />
                         )}
                         {vendor.status}
                       </span>
@@ -406,11 +318,11 @@ export default function VendorStatistics() {
                         <span className="font-mono font-semibold text-emerald-700">{vendor.sales}</span>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </div>
-          </motion.div>
+          </div>
         </section>
       </main>
     </div>

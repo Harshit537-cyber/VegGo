@@ -1,8 +1,7 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { ShieldAlert, ShieldCheck, X } from 'lucide-react';
 
-export default function ConfirmModal({ 
+function ConfirmModal({ 
   isOpen, 
   onClose, 
   onConfirm, 
@@ -17,16 +16,10 @@ export default function ConfirmModal({
   const isDanger = type === 'danger';
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
     >
-      <motion.div
-        initial={{ scale: 0.95, y: 15 }}
-        animate={{ scale: 1, y: 0, transition: { type: 'spring', duration: 0.4 } }}
-        exit={{ scale: 0.95, y: 15 }}
+      <div
         className="w-full max-w-md max-h-[90dvh] overflow-y-auto bg-white rounded-3xl sm:rounded-[32px] p-5 sm:p-8 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-slate-100 relative"
       >
         <button
@@ -69,7 +62,9 @@ export default function ConfirmModal({
             </button>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
+
+export default React.memo(ConfirmModal);

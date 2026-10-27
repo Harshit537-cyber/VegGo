@@ -4,7 +4,6 @@ import PageHeader from "../../../components/common/PageHeader";
 import StatusFilterPills from "../../../components/common/StatusFilterPills";
 import WorkflowRulesBar from "../../../components/common/WorkflowRulesBar";
 import EmptyState from "../../../components/common/EmptyState";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   Search,
@@ -462,47 +461,39 @@ export default function Complaints({ embedded = false }) {
       />
 
       {/* Notification Banners */}
-      <AnimatePresence>
-        {errorMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="p-4 rounded-2xl bg-rose-50 border border-rose-200/80 flex items-center justify-between text-xs font-semibold text-rose-800 shadow-2xs"
+      {errorMessage && (
+        <div
+          className="p-4 rounded-2xl bg-rose-50 border border-rose-200/80 flex items-center justify-between text-xs font-semibold text-rose-800 shadow-2xs"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle size={16} className="text-rose-600 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage("")}
+            className="text-rose-500 hover:text-rose-800 p-1"
           >
-            <div className="flex items-center gap-2">
-              <AlertCircle size={16} className="text-rose-600 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-            <button
-              onClick={() => setErrorMessage("")}
-              className="text-rose-500 hover:text-rose-800 p-1"
-            >
-              <X size={14} />
-            </button>
-          </motion.div>
-        )}
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
-        {successMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-between text-xs font-semibold text-emerald-800 shadow-2xs"
+      {successMessage && (
+        <div
+          className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-between text-xs font-semibold text-emerald-800 shadow-2xs"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+          <button
+            onClick={() => setSuccessMessage("")}
+            className="text-emerald-500 hover:text-emerald-800 p-1"
           >
-            <div className="flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-              <span>{successMessage}</span>
-            </div>
-            <button
-              onClick={() => setSuccessMessage("")}
-              className="text-emerald-500 hover:text-emerald-800 p-1"
-            >
-              <X size={14} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Status Pills + Role Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -605,12 +596,9 @@ export default function Complaints({ embedded = false }) {
                   const RoleIcon = meta.icon;
 
                   return (
-                    <motion.tr
+                    <tr
                       key={id || index}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25, delay: index * 0.02 }}
-                      className="group text-xs font-semibold text-slate-700 transition-colors hover:bg-emerald-50/40"
+                      className="group text-xs font-semibold text-slate-700 hover:bg-emerald-50/40"
                     >
                       {/* Ticket */}
                       <td className="overflow-hidden px-3 py-4">
@@ -676,7 +664,7 @@ export default function Complaints({ embedded = false }) {
                           <span>View</span>
                         </button>
                       </td>
-                    </motion.tr>
+                    </tr>
                   );
                 })
               ) : (
@@ -780,15 +768,11 @@ export default function Complaints({ embedded = false }) {
       </section>
 
       {/* Complaint Details & Resolution Modal */}
-      <AnimatePresence>
-        {showDetails && selectedComplaint && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-slate-100 relative max-h-[92vh] overflow-y-auto space-y-5"
-            >
+      {showDetails && selectedComplaint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div
+            className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-slate-100 relative max-h-[92vh] overflow-y-auto space-y-5"
+          >
               {/* Header */}
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
@@ -975,10 +959,9 @@ export default function Complaints({ embedded = false }) {
                   </>
                 )}
               </div>
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 

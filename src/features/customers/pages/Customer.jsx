@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../../../layouts/Sidebar";
 import ConfirmModal from "../../../components/common/ConfirmModal";
@@ -8,6 +7,13 @@ import SegmentedTabs from "../../../components/common/SegmentedTabs";
 import WorkflowRulesBar from "../../../components/common/WorkflowRulesBar";
 import EmptyState from "../../../components/common/EmptyState";
 import { ROUTES } from "../../../constants/routes.constants";
+import {
+  UI_TABLE,
+  UI_BADGES,
+  UI_BUTTONS,
+  UI_AVATAR,
+  getAvatarColor
+} from "../../../constants/ui.constants";
 
 import {
   getCustomerStats,
@@ -56,58 +62,18 @@ import {
  * Animated number counter component for executive stats
  */
 function AnimatedValue({ value }) {
-  const [displayValue, setDisplayValue] = useState("");
-
-  useEffect(() => {
-    if (value === undefined || value === null) {
-      setDisplayValue("0");
-      return;
-    }
-
-    const stringValue = String(value);
-    const match = stringValue.match(/([\d,.]+)\s*(.*)/);
-
-    if (!match) {
-      setDisplayValue(stringValue);
-      return;
-    }
-
-    const rawNumber = match[1].replace(/,/g, "");
-    const targetNumber = Number(rawNumber);
-    const suffix = match[2] || "";
-
-    if (Number.isNaN(targetNumber)) {
-      setDisplayValue(stringValue);
-      return;
-    }
-
-    const duration = 800;
-    const startTime = performance.now();
-    let animationFrame;
-
-    const animate = (time) => {
-      const progress = Math.min((time - startTime) / duration, 1);
-      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      const current = targetNumber * ease;
-
-      const formatted = Number.isInteger(targetNumber)
-        ? Math.floor(current).toLocaleString("en-IN")
-        : current.toFixed(2);
-
-      setDisplayValue(`${formatted}${suffix ? ` ${suffix}` : ""}`);
-
-      if (progress < 1) {
-        animationFrame = requestAnimationFrame(animate);
-      } else {
-        setDisplayValue(stringValue);
-      }
-    };
-
-    animationFrame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [value]);
-
-  return <span>{displayValue}</span>;
+  if (value === undefined || value === null) return <span>0</span>;
+  const stringValue = String(value);
+  const match = stringValue.match(/([\d,.]+)\s*(.*)/);
+  if (!match) return <span>{stringValue}</span>;
+  const rawNumber = match[1].replace(/,/g, "");
+  const targetNumber = Number(rawNumber);
+  const suffix = match[2] || "";
+  if (Number.isNaN(targetNumber)) return <span>{stringValue}</span>;
+  const formatted = Number.isInteger(targetNumber)
+    ? targetNumber.toLocaleString("en-IN")
+    : targetNumber.toFixed(2);
+  return <span>{`${formatted}${suffix ? ` ${suffix}` : ""}`}</span>;
 }
 
 const formatDate = (value) => {
@@ -405,8 +371,22 @@ export default function Customer({ embedded = false }) {
     [activeCustomerTab, searchQuery, pageSize, isBlockedFilter, sortOrder]
   );
 
+  const isFirstSearchRef = useRef(true);
+
   // Debounced search query watcher
   useEffect(() => {
+    if (isFirstSearchRef.current) {
+      isFirstSearchRef.current = false;
+      fetchCustomerData(
+        activeCustomerTab,
+        0,
+        searchQuery,
+        isBlockedFilter,
+        sortOrder
+      );
+      return;
+    }
+
     const timer = setTimeout(() => {
       fetchCustomerData(
         activeCustomerTab,
@@ -426,21 +406,18 @@ export default function Customer({ embedded = false }) {
     setCurrentPage(0);
     setIsBlockedFilter(false);
     setSortOrder(null);
-    fetchCustomerData(tabId, 0, searchQuery, false, null);
   };
 
   const handleSelectAllInRoster = () => {
     setIsBlockedFilter(false);
     setSortOrder(null);
     setCurrentPage(0);
-    fetchCustomerData("roster", 0, searchQuery, false, null);
   };
 
   const handleToggleBlocked = () => {
     const nextBlocked = !isBlockedFilter;
     setIsBlockedFilter(nextBlocked);
     setCurrentPage(0);
-    fetchCustomerData("roster", 0, searchQuery, nextBlocked, sortOrder);
   };
 
   const handleSetSortOrder = (newSort) => {
@@ -752,926 +729,896 @@ export default function Customer({ embedded = false }) {
             : "flex-1 min-w-0 w-full p-4 sm:p-6 lg:p-8 pt-20 sm:pt-22 lg:pt-22 lg:overflow-y-auto lg:max-h-dvh space-y-4 sm:space-y-5"
         }
       >
-        {/* Top Executive Page Header */}
-        <PageHeader
-          icon={Users}
-          title={
-            activeCustomerTab === "roster"
-              ? "Customer Directory"
-              : "Account Moderation & Infractions"
-          }
-          subtitle="Directory, verification status, and moderation for VegGo customers."
-          onRefresh={handleRefresh}
-          isRefreshing={isRefreshing || loading}
-          actions={
-            <div className="flex items-center gap-2">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleExportCsv}
-                disabled={isExportingCsv}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer disabled:opacity-60"
-                title="Export customers to Excel / CSV (Limit: 500)"
-              >
-                <Download
-                  size={15}
-                  className={isExportingCsv ? "animate-bounce" : ""}
-                />
-                <span>{isExportingCsv ? "Exporting..." : "Export CSV"}</span>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleExportPdf}
-                disabled={isExportingPdf}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-60"
-                title="Download Customer PDF  (Limit: 500)"
-              >
-                <FileText
-                  size={15}
-                  className={isExportingPdf ? "animate-spin text-emerald-600" : "text-slate-600"}
-                />
-                <span>{isExportingPdf ? "Downloading..." : "Download PDF"}</span>
-              </motion.button>
-            </div>
-          }
-        />
-
-        {/* Global Error Banner */}
-        <AnimatePresence>
-          {errorMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="px-4 py-3.5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 text-xs sm:text-sm font-semibold flex items-center gap-3 shadow-2xs"
-            >
-              <AlertCircle size={18} className="text-amber-600 shrink-0" />
-              <span className="min-w-0 break-words flex-1">
-                {errorMessage}
-              </span>
-              <button
-                onClick={() => setErrorMessage("")}
-                className="p-1 rounded-lg hover:bg-amber-100 shrink-0 cursor-pointer text-amber-700"
-              >
-                <X size={16} />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Executive Metric Stat Cards from /api/admin/customers/stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500">Total Customers</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                <Users size={16} />
-              </div>
-            </div>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900">
-              <AnimatedValue value={totalCustomersStat} />
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium">Customer base</span>
-          </div>
-
-          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500">Active This Month</span>
-              <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
-                <CheckCircle2 size={16} />
-              </div>
-            </div>
-            <div className="text-2xl sm:text-3xl font-black text-teal-700">
-              <AnimatedValue value={activeThisMonthStat} />
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium">Active shoppers</span>
-          </div>
-
-          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500">Premium Customers</span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                <Sparkles size={16} />
-              </div>
-            </div>
-            <div className="text-2xl sm:text-3xl font-black text-amber-600">
-              <AnimatedValue value={premiumSubscribersStat} />
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium">Club members</span>
-          </div>
-
-          <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-500">Suspended Accounts</span>
-              <div
-                className={`w-8 h-8 rounded-xl flex items-center justify-center ${suspendedOrBlockedStat > 0
-                  ? "bg-rose-50 text-rose-600"
-                  : "bg-slate-50 text-slate-500"
-                  }`}
-              >
-                <ShieldAlert size={16} />
-              </div>
-            </div>
-            <div
-              className={`text-2xl sm:text-3xl font-black ${suspendedOrBlockedStat > 0 ? "text-rose-600" : "text-slate-900"
-                }`}
-            >
-              <AnimatedValue value={suspendedOrBlockedStat} />
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium">Restricted / blocked</span>
-          </div>
-        </div>
-
-        {/* Segmented View Tabs Navigation (Directory, Moderation) */}
-        <div className="bg-white p-2 rounded-2xl border border-emerald-100/80 shadow-2xs">
-          <SegmentedTabs
-            tabs={customerTabs}
-            activeTab={activeCustomerTab}
-            onTabChange={handleTabChange}
-          />
-        </div>
-
-        {/* Sub-Filters: ONLY visible when "Customer Directory" is selected */}
-        {activeCustomerTab === "roster" && (
-          <div className="flex flex-wrap items-center gap-2.5 py-1">
-            {/* 1. All Customers */}
-            <button
-              type="button"
-              onClick={handleSelectAllInRoster}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${!isBlockedFilter && !sortOrder
-                ? "bg-emerald-700 text-white shadow-xs"
-                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
-                }`}
-            >
-              <Users
-                size={14}
-                className={!isBlockedFilter && !sortOrder ? "text-emerald-100" : "text-emerald-700"}
-              />
-              <span>All Customers</span>
-              {counts.total > 0 && (
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${!isBlockedFilter && !sortOrder
-                    ? "bg-emerald-800 text-emerald-100"
-                    : "bg-slate-100 text-slate-700"
-                    }`}
-                >
-                  {counts.total}
-                </span>
-              )}
-            </button>
-
-            {/* 2. Blocked Only */}
-            <button
-              type="button"
-              onClick={handleToggleBlocked}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${isBlockedFilter
-                ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
-                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
-                }`}
-            >
-              <UserX
-                size={14}
-                className={isBlockedFilter ? "text-emerald-200" : "text-rose-600"}
-              />
-              <span>Blocked Only</span>
-              {counts.blocked > 0 && (
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${isBlockedFilter
-                    ? "bg-emerald-800 text-emerald-100"
-                    : "bg-slate-100 text-slate-700"
-                    }`}
-                >
-                  {counts.blocked}
-                </span>
-              )}
-            </button>
-
-            {/* 3. Sort by: Newest First */}
-            <button
-              type="button"
-              onClick={() => handleSetSortOrder("newest")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${sortOrder === "newest"
-                ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
-                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
-                }`}
-              title="Sort customer records by newest registered first"
-            >
-              <Sparkles
-                size={14}
-                className={sortOrder === "newest" ? "text-emerald-200" : "text-amber-500"}
-              />
-              <span>Newest First</span>
-            </button>
-
-            {/* 4. Sort by: Oldest First */}
-            <button
-              type="button"
-              onClick={() => handleSetSortOrder("oldest")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${sortOrder === "oldest"
-                ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
-                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
-                }`}
-              title="Sort customer records by oldest registered first"
-            >
-              <Clock
-                size={14}
-                className={sortOrder === "oldest" ? "text-emerald-200" : "text-slate-500"}
-              />
-              <span>Oldest First</span>
-            </button>
-
-            {/* Reset button if any filter/sort is applied */}
-            {(isBlockedFilter || sortOrder) && (
-              <button
-                type="button"
-                onClick={handleSelectAllInRoster}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer"
-                title="Reset filters"
-              >
-                <X size={12} />
-                <span>Reset Filters</span>
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Workflow Rules Information Bar */}
-        <WorkflowRulesBar
-          rulesText={
-            activeCustomerTab === "moderation"
-              ? "Review customer infractions, reported flags, and security actions."
-              : isBlockedFilter
-                ? sortOrder === "oldest"
-                  ? "Showing suspended or blocked customer accounts sorted from oldest first."
-                  : "Showing customer accounts that are currently suspended or blocked from ordering."
-                : sortOrder === "oldest"
-                  ? "Showing customer directory sorted from oldest registered users first."
-                  : "Complete consumer directory across registrations, contact information, and account access."
-          }
-          showingCount={filteredAccounts.length}
-          itemLabel={
-            activeCustomerTab === "moderation"
-              ? "moderated accounts"
-              : "customers"
-          }
-        />
-
-        {/* Search Bar */}
-        <div className="relative w-full">
-          <Search
-            className="absolute left-4 top-3.5 text-slate-400"
-            size={18}
-          />
-          <input
-            type="text"
-            placeholder={
-              activeCustomerTab === "moderation"
-                ? "Search flagged customers by name, phone, or infraction..."
-                : "Search customers by name, phone, or email..."
-            }
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-2xs"
-          />
-        </div>
-
-        {/* Main Content Section */}
-        <section className="w-full">
-          {loading ? (
-            <div className="py-20 text-center text-slate-400 bg-white rounded-3xl border border-slate-200/80">
-              <div className="flex flex-col items-center justify-center gap-3 text-xs font-semibold text-slate-500">
-                <RefreshCw
-                  size={22}
-                  className="animate-spin text-emerald-600"
-                />
-                Loading customer records...
-              </div>
-            </div>
-          ) : filteredAccounts.length === 0 ? (
-            <EmptyState
-              icon={activeCustomerTab === "moderation" ? Flag : Users}
-              title={`No ${activeCustomerTab === "moderation" ? "flagged accounts" : "customers"} found`}
-              description={
-                searchQuery
-                  ? `No records matched "${searchQuery}". Try searching with a different name, phone, or ID.`
-                  : isBlockedFilter
-                    ? "There are currently no suspended or blocked customer accounts."
-                    : "There are currently no customer records found matching the selected criteria."
-              }
+    {/* Top Executive Page Header */}
+    <PageHeader
+      icon={Users}
+      title={
+        activeCustomerTab === "roster"
+          ? "Customer Directory"
+          : "Account Moderation & Infractions"
+      }
+      subtitle="Directory, verification status, and moderation for VegGo customers."
+      onRefresh={handleRefresh}
+      isRefreshing={isRefreshing || loading} actions={
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={isExportingCsv}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer disabled:opacity-60"
+            title="Export customers to Excel / CSV (Limit: 500)"
+          >
+            <Download
+              size={15}
+              className={isExportingCsv ? "animate-bounce" : ""}
             />
-          ) : (
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
-              {/* Desktop Table View */}
-              <div className="hidden lg:block overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-[11px] uppercase font-bold tracking-wider text-slate-500 bg-slate-50/60">
-                      <th className="py-3.5 px-5">Customer Profile</th>
+            <span>{isExportingCsv ? "Exporting..." : "Export CSV"}</span>
+          </button>
 
-                      {activeCustomerTab === "roster" ? (
-                        <>
-                          <th className="py-3.5 px-5">Phone Number</th>
-                          <th className="py-3.5 px-5 text-center">Total Orders</th>
-                          <th className="py-3.5 px-5 text-center">Total Complaints</th>
-                        </>
-                      ) : (
-                        <>
-                          <th className="py-3.5 px-5 text-center">Flags Raised</th>
-                          <th className="py-3.5 px-5">Primary Infraction</th>
-                        </>
-                      )}
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={isExportingPdf}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 active:scale-98 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold shadow-2xs cursor-pointer disabled:opacity-60"
+            title="Download Customer PDF  (Limit: 500)"
+          >
+            <FileText
+              size={15}
+              className={isExportingPdf ? "animate-spin text-emerald-600" : "text-slate-600"}
+            />
+            <span>{isExportingPdf ? "Downloading..." : "Download PDF"}</span>
+          </button>
+        </div>
+      }
+    />
 
-                      <th className="py-3.5 px-5 text-center">Status</th>
-                      <th className="py-3.5 px-5 text-center min-w-[210px]">Actions</th>
-                    </tr>
-                  </thead>
+    {/* Global Error Banner */}
+    {errorMessage && (
+      <div
+        className="px-4 py-3.5 rounded-2xl border border-amber-200 bg-amber-50 text-amber-900 text-xs sm:text-sm font-semibold flex items-center gap-3 shadow-2xs"
+      >
+        <AlertCircle size={18} className="text-amber-600 shrink-0" />
+        <span className="min-w-0 break-words flex-1">
+          {errorMessage}
+        </span>
+        <button
+          onClick={() => setErrorMessage("")}
+          className="p-1 rounded-lg hover:bg-amber-100 shrink-0 cursor-pointer text-amber-700"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    )}
 
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredAccounts.map((account, index) => {
-                      return (
-                        <tr
-                          key={account.customerId || account.userId || index}
-                          className="text-xs font-semibold text-slate-800 hover:bg-emerald-50/30 transition-colors"
-                        >
-                          {/* Common Profile Column - Customer Name only */}
-                          <td className="py-4 px-5">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 font-bold text-xs">
-                                {account.fullName?.charAt(0)?.toUpperCase() || "C"}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-semibold text-slate-900 truncate max-w-[200px]">
-                                  {account.fullName}
-                                </p>
-                                {account.email && (
-                                  <p className="text-[11px] text-slate-400 truncate max-w-[200px]">
-                                    {account.email}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Tab-Specific Columns */}
-                          {activeCustomerTab === "roster" ? (
-                            <>
-                              {/* Phone Number */}
-                              <td className="py-4 px-5">
-                                <div className="flex items-center gap-1.5 text-slate-700 font-medium">
-                                  <Phone size={13} className="text-slate-400 shrink-0" />
-                                  <span>{account.phone || "-"}</span>
-                                </div>
-                              </td>
-
-                              {/* Total Orders */}
-                              <td className="py-4 px-5 text-center">
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800">
-                                  {account.totalOrders}
-                                </span>
-                              </td>
-
-                              {/* Total Complaints */}
-                              <td className="py-4 px-5 text-center">
-                                <span
-                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-                                    account.totalComplaints > 0
-                                      ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                      : "bg-slate-100 text-slate-600"
-                                  }`}
-                                >
-                                  {account.totalComplaints > 0 && <AlertCircle size={11} />}
-                                  {account.totalComplaints}
-                                </span>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              {/* Flags Raised */}
-                              <td className="py-4 px-5 text-center">
-                                <span
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
-                                    account.flagsRaised > 0
-                                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                                      : "bg-slate-50 text-slate-600 border-slate-200"
-                                  }`}
-                                >
-                                  <Flag size={12} className={account.flagsRaised > 0 ? "text-amber-600" : "text-slate-400"} />
-                                  <span>{account.flagsRaised} Flags</span>
-                                </span>
-                              </td>
-
-                              {/* Primary Infraction */}
-                              <td className="py-4 px-5">
-                                <div className="flex items-center gap-2 max-w-[240px]">
-                                  <span
-                                    className={`p-1.5 rounded-lg shrink-0 ${
-                                      account.flagsRaised > 0
-                                        ? "bg-rose-50 text-rose-600"
-                                        : "bg-slate-50 text-slate-400"
-                                    }`}
-                                  >
-                                    <ShieldAlert size={13} />
-                                  </span>
-                                  <span className="truncate text-slate-700 font-medium">
-                                    {account.primaryInfraction || "None"}
-                                  </span>
-                                </div>
-                              </td>
-                            </>
-                          )}
-
-                          {/* Status Column */}
-                          <td className="py-4 px-5 text-center">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${account.blocked
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                }`}
-                            >
-                              {account.blocked ? (
-                                <Clock size={11} />
-                              ) : (
-                                <CheckCircle2 size={11} />
-                              )}
-                              {account.blocked ? "Blocked" : "Active"}
-                            </span>
-                          </td>
-
-                          {/* Actions Column */}
-                          <td className="py-4 px-5 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleViewCustomer(account)}
-                                disabled={isRefreshing || detailsLoading}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300 text-xs font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer disabled:opacity-40"
-                                title="View Customer Details"
-                              >
-                                <Eye size={13} className="text-slate-500" />
-                                <span>View</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => initiateToggleStatus(account)}
-                                disabled={isRefreshing}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-2xs cursor-pointer disabled:opacity-40 ${account.blocked
-                                  ? "bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border-emerald-200/90 hover:border-emerald-600 hover:shadow-emerald-600/20"
-                                  : "bg-amber-50 hover:bg-amber-600 text-amber-800 hover:text-white border-amber-200/90 hover:border-amber-600 hover:shadow-amber-600/20"
-                                  }`}
-                                title={
-                                  account.blocked
-                                    ? "Restore Access"
-                                    : "Block Customer"
-                                }
-                              >
-                                {account.blocked ? (
-                                  <>
-                                    <ShieldCheck size={13} />
-                                    <span>Restore</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <UserX size={13} />
-                                    <span>Block</span>
-                                  </>
-                                )}
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => initiateDelete(account)}
-                                disabled={isRefreshing}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200/90 hover:border-rose-600 text-xs font-bold shadow-2xs hover:shadow-rose-600/20 transition-all cursor-pointer disabled:opacity-40"
-                                title="Delete Customer Account"
-                              >
-                                <Trash2 size={13} />
-                                <span>Delete</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile / Tablet Responsive Cards */}
-              <div className="lg:hidden p-3 sm:p-4 divide-y divide-slate-100">
-                {filteredAccounts.map((account, index) => (
-                  <div
-                    key={account.customerId || account.userId || index}
-                    className="py-4 first:pt-0 last:pb-0 space-y-3"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0">
-                          {account.fullName?.charAt(0)?.toUpperCase() || "C"}
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="font-bold text-sm text-slate-900 truncate">
-                            {account.fullName}
-                          </h4>
-                          {activeCustomerTab === "roster" && account.phone && (
-                            <p className="text-xs text-slate-400 truncate">
-                              {account.phone}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <span
-                        className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${account.blocked
-                          ? "bg-rose-50 text-rose-700 border-rose-200"
-                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          }`}
-                      >
-                        {account.blocked ? "Blocked" : "Active"}
-                      </span>
-                    </div>
-
-                    {/* Metadata Grid */}
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                      {activeCustomerTab === "roster" ? (
-                        <>
-                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                              Total Orders
-                            </span>
-                            <span className="font-bold text-slate-900">
-                              {account.totalOrders}
-                            </span>
-                          </div>
-
-                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                              Total Complaints
-                            </span>
-                            <span className={`font-bold ${account.totalComplaints > 0 ? "text-rose-600" : "text-slate-700"}`}>
-                              {account.totalComplaints}
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                              Flags Raised
-                            </span>
-                            <span className={`font-bold ${account.flagsRaised > 0 ? "text-amber-600" : "text-slate-700"}`}>
-                              {account.flagsRaised} Flags
-                            </span>
-                          </div>
-
-                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
-                              Primary Infraction
-                            </span>
-                            <span className="font-bold text-slate-900 truncate block">
-                              {account.primaryInfraction || "None"}
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Mobile Actions */}
-                    <div className="grid grid-cols-3 gap-2 pt-1">
-                      <button
-                        onClick={() => handleViewCustomer(account)}
-                        disabled={isRefreshing || detailsLoading}
-                        className="py-2 px-3 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
-                      >
-                        <Eye size={14} />
-                        View
-                      </button>
-
-                      <button
-                        onClick={() => initiateToggleStatus(account)}
-                        disabled={isRefreshing}
-                        className={`py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border cursor-pointer disabled:opacity-40 ${account.blocked
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-amber-50 text-amber-700 border-amber-200"
-                          }`}
-                      >
-                        {account.blocked ? (
-                          <ShieldCheck size={14} />
-                        ) : (
-                          <UserX size={14} />
-                        )}
-                        {account.blocked ? "Restore" : "Block"}
-                      </button>
-
-                      <button
-                        onClick={() => initiateDelete(account)}
-                        disabled={isRefreshing}
-                        className="py-2 px-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-semibold flex items-center justify-center gap-1.5 border border-rose-200 cursor-pointer disabled:opacity-40"
-                      >
-                        <Trash2 size={14} />
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Table Footer with Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-semibold text-slate-600">
-                  <span>
-                    Showing Page {currentPage + 1} of {totalPages} (
-                    {totalElements} total entries)
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      disabled={currentPage === 0 || loading}
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 shadow-2xs"
-                    >
-                      <ChevronLeft size={16} />
-                      <span className="hidden sm:inline">Prev</span>
-                    </button>
-
-                    <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 font-mono">
-                      {currentPage + 1}
-                    </span>
-
-                    <button
-                      type="button"
-                      disabled={currentPage >= totalPages - 1 || loading}
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 shadow-2xs"
-                    >
-                      <span className="hidden sm:inline">Next</span>
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
+    {/* Executive Metric Stat Cards from /api/admin/customers/stats */}
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-slate-500">Total Customers</span>
+          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <Users size={16} />
+          </div>
+        </div>
+        <div className="text-2xl sm:text-3xl font-black text-slate-900">
+          <AnimatedValue value={totalCustomersStat} />
+        </div>
+        <span className="text-[11px] text-slate-400 font-medium">Customer base</span>
       </div>
 
-      {/* Confirmation Modal for Block / Unblock / Delete */}
-      <AnimatePresence>
-        {modalConfig.isOpen && modalConfig.account && (
-          <ConfirmModal
-            isOpen={modalConfig.isOpen}
-            onClose={closeModal}
-            onConfirm={handleConfirmAction}
-            type={modalConfig.action === "unblock" ? "success" : "danger"}
-            title={
-              modalConfig.action === "delete"
-                ? "Delete Customer Account"
-                : modalConfig.action === "unblock"
-                  ? "Restore Account Access"
-                  : "Restrict Account Access"
-            }
-            message={
-              modalConfig.action === "delete"
-                ? `Are you sure you want to permanently delete the account of ${modalConfig.account.fullName}? This cannot be undone.`
-                : modalConfig.action === "unblock"
-                  ? `Restore full platform privileges and ordering capability for ${modalConfig.account.fullName}?`
-                  : `Block and suspend access for ${modalConfig.account.fullName}? They will not be able to log in or checkout.`
-            }
-            confirmText={
-              modalConfig.action === "delete"
-                ? actionLoading
-                  ? "Deleting..."
-                  : "Yes, Delete Account"
-                : modalConfig.action === "unblock"
-                  ? actionLoading
-                    ? "Restoring..."
-                    : "Yes, Restore Access"
-                  : actionLoading
-                    ? "Blocking..."
-                    : "Yes, Block Account"
-            }
-            cancelText="Cancel"
-          />
-        )}
-      </AnimatePresence>
+      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-slate-500">Active This Month</span>
+          <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+            <CheckCircle2 size={16} />
+          </div>
+        </div>
+        <div className="text-2xl sm:text-3xl font-black text-teal-700">
+          <AnimatedValue value={activeThisMonthStat} />
+        </div>
+        <span className="text-[11px] text-slate-400 font-medium">Active shoppers</span>
+      </div>
 
-      {/* Complete Customer Details Modal */}
-      <AnimatePresence>
-        {customerDetails && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
-            onClick={closeDetails}
+      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-slate-500">Premium Customers</span>
+          <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+            <Sparkles size={16} />
+          </div>
+        </div>
+        <div className="text-2xl sm:text-3xl font-black text-amber-600">
+          <AnimatedValue value={premiumSubscribersStat} />
+        </div>
+        <span className="text-[11px] text-slate-400 font-medium">Club members</span>
+      </div>
+
+      <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-slate-500">Suspended Accounts</span>
+          <div
+            className={`w-8 h-8 rounded-xl flex items-center justify-center ${suspendedOrBlockedStat > 0
+              ? "bg-rose-50 text-rose-600"
+              : "bg-slate-50 text-slate-500"
+              }`}
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200"
+            <ShieldAlert size={16} />
+          </div>
+        </div>
+        <div
+          className={`text-2xl sm:text-3xl font-black ${suspendedOrBlockedStat > 0 ? "text-rose-600" : "text-slate-900"
+            }`}
+        >
+          <AnimatedValue value={suspendedOrBlockedStat} />
+        </div>
+        <span className="text-[11px] text-slate-400 font-medium">Restricted / blocked</span>
+      </div>
+    </div>
+
+    {/* Segmented View Tabs Navigation (Directory, Moderation) */}
+    <div className="bg-white p-2 rounded-2xl border border-emerald-100/80 shadow-2xs">
+      <SegmentedTabs
+        tabs={customerTabs}
+        activeTab={activeCustomerTab}
+        onTabChange={handleTabChange}
+      />
+    </div>
+
+    {/* Sub-Filters: ONLY visible when "Customer Directory" is selected */}
+    {activeCustomerTab === "roster" && (
+      <div className="flex flex-wrap items-center gap-2.5 py-1">
+        {/* 1. All Customers */}
+        <button
+          type="button"
+          onClick={handleSelectAllInRoster}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${!isBlockedFilter && !sortOrder
+            ? "bg-emerald-700 text-white shadow-xs"
+            : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+            }`}
+        >
+          <Users
+            size={14}
+            className={!isBlockedFilter && !sortOrder ? "text-emerald-100" : "text-emerald-700"}
+          />
+          <span>All Customers</span>
+          {counts.total > 0 && (
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-black ${!isBlockedFilter && !sortOrder
+                ? "bg-emerald-800 text-emerald-100"
+                : "bg-slate-100 text-slate-700"
+                }`}
             >
-              {/* Header */}
-              <div className="p-4 sm:p-5 bg-white text-slate-900 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0 relative">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-base shrink-0">
-                    {customerDetails.fullName?.charAt(0)?.toUpperCase() || "C"}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900 truncate">
-                      {customerDetails.fullName}
-                    </h3>
-                  </div>
-                </div>
+              {counts.total}
+            </span>
+          )}
+        </button>
 
-                <button
-                  onClick={closeDetails}
-                  className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors shrink-0 cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
+        {/* 2. Blocked Only */}
+        <button
+          type="button"
+          onClick={handleToggleBlocked}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${isBlockedFilter
+            ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
+            : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+            }`}
+        >
+          <UserX
+            size={14}
+            className={isBlockedFilter ? "text-emerald-200" : "text-rose-600"}
+          />
+          <span>Blocked Only</span>
+          {counts.blocked > 0 && (
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-black ${isBlockedFilter
+                ? "bg-emerald-800 text-emerald-100"
+                : "bg-slate-100 text-slate-700"
+                }`}
+            >
+              {counts.blocked}
+            </span>
+          )}
+        </button>
 
-              {/* Body */}
-              <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-5">
-                {detailsLoading ? (
-                  <div className="py-20 flex flex-col items-center justify-center gap-2 text-sm text-slate-500">
-                    <RefreshCw
-                      size={20}
-                      className="animate-spin text-emerald-600"
-                    />
-                    Loading customer dossier...
-                  </div>
-                ) : (
-                  <>
-                    {/* Summary Banner */}
-                    <div className="grid grid-cols-2 gap-3 p-3.5 bg-gradient-to-r from-emerald-50/70 to-teal-50/50 rounded-2xl border border-emerald-100/80">
+        {/* 3. Sort by: Newest First */}
+        <button
+          type="button"
+          onClick={() => handleSetSortOrder("newest")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${sortOrder === "newest"
+            ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
+            : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+            }`}
+          title="Sort customer records by newest registered first"
+        >
+          <Sparkles
+            size={14}
+            className={sortOrder === "newest" ? "text-emerald-200" : "text-amber-500"}
+          />
+          <span>Newest First</span>
+        </button>
+
+        {/* 4. Sort by: Oldest First */}
+        <button
+          type="button"
+          onClick={() => handleSetSortOrder("oldest")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${sortOrder === "oldest"
+            ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
+            : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+            }`}
+          title="Sort customer records by oldest registered first"
+        >
+          <Clock
+            size={14}
+            className={sortOrder === "oldest" ? "text-emerald-200" : "text-slate-500"}
+          />
+          <span>Oldest First</span>
+        </button>
+
+        {/* Reset button if any filter/sort is applied */}
+        {(isBlockedFilter || sortOrder) && (
+          <button
+            type="button"
+            onClick={handleSelectAllInRoster}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer"
+            title="Reset filters"
+          >
+            <X size={12} />
+            <span>Reset Filters</span>
+          </button>
+        )}
+      </div>
+    )}
+
+    {/* Workflow Rules Information Bar */}
+    <WorkflowRulesBar
+      rulesText={
+        activeCustomerTab === "moderation"
+          ? "Review customer infractions, reported flags, and security actions."
+          : isBlockedFilter
+            ? sortOrder === "oldest"
+              ? "Showing suspended or blocked customer accounts sorted from oldest first."
+              : "Showing customer accounts that are currently suspended or blocked from ordering."
+            : sortOrder === "oldest"
+              ? "Showing customer directory sorted from oldest registered users first."
+              : "Complete consumer directory across registrations, contact information, and account access."
+      }
+      showingCount={filteredAccounts.length}
+      itemLabel={
+        activeCustomerTab === "moderation"
+          ? "moderated accounts"
+          : "customers"
+      }
+    />
+
+    {/* Search Bar */}
+    <div className="relative w-full">
+      <Search
+        className="absolute left-4 top-3.5 text-slate-400"
+        size={18}
+      />
+      <input
+        type="text"
+        placeholder={
+          activeCustomerTab === "moderation"
+            ? "Search flagged customers by name, phone, or infraction..."
+            : "Search customers by name, phone, or email..."
+        }
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all placeholder:text-slate-400 shadow-2xs"
+      />
+    </div>
+
+    {/* Main Content Section */}
+    <section className="w-full">
+      {loading ? (
+        <div className="py-20 text-center text-slate-400 bg-white rounded-3xl border border-slate-200/80">
+          <div className="flex flex-col items-center justify-center gap-3 text-xs font-semibold text-slate-500">
+            <RefreshCw
+              size={22}
+              className="animate-spin text-emerald-600"
+            />
+            Loading customer records...
+          </div>
+        </div>
+      ) : filteredAccounts.length === 0 ? (
+        <EmptyState
+          icon={activeCustomerTab === "moderation" ? Flag : Users}
+          title={`No ${activeCustomerTab === "moderation" ? "flagged accounts" : "customers"} found`}
+          description={
+            searchQuery
+              ? `No records matched "${searchQuery}". Try searching with a different name, phone, or ID.`
+              : isBlockedFilter
+                ? "There are currently no suspended or blocked customer accounts."
+                : "There are currently no customer records found matching the selected criteria."
+          }
+        />
+      ) : (
+        <div className={UI_TABLE.container}>
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left border-collapse">
+              <thead>
+                <tr className={UI_TABLE.thead}>
+                  <th className={`${UI_TABLE.th} w-[26%] min-w-[200px]`}>Customer Profile</th>
+
+                  {activeCustomerTab === "roster" ? (
+                    <>
+                      <th className={`${UI_TABLE.th} w-[20%] min-w-[150px]`}>Phone Number</th>
+                      <th className={`${UI_TABLE.thCenter} w-[14%] min-w-[110px]`}>Total Orders</th>
+                      <th className={`${UI_TABLE.thCenter} w-[14%] min-w-[120px]`}>Total Complaints</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className={`${UI_TABLE.thCenter} w-[16%] min-w-[120px]`}>Flags Raised</th>
+                      <th className={`${UI_TABLE.th} w-[32%] min-w-[200px]`}>Primary Infraction</th>
+                    </>
+                  )}
+
+                  <th className={`${UI_TABLE.thCenter} w-[12%] min-w-[100px]`}>Status</th>
+                  <th className={`${UI_TABLE.thCenter} w-[14%] min-w-[210px]`}>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100">
+                {filteredAccounts.map((account, index) => {
+                  return (
+                    <tr
+                      key={account.customerId || account.userId || index}
+                      className={UI_TABLE.tr}
+                    >
+                      {/* Common Profile Column */}
+                      <td className={UI_TABLE.td}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`${UI_AVATAR.container} ${getAvatarColor(account.fullName)}`}>
+                            {account.fullName?.charAt(0)?.toUpperCase() || "C"}
+                          </div>
+                          <div className="flex flex-col min-w-0 max-w-[180px] sm:max-w-[220px]">
+                            <span
+                              className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-xs sm:text-sm truncate block leading-tight"
+                              title={account.fullName}
+                            >
+                              {account.fullName || "Anonymous Customer"}
+                            </span>
+                            {account.email && (
+                              <span
+                                className="text-[11px] text-slate-400 truncate block leading-tight font-normal mt-0.5"
+                                title={account.email}
+                              >
+                                {account.email}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Tab-Specific Columns */}
                       {activeCustomerTab === "roster" ? (
                         <>
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                              Total Orders
+                          {/* Phone Number */}
+                          <td className={UI_TABLE.td}>
+                            <div className="flex items-center gap-2 text-slate-800 font-mono text-xs font-semibold">
+                              <Phone size={13} className="text-emerald-600 shrink-0" />
+                              <span>{account.phone || "-"}</span>
+                            </div>
+                          </td>
+
+                          {/* Total Orders */}
+                          <td className={UI_TABLE.tdCenter}>
+                            <span
+                              className={Number(account.totalOrders) > 0 ? UI_BADGES.counterActive : UI_BADGES.counterNeutral}
+                              title={`${account.totalOrders ?? 0} total orders`}
+                            >
+                              {account.totalOrders ?? 0}
                             </span>
-                            <span className="text-sm sm:text-base font-black text-slate-900 font-mono">
-                              {customerDetails.totalOrders ?? 0}
+                          </td>
+
+                          {/* Total Complaints */}
+                          <td className={UI_TABLE.tdCenter}>
+                            <span
+                              className={Number(account.totalComplaints) > 0 ? UI_BADGES.counterAlert : UI_BADGES.counterNeutral}
+                              title={`${account.totalComplaints ?? 0} total complaints`}
+                            >
+                              {Number(account.totalComplaints) > 0 && <AlertCircle size={11} className="mr-1 shrink-0" />}
+                              {account.totalComplaints ?? 0}
                             </span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                              Total Complaints
-                            </span>
-                            <span className={`text-sm sm:text-base font-black font-mono ${(customerDetails.totalComplaints ?? 0) > 0 ? "text-rose-600" : "text-emerald-700"}`}>
-                              {customerDetails.totalComplaints ?? 0}
-                            </span>
-                          </div>
+                          </td>
                         </>
                       ) : (
                         <>
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                              Flags Raised
+                          {/* Flags Raised */}
+                          <td className={UI_TABLE.tdCenter}>
+                            <span
+                              className={Number(account.flagsRaised) > 0 ? UI_BADGES.counterWarning : UI_BADGES.counterNeutral}
+                              title={`${account.flagsRaised ?? 0} flags raised`}
+                            >
+                              <Flag size={11} className={`mr-1 shrink-0 ${Number(account.flagsRaised) > 0 ? "text-amber-600" : "text-slate-400"}`} />
+                              <span>{account.flagsRaised ?? 0}</span>
                             </span>
-                            <span className={`text-sm sm:text-base font-black font-mono ${(customerDetails.flagsRaised ?? 0) > 0 ? "text-amber-600" : "text-slate-900"}`}>
-                              {customerDetails.flagsRaised ?? 0} Flags
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] uppercase font-bold text-slate-500 block">
-                              Primary Infraction
-                            </span>
-                            <span className="text-sm sm:text-base font-black text-slate-900 truncate block">
-                              {customerDetails.primaryInfraction || "None"}
-                            </span>
-                          </div>
+                          </td>
+
+                          {/* Primary Infraction */}
+                          <td className={UI_TABLE.td}>
+                            <div className="flex items-center gap-2 max-w-[240px]">
+                              <span
+                                className={`p-1.5 rounded-lg shrink-0 ${account.flagsRaised > 0
+                                    ? "bg-rose-50 text-rose-600 border border-rose-200/80"
+                                    : "bg-slate-50 text-slate-400 border border-slate-200/60"
+                                  }`}
+                              >
+                                <ShieldAlert size={13} />
+                              </span>
+                              <span className="truncate text-slate-700 font-medium">
+                                {account.primaryInfraction || "None"}
+                              </span>
+                            </div>
+                          </td>
                         </>
                       )}
+
+                      {/* Status Column */}
+                      <td className={UI_TABLE.tdCenter}>
+                        <span className={account.blocked ? UI_BADGES.statusBlocked : UI_BADGES.statusActive}>
+                          <span className={account.blocked ? UI_BADGES.statusDotBlocked : UI_BADGES.statusDotActive} />
+                          <span>{account.blocked ? "Blocked" : "Active"}</span>
+                        </span>
+                      </td>
+
+                      {/* Actions Column */}
+                      <td className={UI_TABLE.tdCenter}>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleViewCustomer(account)}
+                            disabled={isRefreshing || detailsLoading}
+                            className={UI_BUTTONS.view}
+                            title="View Customer Details"
+                          >
+                            <Eye size={13} className="text-slate-500" />
+                            <span>View</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => initiateToggleStatus(account)}
+                            disabled={isRefreshing}
+                            className={account.blocked ? UI_BUTTONS.success : UI_BUTTONS.warning}
+                            title={
+                              account.blocked
+                                ? "Restore Access"
+                                : "Block Customer"
+                            }
+                          >
+                            {account.blocked ? (
+                              <>
+                                <ShieldCheck size={13} />
+                                <span>Restore</span>
+                              </>
+                            ) : (
+                              <>
+                                <UserX size={13} />
+                                <span>Block</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => initiateDelete(account)}
+                            disabled={isRefreshing}
+                            className={UI_BUTTONS.danger}
+                            title="Delete Customer Account"
+                          >
+                            <Trash2 size={13} />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile / Tablet Responsive Cards */}
+          <div className="lg:hidden p-3.5 sm:p-4 divide-y divide-slate-100">
+            {filteredAccounts.map((account, index) => (
+              <div
+                key={account.customerId || account.userId || index}
+                className="py-4 first:pt-0 last:pb-0 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`${UI_AVATAR.container} ${getAvatarColor(account.fullName)}`}>
+                      {account.fullName?.charAt(0)?.toUpperCase() || "C"}
                     </div>
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-sm text-slate-900 truncate" title={account.fullName}>
+                        {account.fullName || "Anonymous Customer"}
+                      </h4>
+                      {activeCustomerTab === "roster" && account.phone && (
+                        <p className="text-xs text-slate-500 font-mono truncate">
+                          {account.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
-                    {/* Detailed Fields Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      {customerDetails.phone ? (
-                        <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                            Phone Number
-                          </span>
-                          <p className="mt-1 font-semibold text-sm text-slate-800">
-                            {customerDetails.phone}
-                          </p>
-                        </div>
-                      ) : null}
+                  <span className={`${account.blocked ? UI_BADGES.statusBlocked : UI_BADGES.statusActive} shrink-0`}>
+                    <span className={account.blocked ? UI_BADGES.statusDotBlocked : UI_BADGES.statusDotActive} />
+                    <span>{account.blocked ? "Blocked" : "Active"}</span>
+                  </span>
+                </div>
 
-                      {customerDetails.registrationDate ? (
-                        <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                            Registration Date
-                          </span>
-                          <p className="mt-1 font-semibold text-sm text-slate-800 font-mono">
-                            {formatDate(customerDetails.registrationDate)}
-                          </p>
-                        </div>
-                      ) : null}
+                {/* Metadata Grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                  {activeCustomerTab === "roster" ? (
+                    <>
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold text-slate-400">
+                          Total Orders
+                        </span>
+                        <span className={Number(account.totalOrders) > 0 ? UI_BADGES.counterActive : UI_BADGES.counterNeutral}>
+                          {account.totalOrders ?? 0}
+                        </span>
+                      </div>
 
-                      <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold text-slate-400">
+                          Complaints
+                        </span>
+                        <span className={Number(account.totalComplaints) > 0 ? UI_BADGES.counterAlert : UI_BADGES.counterNeutral}>
+                          {Number(account.totalComplaints) > 0 && <AlertCircle size={10} className="mr-0.5" />}
+                          {account.totalComplaints ?? 0}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold text-slate-400">
+                          Flags
+                        </span>
+                        <span className={Number(account.flagsRaised) > 0 ? UI_BADGES.counterWarning : UI_BADGES.counterNeutral}>
+                          {account.flagsRaised ?? 0}
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                          Infraction
+                        </span>
+                        <span className="font-bold text-slate-900 truncate block">
+                          {account.primaryInfraction || "None"}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Mobile Actions */}
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <button
+                    onClick={() => handleViewCustomer(account)}
+                    disabled={isRefreshing || detailsLoading}
+                    className="py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
+                  >
+                    <Eye size={13} className="text-slate-500" />
+                    View
+                  </button>
+                  <button
+                    onClick={() => initiateToggleStatus(account)}
+                    disabled={isRefreshing}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40 transition-colors ${account.blocked
+                        ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : "bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200"
+                      }`}
+                  >
+                    {account.blocked ? (
+                      <>
+                        <ShieldCheck size={13} /> Restore
+                      </>
+                    ) : (
+                      <>
+                        <UserX size={13} /> Block
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => initiateDelete(account)}
+                    disabled={isRefreshing}
+                    className="py-2 px-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
+                  >
+                    <Trash2 size={13} /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Table Footer with Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-semibold text-slate-600">
+              <span>
+                Showing Page {currentPage + 1} of {totalPages} (
+                {totalElements} total entries)
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={currentPage === 0 || loading}
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 shadow-2xs"
+                >
+                  <ChevronLeft size={16} />
+                  <span className="hidden sm:inline">Prev</span>
+                </button>
+
+                <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 font-mono">
+                  {currentPage + 1}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages - 1 || loading}
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 shadow-2xs"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  </div>
+
+  {/* Confirmation Modal for Block / Unblock / Delete */ }
+  {modalConfig.isOpen && modalConfig.account && (
+      <ConfirmModal
+        isOpen={modalConfig.isOpen}
+        onClose={closeModal}
+        onConfirm={handleConfirmAction}
+        type={modalConfig.action === "unblock" ? "success" : "danger"}
+        title={
+          modalConfig.action === "delete"
+            ? "Delete Customer Account"
+            : modalConfig.action === "unblock"
+              ? "Restore Account Access"
+              : "Restrict Account Access"
+        }
+        message={
+          modalConfig.action === "delete"
+            ? `Are you sure you want to permanently delete the account of ${modalConfig.account.fullName}? This cannot be undone.`
+            : modalConfig.action === "unblock"
+              ? `Restore full platform privileges and ordering capability for ${modalConfig.account.fullName}?`
+              : `Block and suspend access for ${modalConfig.account.fullName}? They will not be able to log in or checkout.`
+        }
+        confirmText={
+          modalConfig.action === "delete"
+            ? actionLoading
+              ? "Deleting..."
+              : "Yes, Delete Account"
+            : modalConfig.action === "unblock"
+              ? actionLoading
+                ? "Restoring..."
+                : "Yes, Restore Access"
+              : actionLoading
+                ? "Blocking..."
+                : "Yes, Block Account"
+        }
+        cancelText="Cancel"
+      />
+    )}
+
+  {/* Complete Customer Details Modal */ }
+  {
+    customerDetails && (
+      <div
+        className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+        onClick={closeDetails}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-200"
+        >
+          {/* Header */}
+          <div className="p-4 sm:p-5 bg-white text-slate-900 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0 relative">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-base shrink-0">
+                {customerDetails.fullName?.charAt(0)?.toUpperCase() || "C"}
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 truncate">
+                  {customerDetails.fullName}
+                </h3>
+              </div>
+            </div>
+
+            <button
+              onClick={closeDetails}
+              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors shrink-0 cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-5">
+            {detailsLoading ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-2 text-sm text-slate-500">
+                <RefreshCw
+                  size={20}
+                  className="animate-spin text-emerald-600"
+                />
+                Loading customer dossier...
+              </div>
+            ) : (
+              <>
+                {/* Summary Banner */}
+                <div className="grid grid-cols-2 gap-3 p-3.5 bg-gradient-to-r from-emerald-50/70 to-teal-50/50 rounded-2xl border border-emerald-100/80">
+                  {activeCustomerTab === "roster" ? (
+                    <>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                          Total Orders
+                        </span>
+                        <span className="text-sm sm:text-base font-black text-slate-900 font-mono">
+                          {customerDetails.totalOrders ?? 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                          Total Complaints
+                        </span>
+                        <span className={`text-sm sm:text-base font-black font-mono ${(customerDetails.totalComplaints ?? 0) > 0 ? "text-rose-600" : "text-emerald-700"}`}>
+                          {customerDetails.totalComplaints ?? 0}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block">
                           Flags Raised
                         </span>
-                        <p className="mt-1 font-semibold text-sm text-slate-800 flex items-center gap-1.5">
-                          <Flag size={14} className="text-amber-500" />
-                          {customerDetails.flagsRaised ?? 0} reports
-                        </p>
+                        <span className={`text-sm sm:text-base font-black font-mono ${(customerDetails.flagsRaised ?? 0) > 0 ? "text-amber-600" : "text-slate-900"}`}>
+                          {customerDetails.flagsRaised ?? 0} Flags
+                        </span>
                       </div>
-
-                      <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-500 block">
                           Primary Infraction
                         </span>
-                        <p className="mt-1 font-semibold text-sm text-slate-800 truncate">
+                        <span className="text-sm sm:text-base font-black text-slate-900 truncate block">
                           {customerDetails.primaryInfraction || "None"}
-                        </p>
+                        </span>
                       </div>
-                    </div>
+                    </>
+                  )}
+                </div>
 
-                    {/* Status Badges */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${customerDetails.blocked
-                          ? "bg-rose-50 text-rose-700 border-rose-200"
-                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          }`}
-                      >
-                        {customerDetails.blocked ? (
-                          <ShieldAlert size={13} />
-                        ) : (
-                          <CheckCircle2 size={13} />
-                        )}
-                        {customerDetails.blocked ? "Account Blocked" : "Active Account"}
+                {/* Detailed Fields Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  {customerDetails.phone ? (
+                    <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        Phone Number
                       </span>
-
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${customerDetails.verified
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-slate-50 text-slate-600 border-slate-200"
-                          }`}
-                      >
-                        {customerDetails.verified ? (
-                          <ShieldCheck size={13} />
-                        ) : (
-                          <Clock size={13} />
-                        )}
-                        {customerDetails.verified
-                          ? "Verified Identity"
-                          : "Standard Profile"}
-                      </span>
+                      <p className="mt-1 font-semibold text-sm text-slate-800">
+                        {customerDetails.phone}
+                      </p>
                     </div>
-                  </>
-                )}
-              </div>
+                  ) : null}
 
-              {/* Modal Footer Actions */}
-              <div className="p-4 sm:p-5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 shrink-0 bg-slate-50/50">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => initiateToggleStatus(customerDetails)}
-                    className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border cursor-pointer transition-all ${customerDetails.blocked
-                      ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
-                      : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                  {customerDetails.registrationDate ? (
+                    <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                        Registration Date
+                      </span>
+                      <p className="mt-1 font-semibold text-sm text-slate-800 font-mono">
+                        {formatDate(customerDetails.registrationDate)}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                      Flags Raised
+                    </span>
+                    <p className="mt-1 font-semibold text-sm text-slate-800 flex items-center gap-1.5">
+                      <Flag size={14} className="text-amber-500" />
+                      {customerDetails.flagsRaised ?? 0} reports
+                    </p>
+                  </div>
+
+                  <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                      Primary Infraction
+                    </span>
+                    <p className="mt-1 font-semibold text-sm text-slate-800 truncate">
+                      {customerDetails.primaryInfraction || "None"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Status Badges */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${customerDetails.blocked
+                      ? "bg-rose-50 text-rose-700 border-rose-200"
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200"
                       }`}
                   >
                     {customerDetails.blocked ? (
-                      <ShieldCheck size={15} />
+                      <ShieldAlert size={13} />
                     ) : (
-                      <UserX size={15} />
+                      <CheckCircle2 size={13} />
                     )}
-                    {customerDetails.blocked
-                      ? "Restore Access"
-                      : "Block Access"}
-                  </button>
+                    {customerDetails.blocked ? "Account Blocked" : "Active Account"}
+                  </span>
 
-                  <button
-                    onClick={() => initiateDelete(customerDetails)}
-                    className="px-4 py-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-bold flex items-center gap-2 cursor-pointer transition-all"
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${customerDetails.verified
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-slate-50 text-slate-600 border-slate-200"
+                      }`}
                   >
-                    <Trash2 size={15} />
-                    Delete Account
-                  </button>
+                    {customerDetails.verified ? (
+                      <ShieldCheck size={13} />
+                    ) : (
+                      <Clock size={13} />
+                    )}
+                    {customerDetails.verified
+                      ? "Verified Identity"
+                      : "Standard Profile"}
+                  </span>
                 </div>
+              </>
+            )}
+          </div>
 
-                <button
-                  onClick={closeDetails}
-                  className="px-5 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Close Dossier
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          {/* Modal Footer Actions */}
+          <div className="p-4 sm:p-5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 shrink-0 bg-slate-50/50">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => initiateToggleStatus(customerDetails)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border cursor-pointer transition-all ${customerDetails.blocked
+                  ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
+                  : "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                  }`}
+              >
+                {customerDetails.blocked ? (
+                  <ShieldCheck size={15} />
+                ) : (
+                  <UserX size={15} />
+                )}
+                {customerDetails.blocked
+                  ? "Restore Access"
+                  : "Block Access"}
+              </button>
 
-    </div>
-  );
-}
+              <button
+                onClick={() => initiateDelete(customerDetails)}
+                className="px-4 py-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 text-xs font-bold flex items-center gap-2 cursor-pointer transition-all"
+              >
+                <Trash2 size={15} />
+                Delete Account
+              </button>
+            </div>
+
+            <button
+              onClick={closeDetails}
+              className="px-5 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
+            >
+              Close Dossier
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+  </div>
+);
+  }

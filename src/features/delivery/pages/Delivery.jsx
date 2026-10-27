@@ -4,7 +4,6 @@ import PageHeader from "../../../components/common/PageHeader";
 import WorkflowRulesBar from "../../../components/common/WorkflowRulesBar";
 import EmptyState from "../../../components/common/EmptyState";
 import SegmentedTabs from "../../../components/common/SegmentedTabs";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   RefreshCw,
@@ -579,12 +578,11 @@ export default function Delivery({ embedded = false }) {
           isRefreshing={isRefreshing || loading}
           actions={
             <div className="flex items-center gap-2">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              <button
+                type="button"
                 onClick={handleExportCsv}
                 disabled={isExportingCsv}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer disabled:opacity-60"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer disabled:opacity-60"
                 title="Export delivery partners to Excel / CSV (Limit: 500)"
               >
                 <Download
@@ -592,14 +590,13 @@ export default function Delivery({ embedded = false }) {
                   className={isExportingCsv ? "animate-bounce" : ""}
                 />
                 <span>{isExportingCsv ? "Exporting..." : "Export CSV"}</span>
-              </motion.button>
+              </button>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              <button
+                type="button"
                 onClick={handleExportPdf}
                 disabled={isExportingPdf}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-60"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 active:scale-98 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold shadow-2xs cursor-pointer disabled:opacity-60"
                 title="Download Delivery Partner PDF  (Limit: 500)"
               >
                 <FileText
@@ -607,7 +604,7 @@ export default function Delivery({ embedded = false }) {
                   className={isExportingPdf ? "animate-spin text-emerald-600" : "text-slate-600"}
                 />
                 <span>{isExportingPdf ? "Downloading..." : "Download PDF"}</span>
-              </motion.button>
+              </button>
             </div>
           }
         />
@@ -695,7 +692,7 @@ export default function Delivery({ embedded = false }) {
             >
               <span
                 className={`w-2 h-2 rounded-full ${onlineFilter ? "bg-emerald-300" : "bg-emerald-500"
-                  } animate-pulse`}
+                  }`}
               />
               <span>Online</span>
               {counts.online > 0 && (
@@ -804,12 +801,9 @@ export default function Delivery({ embedded = false }) {
 
                   <tbody className="divide-y divide-slate-100">
                     {filteredApplications.map((app, idx) => (
-                      <motion.tr
+                      <tr
                         key={app.userId || idx}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.15, delay: idx * 0.02 }}
-                        className="text-xs font-semibold text-slate-800 hover:bg-emerald-50/40 transition-colors group"
+                        className="text-xs font-semibold text-slate-800 hover:bg-emerald-50/40 group"
                       >
                         {/* 1. Rider Name with Phone Number */}
                         <td className="py-4 px-5">
@@ -862,7 +856,7 @@ export default function Delivery({ embedded = false }) {
                         <td className="py-4 px-5 text-center">
                           {app.isOnline ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               Online
                             </span>
                           ) : (
@@ -918,7 +912,7 @@ export default function Delivery({ embedded = false }) {
                             </button>
                           )}
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -964,7 +958,7 @@ export default function Delivery({ embedded = false }) {
 
                         {app.isOnline ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             Online
                           </span>
                         ) : (
@@ -1055,15 +1049,11 @@ export default function Delivery({ embedded = false }) {
       </div>
 
       {/* KYC Inspection & Full Dossier Modal */}
-      <AnimatePresence>
-        {showDetail && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-xs">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 10 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200"
-            >
+      {showDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-xs">
+          <div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200"
+          >
               {/* Modal Header */}
               <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-50/40 via-teal-50/30 to-white">
                 <div className="flex items-center gap-3">
@@ -1561,10 +1551,9 @@ export default function Delivery({ embedded = false }) {
                   )}
                 </div>
               )}
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }

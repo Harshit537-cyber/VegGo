@@ -190,7 +190,7 @@ export default function ColdChain() {
             </div>
 
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200/70 px-3.5 py-1.5 rounded-xl shadow-2xs self-start sm:self-center">
-              <span className="h-2 w-2 rounded-full bg-teal-500 animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-teal-500" />
               6 Monitored Terminals
             </span>
           </div>

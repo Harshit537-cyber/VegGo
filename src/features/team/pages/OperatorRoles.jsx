@@ -129,7 +129,7 @@ export default function OperatorRoles() {
               <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900">3 Online Now</h3>
             </div>
             <div className="p-3 sm:p-3.5 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100/50 shrink-0">
-              <Radio size={20} className="animate-pulse" />
+              <Radio size={20} />
             </div>
           </div>
           <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/60 shadow-sm flex items-center justify-between gap-3">
@@ -230,7 +230,7 @@ export default function OperatorRoles() {
                         'bg-slate-100 text-slate-400 border-slate-200'
                       }`}>
                         <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                          operator.status === 'Active' ? 'bg-emerald-500 animate-pulse' :
+                          operator.status === 'Active' ? 'bg-emerald-500' :
                           operator.status === 'On Break' ? 'bg-amber-500' : 'bg-slate-300'
                         }`} />
                         {operator.status}
@@ -271,7 +271,7 @@ export default function OperatorRoles() {
                     'bg-slate-100 text-slate-500 border border-slate-200'
                   }`}>
                     <span className={`h-1.5 w-1.5 rounded-full ${
-                      operator.status === 'Active' ? 'bg-emerald-500 animate-pulse' :
+                      operator.status === 'Active' ? 'bg-emerald-500' :
                       operator.status === 'On Break' ? 'bg-amber-500' : 'bg-slate-300'
                     }`} />
                     {operator.status}

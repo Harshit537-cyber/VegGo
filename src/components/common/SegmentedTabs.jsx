@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function SegmentedTabs({
+function SegmentedTabs({
   tabs = [],
   activeTab,
   onTabChange,
@@ -19,13 +19,13 @@ export default function SegmentedTabs({
             className={`flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
               isActive
                 ? 'bg-white text-emerald-950 shadow-xs border border-emerald-200/90 font-extrabold'
-                : 'text-slate-600 hover:text-emerald-900 hover:bg-emerald-100/40'
+                : 'text-slate-700 hover:text-emerald-950 hover:bg-white/80'
             }`}
           >
             {TabIcon && (
               <TabIcon
                 size={16}
-                className={isActive ? 'text-emerald-600' : 'text-slate-400'}
+                className={isActive ? 'text-emerald-600' : 'text-emerald-700'}
               />
             )}
             <span>{tab.label}</span>
@@ -35,3 +35,5 @@ export default function SegmentedTabs({
     </div>
   );
 }
+
+export default React.memo(SegmentedTabs);

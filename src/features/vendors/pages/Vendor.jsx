@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Sidebar from "../../../layouts/Sidebar";
 import PageHeader from "../../../components/common/PageHeader";
 import SegmentedTabs from "../../../components/common/SegmentedTabs";
 import WorkflowRulesBar from "../../../components/common/WorkflowRulesBar";
 import EmptyState from "../../../components/common/EmptyState";
-import { motion, AnimatePresence } from "framer-motion";
 
 import {
   Calendar,
@@ -28,8 +27,6 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
-  FileCheck,
-  Radio,
   Download,
 } from "lucide-react";
 
@@ -136,7 +133,6 @@ export default function Vendor({ embedded = false }) {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalElements, setTotalElements] = useState(0);
   const pageSize = 20;
 
   // Detail Modal State
@@ -211,7 +207,6 @@ export default function Vendor({ embedded = false }) {
           response?.data?.totalElements ??
           response?.totalElements ??
           normalized.length;
-        setTotalElements(total);
         setCurrentPage(page);
 
         // Update counts intelligently
@@ -583,12 +578,11 @@ export default function Vendor({ embedded = false }) {
           isRefreshing={isRefreshing || loading}
           actions={
             <div className="flex items-center gap-2">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              <button
+                type="button"
                 onClick={handleExportCsv}
                 disabled={isExportingCsv}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer disabled:opacity-60"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer disabled:opacity-60"
                 title="Export vendors to Excel / CSV (Limit: 500)"
               >
                 <Download
@@ -596,14 +590,13 @@ export default function Vendor({ embedded = false }) {
                   className={isExportingCsv ? "animate-bounce" : ""}
                 />
                 <span>{isExportingCsv ? "Exporting..." : "Export CSV"}</span>
-              </motion.button>
+              </button>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              <button
+                type="button"
                 onClick={handleExportPdf}
                 disabled={isExportingPdf}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-60"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-50 active:scale-98 border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold shadow-2xs cursor-pointer disabled:opacity-60"
                 title="Download Vendor PDF  (Limit: 500)"
               >
                 <FileText
@@ -611,7 +604,7 @@ export default function Vendor({ embedded = false }) {
                   className={isExportingPdf ? "animate-spin text-emerald-600" : "text-slate-600"}
                 />
                 <span>{isExportingPdf ? "Downloading..." : "Download PDF"}</span>
-              </motion.button>
+              </button>
             </div>
           }
         />
@@ -708,7 +701,7 @@ export default function Vendor({ embedded = false }) {
             >
               <span
                 className={`w-2 h-2 rounded-full ${onlineFilter ? "bg-emerald-300" : "bg-emerald-500"
-                  } animate-pulse`}
+                  }`}
               />
               <span>Online</span>
               {counts.online > 0 && (
@@ -817,12 +810,9 @@ export default function Vendor({ embedded = false }) {
 
                   <tbody className="divide-y divide-slate-100">
                     {filteredApplications.map((app, idx) => (
-                      <motion.tr
+                      <tr
                         key={app.shopId || app.id || idx}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.15, delay: idx * 0.02 }}
-                        className="text-xs font-semibold text-slate-800 hover:bg-emerald-50/40 transition-colors group"
+                        className="text-xs font-semibold text-slate-800 hover:bg-emerald-50/40 group"
                       >
                         {/* 1. Merchant / Owner */}
                         <td className="py-4 px-5">
@@ -881,7 +871,7 @@ export default function Vendor({ embedded = false }) {
                         <td className="py-4 px-5 text-center">
                           {app.isOnline ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               Online
                             </span>
                           ) : (
@@ -937,7 +927,7 @@ export default function Vendor({ embedded = false }) {
                             </button>
                           )}
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -991,7 +981,7 @@ export default function Vendor({ embedded = false }) {
 
                         {app.isOnline ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             Online
                           </span>
                         ) : (
@@ -1097,15 +1087,11 @@ export default function Vendor({ embedded = false }) {
       </div>
 
       {/* KYC Inspection & Full Dossier Modal */}
-      <AnimatePresence>
-        {showDetail && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-xs">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 10 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200"
-            >
+      {showDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-xs">
+          <div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200"
+          >
               {/* Modal Header */}
               <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-orange-50/40 via-emerald-50/30 to-white">
                 <div className="flex items-center gap-3">
@@ -1438,13 +1424,13 @@ export default function Vendor({ embedded = false }) {
                           {vendorDocuments.map((doc, dIdx) => {
                             const rawUrl = doc.fileUrl || doc.documentUrl || doc.url || "";
                             // Clean markdown link formatting if URL was enclosed in markdown
-                            const docUrl = rawUrl.replace(/^\[?([^\]]+)\]?\(?([^)]*)\)?$/, "$1").replace(/[\[\]]/g, "").trim();
+                            const docUrl = rawUrl.replace(/^\[?([^\]]+)\]?\(?([^)]*)\)?$/, "$1").replace(/[[\]]/g, "").trim();
                             const docType = (doc.documentType || doc.type || `Document #${dIdx + 1}`).replace(/_/g, " ");
 
                             return (
                               <div
                                 key={dIdx}
-                                className="rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col hover:border-emerald-300 transition-all shadow-2xs group"
+                                className="rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col hover:border-emerald-300 shadow-2xs group"
                               >
                                 {/* Document Header */}
                                 <div className="p-3 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
@@ -1600,10 +1586,9 @@ export default function Vendor({ embedded = false }) {
                   )}
                 </div>
               )}
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }

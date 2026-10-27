@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import {
   Image as ImageIcon,
   Plus,
@@ -278,16 +277,13 @@ function TargetPicker({ actionType, value, onChange, initialLabel }) {
   );
 }
 
-function BannerCard({ banner, busy, onEdit, onToggle, onDelete }) {
+const BannerCard = memo(function BannerCard({ banner, busy, onEdit, onToggle, onDelete }) {
   const reasons = getHiddenReasons(banner);
   const btn =
     'p-2 rounded-xl border transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col"
     >
       <div className="relative aspect-[16/7] bg-slate-100">
@@ -403,9 +399,9 @@ function BannerCard({ banner, busy, onEdit, onToggle, onDelete }) {
           </button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
 
 export default function Banners() {
   const [banners, setBanners] = useState([]);
@@ -707,34 +703,26 @@ export default function Banners() {
         isRefreshing={isRefreshing || loading}
       />
 
-      <AnimatePresence>
-        {errorMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs"
-          >
-            <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-            <span className="flex-1">{errorMessage}</span>
-            <button type="button" onClick={() => setErrorMessage('')} className="text-amber-700 cursor-pointer">
-              <X size={14} />
-            </button>
-          </motion.div>
-        )}
+      {errorMessage && (
+        <div
+          className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs"
+        >
+          <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+          <span className="flex-1">{errorMessage}</span>
+          <button type="button" onClick={() => setErrorMessage('')} className="text-amber-700 cursor-pointer">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
-        {successMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-emerald-900 shadow-2xs"
-          >
-            <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-            <span className="flex-1">{successMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {successMessage && (
+        <div
+          className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-emerald-900 shadow-2xs"
+        >
+          <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+          <span className="flex-1">{successMessage}</span>
+        </div>
+      )}
 
       <FilterChips options={STATUS_FILTERS} value={statusFilter} onChange={handleStatusFilter} />
 
@@ -791,21 +779,13 @@ export default function Banners() {
       )}
 
       {/* Create / Edit modal */}
-      <AnimatePresence>
-        {isPanelOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+      {isPanelOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+        >
+          <div
+            className="bg-white rounded-3xl w-full max-w-xl max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-3xl w-full max-w-xl max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
-            >
               <button
                 type="button"
                 onClick={closePanel}
@@ -1016,10 +996,9 @@ export default function Banners() {
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
 
       <ConfirmModal
         isOpen={Boolean(deleteTarget)}

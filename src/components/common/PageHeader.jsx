@@ -1,8 +1,7 @@
 import React from 'react';
-import { RefreshCw, Activity, Sparkles, Send, Plus } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { RefreshCw, Activity, Send } from 'lucide-react';
 
-export default function PageHeader({
+function PageHeader({
   icon: Icon = Activity,
   badge,
   badgeIcon: BadgeIcon,
@@ -53,7 +52,7 @@ export default function PageHeader({
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white border border-slate-200 shadow-2xs text-xs font-bold text-slate-700"
           >
             {stat.alert && (
-              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
             )}
             <span className="text-slate-500 font-semibold">{stat.label}:</span>
             <span className={stat.alert ? 'text-amber-700 font-black' : 'text-slate-900 font-black'}>
@@ -66,25 +65,23 @@ export default function PageHeader({
         {primaryAction ? (
           primaryAction
         ) : actionButtonText && onActionClick ? (
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <button
+            type="button"
             onClick={onActionClick}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-sm shadow-emerald-600/20 transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-xl text-xs sm:text-sm font-bold shadow-sm shadow-emerald-600/20 cursor-pointer"
           >
             <ActionIcon size={16} />
             <span>{actionButtonText}</span>
-          </motion.button>
+          </button>
         ) : null}
 
         {/* Refresh Button */}
         {onRefresh && (
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <button
+            type="button"
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs sm:text-sm font-bold text-slate-700 transition-all shadow-2xs cursor-pointer disabled:opacity-60"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 active:scale-98 border border-slate-200 text-xs sm:text-sm font-bold text-slate-700 shadow-2xs cursor-pointer disabled:opacity-60"
             title="Refresh Data"
           >
             <RefreshCw
@@ -92,7 +89,7 @@ export default function PageHeader({
               className={isRefreshing ? 'animate-spin text-emerald-600' : 'text-slate-600'}
             />
             <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-          </motion.button>
+          </button>
         )}
 
         {renderedActions}
@@ -101,3 +98,5 @@ export default function PageHeader({
     </div>
   );
 }
+
+export default React.memo(PageHeader);

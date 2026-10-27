@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../../../layouts/Sidebar";
 import PageHeader from "../../../components/common/PageHeader";
-import { motion, AnimatePresence } from "framer-motion";
 
 import {
   Calendar,
@@ -229,26 +228,18 @@ export default function Wallet({ embedded = false }) {
       />
 
       {/* Error Banner */}
-      <AnimatePresence>
-        {errorMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="px-5 py-3.5 rounded-2xl border text-xs font-semibold bg-rose-50 border-rose-200 text-rose-700 flex items-center gap-2 shadow-2xs"
-          >
-            <AlertCircle size={15} />
-            <span>{errorMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {errorMessage && (
+        <div
+          className="px-5 py-3.5 rounded-2xl border text-xs font-semibold bg-rose-50 border-rose-200 text-rose-700 flex items-center gap-2 shadow-2xs"
+        >
+          <AlertCircle size={15} />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       {/* Main Table Container */}
       <section className="w-full">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+        <div
           className="bg-white rounded-3xl border border-emerald-100/90 shadow-2xs p-5 sm:p-6"
         >
           {/* Controls Bar: Title, Search, Filter */}
@@ -335,11 +326,9 @@ export default function Wallet({ embedded = false }) {
                     const isPending = status === "PENDING";
 
                     return (
-                      <motion.tr
+                      <tr
                         key={transaction?.id || transaction?.transactionId || idx}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="hover:bg-slate-50/70 transition-colors group"
+                        className="hover:bg-slate-50/70 group"
                       >
                         <td className="py-3.5 px-4 font-semibold text-slate-900">
                           <div className="flex items-center gap-3">
@@ -421,7 +410,7 @@ export default function Wallet({ embedded = false }) {
                             {status}
                           </span>
                         </td>
-                      </motion.tr>
+                      </tr>
                     );
                   })
                 ) : (
@@ -545,7 +534,7 @@ export default function Wallet({ embedded = false }) {
               </div>
             </div>
           )}
-        </motion.div>
+        </div>
       </section>
     </div>
   );

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Ticket,
   Plus,
@@ -603,34 +602,26 @@ export default function Coupons() {
       />
 
       {/* Toasts */}
-      <AnimatePresence>
-        {errorMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs"
-          >
-            <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-            <span className="flex-1">{errorMessage}</span>
-            <button type="button" onClick={() => setErrorMessage('')} className="text-amber-700 cursor-pointer">
-              <X size={14} />
-            </button>
-          </motion.div>
-        )}
+      {errorMessage && (
+        <div
+          className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs"
+        >
+          <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+          <span className="flex-1">{errorMessage}</span>
+          <button type="button" onClick={() => setErrorMessage('')} className="text-amber-700 cursor-pointer">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
-        {successMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-emerald-900 shadow-2xs"
-          >
-            <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-            <span className="flex-1">{successMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {successMessage && (
+        <div
+          className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-emerald-900 shadow-2xs"
+        >
+          <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+          <span className="flex-1">{successMessage}</span>
+        </div>
+      )}
 
       <FilterChips options={STATUS_FILTERS} value={statusFilter} onChange={handleStatusFilter} />
 
@@ -677,13 +668,10 @@ export default function Coupons() {
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {coupons.map((coupon, idx) => (
-                  <motion.tr
+                {coupons.map((coupon) => (
+                  <tr
                     key={coupon.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: idx * 0.02 }}
-                    className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors align-top"
+                    className="text-xs font-semibold text-black hover:bg-emerald-50/40 align-top"
                   >
                     <td className="py-4 px-5">
                       <div className="flex flex-col gap-1 max-w-[220px]">
@@ -722,7 +710,7 @@ export default function Coupons() {
                         onRedemptions={openRedemptions}
                       />
                     </td>
-                  </motion.tr>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -784,21 +772,13 @@ export default function Coupons() {
       )}
 
       {/* Create / Edit modal */}
-      <AnimatePresence>
-        {isPanelOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+      {isPanelOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+        >
+          <div
+            className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
-            >
               <button
                 type="button"
                 onClick={closePanel}
@@ -1067,26 +1047,18 @@ export default function Coupons() {
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
 
       {/* Redemptions modal */}
-      <AnimatePresence>
-        {redeemCoupon && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+      {redeemCoupon && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+        >
+          <div
+            className="bg-white rounded-3xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white rounded-3xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
-            >
               <button
                 type="button"
                 onClick={() => setRedeemCoupon(null)}
@@ -1170,10 +1142,9 @@ export default function Coupons() {
                 label="redemptions"
                 onPageChange={changeRedeemPage}
               />
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
 
       <ConfirmModal
         isOpen={Boolean(deleteTarget)}

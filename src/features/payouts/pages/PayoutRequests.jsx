@@ -4,7 +4,6 @@ import PageHeader from "../../../components/common/PageHeader";
 import StatusFilterPills from "../../../components/common/StatusFilterPills";
 import WorkflowRulesBar from "../../../components/common/WorkflowRulesBar";
 import EmptyState from "../../../components/common/EmptyState";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   Search,
@@ -284,17 +283,18 @@ export default function PayoutRequests({ embedded = false }) {
     });
   }, [payouts, searchQuery, activeStatus, roleFilter]);
 
-  const pendingCount = payouts.filter(
-    (item) => getStatus(item) === "PENDING"
-  ).length;
-
-  const approvedCount = payouts.filter(
-    (item) => getStatus(item) === "APPROVED"
-  ).length;
-
-  const rejectedCount = payouts.filter(
-    (item) => getStatus(item) === "REJECTED"
-  ).length;
+  const { pendingCount, approvedCount, rejectedCount } = useMemo(() => {
+    let pending = 0;
+    let approved = 0;
+    let rejected = 0;
+    for (let i = 0; i < payouts.length; i++) {
+      const s = getStatus(payouts[i]);
+      if (s === "PENDING") pending++;
+      else if (s === "APPROVED") approved++;
+      else if (s === "REJECTED") rejected++;
+    }
+    return { pendingCount: pending, approvedCount: approved, rejectedCount: rejected };
+  }, [payouts]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -386,47 +386,39 @@ export default function PayoutRequests({ embedded = false }) {
       />
 
       {/* Notification Banners */}
-      <AnimatePresence>
-        {errorMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="p-4 rounded-2xl bg-rose-50 border border-rose-200/80 flex items-center justify-between text-xs font-semibold text-rose-800 shadow-2xs"
+      {errorMessage && (
+        <div
+          className="p-4 rounded-2xl bg-rose-50 border border-rose-200/80 flex items-center justify-between text-xs font-semibold text-rose-800 shadow-2xs"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle size={16} className="text-rose-600 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => setErrorMessage("")}
+            className="text-rose-500 hover:text-rose-800 p-1"
           >
-            <div className="flex items-center gap-2">
-              <AlertCircle size={16} className="text-rose-600 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-            <button
-              onClick={() => setErrorMessage("")}
-              className="text-rose-500 hover:text-rose-800 p-1"
-            >
-              <X size={14} />
-            </button>
-          </motion.div>
-        )}
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
-        {successMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-between text-xs font-semibold text-emerald-800 shadow-2xs"
+      {successMessage && (
+        <div
+          className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 flex items-center justify-between text-xs font-semibold text-emerald-800 shadow-2xs"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+          <button
+            onClick={() => setSuccessMessage("")}
+            className="text-emerald-500 hover:text-emerald-800 p-1"
           >
-            <div className="flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-              <span>{successMessage}</span>
-            </div>
-            <button
-              onClick={() => setSuccessMessage("")}
-              className="text-emerald-500 hover:text-emerald-800 p-1"
-            >
-              <X size={14} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Filter and Role Selector Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -533,12 +525,9 @@ export default function PayoutRequests({ embedded = false }) {
                   const isVendor = role === "VENDOR" || (!role && !item?.deliveryPartnerId);
 
                   return (
-                    <motion.tr
+                    <tr
                       key={id || index}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25, delay: index * 0.02 }}
-                      className="group text-xs font-semibold text-slate-700 transition-colors hover:bg-emerald-50/40"
+                      className="group text-xs font-semibold text-slate-700 hover:bg-emerald-50/40"
                     >
                       {/* Payout ID & Type */}
                       <td className="overflow-hidden px-3 py-4">
@@ -667,7 +656,7 @@ export default function PayoutRequests({ embedded = false }) {
                           )}
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   );
                 })
               ) : (
@@ -799,15 +788,11 @@ export default function PayoutRequests({ embedded = false }) {
       </section>
 
       {/* Payout Details Inspection Modal */}
-      <AnimatePresence>
-        {showDetails && selectedPayout && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-slate-100 relative max-h-[92vh] overflow-y-auto space-y-5"
-            >
+      {showDetails && selectedPayout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div
+            className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-slate-100 relative max-h-[92vh] overflow-y-auto space-y-5"
+          >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-2xl">
@@ -911,10 +896,9 @@ export default function PayoutRequests({ embedded = false }) {
                   </>
                 )}
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
-      </AnimatePresence>
     </div>
   );
 

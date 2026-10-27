@@ -9,7 +9,7 @@ import { Loader2, AlertTriangle, RefreshCw, CheckCircle2 } from 'lucide-react';
  *  - Error state with a "Retry" button
  *  - Clean completion state ("All X {label} loaded") when no more items exist
  */
-export default function InfiniteScrollFooter({
+function InfiniteScrollFooter({
   loading = false,
   hasMore = false,
   error = null,
@@ -20,6 +20,8 @@ export default function InfiniteScrollFooter({
   onRetry
 }) {
   const sentinelRef = useRef(null);
+  const onLoadMoreRef = useRef(onLoadMore);
+  onLoadMoreRef.current = onLoadMore;
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -28,8 +30,8 @@ export default function InfiniteScrollFooter({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          if (typeof onLoadMore === 'function') {
-            onLoadMore();
+          if (typeof onLoadMoreRef.current === 'function') {
+            onLoadMoreRef.current();
           }
         }
       },
@@ -45,7 +47,7 @@ export default function InfiniteScrollFooter({
     return () => {
       observer.disconnect();
     };
-  }, [hasMore, loading, error, onLoadMore]);
+  }, [hasMore, loading, error]);
 
   if (loadedCount === 0 && !loading && !error) {
     return null;
@@ -60,7 +62,7 @@ export default function InfiniteScrollFooter({
 
       {/* Loading Indicator */}
       {loading && (
-        <div className="py-4 flex items-center justify-center gap-2.5 text-xs font-bold text-emerald-700 animate-pulse">
+        <div className="py-4 flex items-center justify-center gap-2.5 text-xs font-bold text-emerald-700">
           <Loader2 size={16} className="animate-spin text-emerald-600" />
           <span>Loading more {label}...</span>
         </div>
@@ -76,7 +78,7 @@ export default function InfiniteScrollFooter({
           <button
             type="button"
             onClick={onRetry}
-            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0 flex items-center gap-1.5"
+            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer shrink-0 flex items-center gap-1.5"
           >
             <RefreshCw size={12} />
             <span>Retry</span>
@@ -96,3 +98,5 @@ export default function InfiniteScrollFooter({
     </div>
   );
 }
+
+export default React.memo(InfiniteScrollFooter);

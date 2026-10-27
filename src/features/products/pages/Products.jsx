@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import Sidebar from '../../../layouts/Sidebar';
 import PageHeader from '../../../components/common/PageHeader';
@@ -6,10 +6,14 @@ import SegmentedTabs from '../../../components/common/SegmentedTabs';
 import StatusFilterPills from '../../../components/common/StatusFilterPills';
 import WorkflowRulesBar from '../../../components/common/WorkflowRulesBar';
 import EmptyState from '../../../components/common/EmptyState';
-import { motion, AnimatePresence } from 'framer-motion';
 import Categories from './Categories';
 import Subcategories from './Subcategories';
 import InfiniteScrollFooter from '../components/InfiniteScrollFooter';
+import {
+  UI_TABLE,
+  UI_BADGES,
+  UI_BUTTONS
+} from '../../../constants/ui.constants';
 
 import {
   Calendar,
@@ -79,74 +83,7 @@ const UNIT_OPTIONS = [
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
-function AnimatedValue({ value }) {
-  const [displayValue, setDisplayValue] = useState('');
 
-  useEffect(() => {
-    const stringValue = String(value ?? '');
-    const match = stringValue.match(/([₹\d,.]+)\s*(.*)/);
-
-    if (!match) {
-      setDisplayValue(stringValue);
-      return;
-    }
-
-    const isRupee = stringValue.startsWith('₹');
-    const rawNumberStr = match[1].replace(/[₹,]/g, '');
-    const targetNum = parseFloat(rawNumberStr);
-    const suffix = match[2] || '';
-    const isDecimal = rawNumberStr.includes('.');
-    const hasComma = match[1].includes(',');
-
-    if (Number.isNaN(targetNum)) {
-      setDisplayValue(stringValue);
-      return;
-    }
-
-    const duration = 1000;
-    const startTime = performance.now();
-    let animationFrameId;
-
-    const updateCount = (timestamp) => {
-      const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeProgress =
-        progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-
-      const currentVal = easeProgress * targetNum;
-
-      let formatted;
-
-      if (isDecimal) {
-        formatted = currentVal.toFixed(2);
-      } else {
-        formatted = Math.floor(currentVal).toString();
-      }
-
-      if (hasComma) {
-        const parts = formatted.split('.');
-        parts[0] = parseInt(parts[0], 10).toLocaleString('en-IN');
-        formatted = parts.join('.');
-      }
-
-      setDisplayValue(
-        `${isRupee ? '₹' : ''}${formatted}${suffix ? ` ${suffix}` : ''}`
-      );
-
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(updateCount);
-      } else {
-        setDisplayValue(stringValue);
-      }
-    };
-
-    animationFrameId = requestAnimationFrame(updateCount);
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [value]);
-
-  return <span>{displayValue}</span>;
-}
 
 const getValue = (obj, keys, fallback = '') => {
   for (const key of keys) {
@@ -417,13 +354,23 @@ function SelectDropdown({
         type="button"
         disabled={disabled || loading}
         onClick={() => setOpen((prev) => !prev)}
-        className={`w-full h-[38px] px-3.5 bg-slate-50 border rounded-xl text-xs font-bold text-black flex items-center justify-between transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-          open
-            ? 'border-emerald-500 bg-white ring-2 ring-emerald-500/10'
-            : 'border-slate-200 hover:border-emerald-300'
+        className={`w-full h-[38px] px-3.5 border rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
+          disabled
+            ? 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed shadow-none'
+            : open
+            ? 'border-emerald-500 bg-white ring-2 ring-emerald-500/10 text-black'
+            : 'bg-slate-50 hover:bg-white border-slate-200 hover:border-emerald-300 text-black'
         }`}
       >
-        <span className={displayLabel ? 'text-black truncate' : 'text-slate-400'}>
+        <span
+          className={
+            displayLabel
+              ? 'text-black truncate font-bold'
+              : disabled
+              ? 'text-slate-500 truncate font-semibold'
+              : 'text-slate-600 truncate font-semibold'
+          }
+        >
           {loading ? 'Loading...' : displayLabel || placeholder}
         </span>
 
@@ -432,22 +379,17 @@ function SelectDropdown({
         ) : (
           <ChevronDown
             size={15}
-            className={`text-emerald-600 transition-transform duration-200 shrink-0 ${
-              open ? 'rotate-180' : ''
-            }`}
+            className={`transition-transform duration-200 shrink-0 ${
+              disabled ? 'text-slate-400' : 'text-emerald-600'
+            } ${open ? 'rotate-180' : ''}`}
           />
         )}
       </button>
 
-      <AnimatePresence>
-        {open && !disabled && !loading && (
-          <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 4, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.15 }}
-            className="absolute left-0 right-0 top-full z-[90] rounded-xl border border-emerald-200 bg-white shadow-xl shadow-slate-900/10 overflow-hidden"
-          >
+      {open && !disabled && !loading && (
+        <div
+          className="absolute left-0 right-0 top-full z-[90] rounded-xl border border-emerald-200 bg-white shadow-xl shadow-slate-900/10 overflow-hidden"
+        >
             <div className="p-2 border-b border-slate-100">
               <div className="relative">
                 <Search
@@ -511,11 +453,10 @@ function SelectDropdown({
                 </div>
               ) : null}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
-    </div>
-  );
+      </div>
+    );
 }
 
 function ImageLightbox({ url, onClose }) {
@@ -534,12 +475,10 @@ function ImageLightbox({ url, onClose }) {
         <X size={20} />
       </button>
 
-      <motion.img
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
+      <img
         src={url}
         alt="Preview"
+        decoding="async"
         onClick={(e) => e.stopPropagation()}
         className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain"
       />
@@ -615,6 +554,25 @@ export default function Products({ defaultTab = 'products' }) {
     unit: '',
     active: true
   });
+
+  const descriptionRef = useRef(null);
+
+  const adjustDescriptionHeight = useCallback(() => {
+    if (descriptionRef.current) {
+      descriptionRef.current.style.height = 'auto';
+      descriptionRef.current.style.height = `${Math.min(
+        Math.max(descriptionRef.current.scrollHeight, 38),
+        160
+      )}px`;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isPanelOpen) {
+      const timer = setTimeout(adjustDescriptionHeight, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isPanelOpen, formData.description, adjustDescriptionHeight]);
 
   const resetForm = () => {
     setFormData({
@@ -807,12 +765,18 @@ export default function Products({ defaultTab = 'products' }) {
 
   const location = useLocation();
 
+  const isFirstSearchRef = useRef(true);
+
   useEffect(() => {
     fetchProducts(0, '');
     fetchCategoriesList();
   }, []);
 
   useEffect(() => {
+    if (isFirstSearchRef.current) {
+      isFirstSearchRef.current = false;
+      return;
+    }
     const timer = setTimeout(() => {
       fetchProducts(0, searchQuery);
     }, 350);
@@ -1275,26 +1239,31 @@ export default function Products({ defaultTab = 'products' }) {
 
   const handleToggleStatus = handleStatusChange;
 
-  const filteredProducts = products.filter((prod) => {
-    const name = String(prod.name || '').toLowerCase();
-    const category = String(prod.categoryName || '').toLowerCase();
-    const subcategory = String(prod.subcategoryName || '').toLowerCase();
-    const query = searchQuery.toLowerCase();
+  const filteredProducts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return products.filter((prod) => {
+      const name = String(prod.name || '').toLowerCase();
+      const category = String(prod.categoryName || '').toLowerCase();
+      const subcategory = String(prod.subcategoryName || '').toLowerCase();
 
-    const matchesSearch =
-      name.includes(query) || category.includes(query) || subcategory.includes(query);
+      const matchesSearch =
+        !query ||
+        name.includes(query) ||
+        category.includes(query) ||
+        subcategory.includes(query);
 
-    const matchesStatus =
-      stockFilter === 'All' ||
-      (stockFilter === 'Active' && prod.active) ||
-      (stockFilter === 'Inactive' && !prod.active);
+      const matchesStatus =
+        stockFilter === 'All' ||
+        (stockFilter === 'Active' && prod.active) ||
+        (stockFilter === 'Inactive' && !prod.active);
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    });
+  }, [products, searchQuery, stockFilter]);
 
   const totalProductsCount = totalElements || products.length;
-  const activeProducts = products.filter((p) => p.active).length;
-  const inactiveProducts = products.filter((p) => !p.active).length;
+  const activeProducts = useMemo(() => products.filter((p) => p.active).length, [products]);
+  const inactiveProducts = useMemo(() => products.filter((p) => !p.active).length, [products]);
 
   const productStats = [
     {
@@ -1332,7 +1301,7 @@ export default function Products({ defaultTab = 'products' }) {
   ];
 
   const priceInputClass =
-    'w-full h-[38px] px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] disabled:opacity-60 disabled:cursor-not-allowed';
+    'w-full h-[38px] px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] disabled:opacity-60 disabled:cursor-not-allowed';
 
   const productTabs = [
     { id: 'categories', label: 'Categories', icon: Layers },
@@ -1380,19 +1349,14 @@ export default function Products({ defaultTab = 'products' }) {
             />
 
             {/* Global Error Banner */}
-            <AnimatePresence>
-              {errorMessage && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs"
-                >
-                  <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-                  <span>{errorMessage}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {errorMessage && (
+              <div
+                className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center gap-3 text-xs sm:text-sm font-semibold text-amber-900 shadow-2xs"
+              >
+                <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
             {/* Secondary Status Filter Pills */}
             <StatusFilterPills
@@ -1433,15 +1397,15 @@ export default function Products({ defaultTab = 'products' }) {
             ) : (
               <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden">
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left border-collapse">
+                  <table className={UI_TABLE.table}>
                     <thead>
-                      <tr className="border-b border-slate-200 text-[11px] uppercase font-semibold tracking-wider text-slate-600 bg-slate-50/80">
-                        <th className="py-4 px-5 w-[28%] min-w-[200px]">Product Details</th>
-                        <th className="py-4 px-5 w-[20%]">Taxonomy / Category</th>
-                        <th className="py-4 px-5 w-[14%]">Pricing</th>
-                        <th className="py-4 px-5 w-[12%]">Unit Standard</th>
-                        <th className="py-4 px-5 text-center w-[12%]">Status</th>
-                        <th className="py-4 px-5 text-right min-w-[200px] w-[14%]">Actions</th>
+                      <tr className={UI_TABLE.thead}>
+                        <th className={`${UI_TABLE.th} w-[28%] min-w-[220px]`}>Product Details</th>
+                        <th className={`${UI_TABLE.th} w-[18%] min-w-[140px]`}>Taxonomy / Category</th>
+                        <th className={`${UI_TABLE.th} w-[18%] min-w-[150px]`}>Pricing</th>
+                        <th className={`${UI_TABLE.th} w-[10%] min-w-[90px]`}>Unit Standard</th>
+                        <th className={`${UI_TABLE.thCenter} w-[12%] min-w-[100px]`}>Status</th>
+                        <th className={`${UI_TABLE.thRight} min-w-[200px] w-[14%]`}>Actions</th>
                       </tr>
                     </thead>
 
@@ -1457,30 +1421,28 @@ export default function Products({ defaultTab = 'products' }) {
                         </tr>
                       ) : (
                         filteredProducts.map((prod, idx) => (
-                          <motion.tr
-                            key={prod.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.2, delay: idx * 0.02 }}
-                            className="text-xs font-semibold text-black hover:bg-emerald-50/40 transition-colors group"
+                          <tr
+                            key={prod.id || idx}
+                            className={UI_TABLE.tr}
                           >
-                            <td className="py-4 px-5">
-                              <div className="flex items-center gap-3.5">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:border-emerald-300 transition-colors overflow-hidden">
+                            <td className={UI_TABLE.td}>
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-center shrink-0 group-hover:border-emerald-300 transition-colors overflow-hidden shadow-2xs">
                                   {prod.imageUrl ? (
                                     <img
                                       src={prod.imageUrl}
                                       alt={prod.name || 'Product'}
                                       className="w-full h-full object-cover"
+                                      loading="lazy"
                                     />
                                   ) : (
                                     <Package size={18} className="text-emerald-600" />
                                   )}
                                 </div>
 
-                                <div className="flex flex-col min-w-0">
+                                <div className="flex flex-col min-w-0 max-w-[180px] sm:max-w-[220px] lg:max-w-[280px]">
                                   <span
-                                    className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-sm truncate"
+                                    className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors text-xs sm:text-sm truncate block leading-tight"
                                     title={prod.name}
                                   >
                                     {prod.name || '-'}
@@ -1489,76 +1451,81 @@ export default function Products({ defaultTab = 'products' }) {
                               </div>
                             </td>
 
-                            <td className="py-4 px-5">
-                              <div className="flex flex-col">
-                                <span className="text-xs text-slate-800 font-semibold">
+                            <td className={UI_TABLE.td}>
+                              <div className="flex flex-col gap-1.5 min-w-0 max-w-[180px] items-start">
+                                <span
+                                  className={UI_BADGES.category}
+                                  title={prod.categoryName}
+                                >
                                   {prod.categoryName || '-'}
                                 </span>
 
-                                <span className="text-[11px] text-slate-500 font-normal">
-                                  {prod.subcategoryName || '-'}
-                                </span>
-                              </div>
-                            </td>
-
-                            <td className="py-4 px-5">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-semibold text-slate-900 font-mono">
-                                  ₹{prod.price || 0}
-                                </span>
-
-                                {prod.originalPrice > prod.price && (
-                                  <span className="text-[10px] text-slate-400 line-through font-mono">
-                                    ₹{prod.originalPrice}
+                                {prod.subcategoryName ? (
+                                  <span
+                                    className={UI_BADGES.subcategory}
+                                    title={prod.subcategoryName}
+                                  >
+                                    {prod.subcategoryName}
+                                  </span>
+                                ) : (
+                                  <span className="text-[11px] text-slate-400 font-medium italic pl-0.5">
+                                    No subcategory
                                   </span>
                                 )}
-
-                                <span
-                                  className="mt-1 text-[10px] font-semibold text-slate-500 font-mono"
-                                  title="Vendor price (paid to vendor) / platform margin"
-                                >
-                                  Vendor ₹{prod.vendorPrice || prod.price || 0}
-                                </span>
-
-                                <span
-                                  className={`text-[10px] font-bold font-mono ${
-                                    prod.margin > 0 ? 'text-emerald-600' : 'text-slate-400'
-                                  }`}
-                                >
-                                  Margin ₹{Number(prod.margin || 0).toFixed(2).replace(/\.00$/, '')}
-                                </span>
                               </div>
                             </td>
 
-                            <td className="py-4 px-5">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">
+                            <td className={UI_TABLE.td}>
+                              <div className="flex flex-col gap-0.5 font-mono">
+                                <div className="flex items-baseline gap-1.5 flex-wrap">
+                                  <span className="text-sm font-bold text-slate-900 tracking-tight">
+                                    ₹{prod.price || 0}
+                                  </span>
+
+                                  {prod.originalPrice > prod.price && (
+                                    <span
+                                      className="text-[11px] text-slate-400 line-through font-medium"
+                                      title={`Original: ₹${prod.originalPrice}`}
+                                    >
+                                      ₹{prod.originalPrice}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500 leading-tight">
+                                  <span title="Vendor Price">Vendor ₹{prod.vendorPrice || prod.price || 0}</span>
+                                  <span className="text-slate-300">·</span>
+                                  <span
+                                    className={`font-semibold ${
+                                      prod.margin > 0 ? 'text-emerald-700' : 'text-slate-400'
+                                    }`}
+                                    title="Platform Margin"
+                                  >
+                                    Margin ₹{Number(prod.margin || 0).toFixed(2).replace(/\.00$/, '')}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className={UI_TABLE.td}>
+                              <span className={UI_BADGES.unit}>
                                 {prod.unit || '-'}
                               </span>
                             </td>
 
-                            <td className="py-4 px-5 text-center">
-                              <span
-                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
-                                  prod.active
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    : 'bg-rose-50 text-rose-700 border-rose-200'
-                                }`}
-                              >
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full ${
-                                    prod.active ? 'bg-emerald-500' : 'bg-rose-500'
-                                  }`}
-                                />
-                                {prod.active ? 'In Stock' : 'Inactive'}
+                            <td className={UI_TABLE.tdCenter}>
+                              <span className={prod.active ? UI_BADGES.statusActive : UI_BADGES.statusInactive}>
+                                <span className={prod.active ? UI_BADGES.statusDotActive : UI_BADGES.statusDotInactive} />
+                                <span>{prod.active ? 'In Stock' : 'Inactive'}</span>
                               </span>
                             </td>
 
-                            <td className="py-4 px-5 text-right">
+                            <td className={UI_TABLE.tdRight}>
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => openViewPanel(prod)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 hover:border-slate-300 text-xs font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer"
+                                  className={UI_BUTTONS.view}
                                   title="View Details"
                                 >
                                   <Eye size={13} className="text-slate-500" />
@@ -1568,7 +1535,7 @@ export default function Products({ defaultTab = 'products' }) {
                                 <button
                                   type="button"
                                   onClick={() => openEditPanel(prod)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200/90 hover:border-emerald-600 text-xs font-bold shadow-2xs hover:shadow-emerald-600/20 transition-all cursor-pointer"
+                                  className={UI_BUTTONS.edit}
                                   title="Edit Product"
                                 >
                                   <Edit3 size={13} />
@@ -1579,11 +1546,7 @@ export default function Products({ defaultTab = 'products' }) {
                                   type="button"
                                   onClick={() => handleStatusChange(prod)}
                                   disabled={actionLoading === prod.id}
-                                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all shadow-2xs cursor-pointer disabled:opacity-50 ${
-                                    prod.active
-                                      ? 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200/90 hover:border-rose-600 hover:shadow-rose-600/20'
-                                      : 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border-emerald-200/90 hover:border-emerald-600 hover:shadow-emerald-600/20'
-                                  }`}
+                                  className={prod.active ? UI_BUTTONS.danger : UI_BUTTONS.success}
                                   title={prod.active ? 'Deactivate Product' : 'Activate Product'}
                                 >
                                   {actionLoading === prod.id ? (
@@ -1602,7 +1565,7 @@ export default function Products({ defaultTab = 'products' }) {
                                 </button>
                               </div>
                             </td>
-                          </motion.tr>
+                          </tr>
                         ))
                       )}
                     </tbody>
@@ -1610,101 +1573,129 @@ export default function Products({ defaultTab = 'products' }) {
                 </div>
 
                 {/* Mobile Cards List */}
-                <div className="md:hidden p-4 space-y-3">
+                <div className="md:hidden p-3.5 sm:p-4 space-y-3">
                   {filteredProducts.map((prod) => (
                     <div
                       key={prod.id}
-                      className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all space-y-3"
+                      className="p-3.5 sm:p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all space-y-3"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center overflow-hidden shrink-0">
+                      <div className="flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/80 text-emerald-700 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
                             {prod.imageUrl ? (
                               <img
                                 src={prod.imageUrl}
                                 alt={prod.name || 'Product'}
                                 className="w-full h-full object-cover"
+                                loading="lazy"
                               />
                             ) : (
-                              <Package size={18} />
+                              <Package size={18} className="text-emerald-600" />
                             )}
                           </div>
 
-                          <div>
-                            <h4 className="font-semibold text-sm text-slate-900">
+                          <div className="min-w-0">
+                            <h4
+                              className="font-bold text-sm text-slate-900 truncate"
+                              title={prod.name}
+                            >
                               {prod.name || '-'}
                             </h4>
-                            <p className="text-[11px] text-slate-500">
-                              {prod.categoryName || 'Catalog Item'}
-                            </p>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                              <span
+                                className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-300 truncate max-w-[130px]"
+                                title={prod.categoryName}
+                              >
+                                {prod.categoryName || 'Catalog Item'}
+                              </span>
+                              {prod.subcategoryName && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200/90 truncate max-w-[130px]"
+                                  title={prod.subcategoryName}
+                                >
+                                  {prod.subcategoryName}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
                         <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border shrink-0 ${
                             prod.active
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
+                              : 'bg-rose-50 text-rose-700 border-rose-200/80'
                           }`}
                         >
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                               prod.active ? 'bg-emerald-500' : 'bg-rose-500'
                             }`}
                           />
-                          {prod.active ? 'Active' : 'Inactive'}
+                          <span>{prod.active ? 'In Stock' : 'Inactive'}</span>
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-2.5 border-t border-slate-100 items-start">
                         <div>
-                          <span className="text-[10px] text-slate-400 block font-medium">Price</span>
-                          <span className="font-semibold text-slate-900 font-mono">₹{prod.price || 0}</span>
-                          <span className="block text-[10px] font-semibold text-slate-500 font-mono">
-                            Vendor ₹{prod.vendorPrice || prod.price || 0} · Margin ₹
-                            {Number(prod.margin || 0).toFixed(2).replace(/\.00$/, '')}
-                          </span>
+                          <span className="text-[10px] text-slate-400 block font-medium uppercase tracking-wider mb-0.5">Price</span>
+                          <div className="flex items-baseline gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-900 font-mono text-sm">₹{prod.price || 0}</span>
+                            {prod.originalPrice > prod.price && (
+                              <span className="text-[11px] text-slate-400 line-through font-mono">₹{prod.originalPrice}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500 mt-0.5 flex-wrap">
+                            <span>Vendor ₹{prod.vendorPrice || prod.price || 0}</span>
+                            <span className="text-slate-300">·</span>
+                            <span className={`font-semibold ${prod.margin > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>
+                              Margin ₹{Number(prod.margin || 0).toFixed(2).replace(/\.00$/, '')}
+                            </span>
+                          </div>
                         </div>
+
                         <div>
-                          <span className="text-[10px] text-slate-400 block font-medium">Unit</span>
-                          <span className="font-semibold text-slate-700">{prod.unit || '-'}</span>
+                          <span className="text-[10px] text-slate-400 block font-medium uppercase tracking-wider mb-0.5">Unit</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 font-mono border border-slate-200/60">
+                            {prod.unit || '-'}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                      <div className="flex items-center justify-end gap-1.5 pt-2.5 border-t border-slate-100">
                         <button
                           type="button"
                           onClick={() => openViewPanel(prod)}
-                          className="h-9 px-3.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                          className="h-8 px-2.5 bg-slate-50 hover:bg-white border border-slate-200/90 text-slate-700 rounded-xl text-xs font-bold inline-flex items-center gap-1 transition-all shadow-2xs cursor-pointer"
                         >
-                          <Eye size={15} /> View
+                          <Eye size={13} className="text-slate-500" /> View
                         </button>
                         <button
                           type="button"
                           onClick={() => openEditPanel(prod)}
-                          className="h-9 px-3.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-emerald-700 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                          className="h-8 px-2.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200/90 hover:border-emerald-600 text-xs font-bold inline-flex items-center gap-1 transition-all shadow-2xs cursor-pointer"
                         >
-                          <Edit3 size={15} /> Edit
+                          <Edit3 size={13} /> Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => handleStatusChange(prod)}
                           disabled={actionLoading === prod.id}
-                          className={`h-9 px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs border cursor-pointer ${
+                          className={`h-8 px-2.5 rounded-xl text-xs font-bold inline-flex items-center gap-1 transition-all shadow-2xs border cursor-pointer disabled:opacity-50 ${
                             prod.active
-                              ? 'bg-white hover:bg-rose-50 text-rose-600 border-slate-200 hover:border-rose-300'
-                              : 'bg-white hover:bg-emerald-50 text-emerald-700 border-slate-200 hover:border-emerald-300'
+                              ? 'bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border-rose-200/90 hover:border-rose-600'
+                              : 'bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border-emerald-200/90 hover:border-emerald-600'
                           }`}
                         >
                           {actionLoading === prod.id ? (
-                            <Loader2 size={15} className="animate-spin text-emerald-600" />
+                            <Loader2 size={13} className="animate-spin text-emerald-600" />
                           ) : prod.active ? (
                             <>
-                              <PowerOff size={15} /> Deactivate
+                              <PowerOff size={13} /> Disable
                             </>
                           ) : (
                             <>
-                              <Power size={15} /> Activate
+                              <Power size={13} /> Enable
                             </>
                           )}
                         </button>
@@ -1744,16 +1735,11 @@ export default function Products({ defaultTab = 'products' }) {
         )}
       </main>
 
-      <AnimatePresence>
-        {isPanelOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
-            >
+      {isPanelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div
+            className="bg-white rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
+          >
               <button
                 type="button"
                 onClick={closePanel}
@@ -1800,7 +1786,7 @@ export default function Products({ defaultTab = 'products' }) {
               >
                 <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                    Product Title
+                    Product Title <span className="text-rose-500">*</span>
                   </label>
 
                   <input
@@ -1812,31 +1798,33 @@ export default function Products({ defaultTab = 'products' }) {
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, name: e.target.value }))
                     }
-                    className="w-full h-[38px] px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full h-[38px] px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                    Description
+                    Description <span className="text-slate-400 font-medium normal-case">(Optional)</span>
                   </label>
 
                   <textarea
-                    rows={3}
+                    ref={descriptionRef}
+                    rows={1}
                     placeholder="Product description"
                     value={formData.description}
                     disabled={isViewMode}
+                    onInput={adjustDescriptionHeight}
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, description: e.target.value }))
                     }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full min-h-[38px] max-h-40 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-black placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none overflow-y-auto disabled:opacity-60 disabled:cursor-not-allowed leading-relaxed"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                      Category
+                      Category <span className="text-rose-500">*</span>
                     </label>
 
                     <SelectDropdown
@@ -1851,7 +1839,7 @@ export default function Products({ defaultTab = 'products' }) {
 
                   <div>
                     <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                      Subcategory
+                      Subcategory <span className="text-rose-500">*</span>
                     </label>
 
                     <SelectDropdown
@@ -1867,10 +1855,10 @@ export default function Products({ defaultTab = 'products' }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 items-start">
                   <div>
                     <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                      Price (₹)
+                      Price (₹) <span className="text-rose-500">*</span>
                     </label>
 
                     <input
@@ -1890,7 +1878,7 @@ export default function Products({ defaultTab = 'products' }) {
 
                   <div>
                     <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                      Original Price
+                      Original Price <span className="text-slate-400 font-medium normal-case">(Optional)</span>
                     </label>
 
                     <input
@@ -1905,13 +1893,17 @@ export default function Products({ defaultTab = 'products' }) {
                       }
                       className={priceInputClass}
                     />
+
+                    <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                      Optional. Original price must be greater than price.
+                    </p>
                   </div>
                 </div>
 
                 <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100 space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <label className="block text-[10px] font-bold text-black uppercase tracking-wider">
-                      Vendor Price (₹)
+                      Vendor Price (₹) <span className="text-slate-400 font-medium normal-case">(Optional)</span>
                     </label>
 
                     {(() => {
@@ -1962,7 +1954,7 @@ export default function Products({ defaultTab = 'products' }) {
 
                 <div>
                   <label className="block text-[10px] font-bold text-black uppercase tracking-wider mb-1.5">
-                    Unit Metric
+                    Unit Metric <span className="text-rose-500">*</span>
                   </label>
 
                   <SelectDropdown
@@ -2007,7 +1999,7 @@ export default function Products({ defaultTab = 'products' }) {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-[10px] font-bold text-black uppercase tracking-wider">
-                      Product Images
+                      Product Images <span className="text-rose-500">*</span>
                     </label>
 
                     {!isViewMode && (
@@ -2236,16 +2228,13 @@ export default function Products({ defaultTab = 'products' }) {
                   )}
                 </div>
               </form>
-            </motion.div>
+            </div>
           </div>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
         {viewImageUrl && (
           <ImageLightbox url={viewImageUrl} onClose={() => setViewImageUrl('')} />
         )}
-      </AnimatePresence>
-    </div>
+      </div>
   );
 }

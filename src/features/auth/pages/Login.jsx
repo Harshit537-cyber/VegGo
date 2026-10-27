@@ -11,7 +11,6 @@ import {
   ShieldCheck,
   ArrowRight
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 import ForgotPasswordModal from '../components/ForgotPasswordModal'
 import { adminLogin } from '../services/authService'
 import { isTokenUsable, clearAuthSession, getAuthToken } from '../../../utils/auth'
@@ -72,30 +71,6 @@ export default function Login() {
     }
   }
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.98, y: 10 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      transition: {
-        duration: 0.45,
-        ease: [0.16, 1, 0.3, 1],
-        staggerChildren: 0.06
-      }
-    }
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 8 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.35, ease: 'easeOut' }
-    }
-  }
-
   return (
     <div className="min-h-dvh w-full bg-gradient-to-br from-emerald-100/70 via-slate-50 to-amber-100/50 flex items-center justify-center p-4 sm:p-6 lg:p-8 overflow-y-auto select-none relative">
       {/* Decorative ambient color orbs for luminous beauty */}
@@ -104,10 +79,7 @@ export default function Login() {
       <div className="absolute top-1/2 right-1/3 w-80 h-80 bg-sky-400/15 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Sign-In Card (Wider horizontal stretch & rich colorful styling) */}
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={containerVariants}
+      <div
         className="w-full max-w-xl sm:max-w-[570px] bg-white/95 backdrop-blur-2xl border border-emerald-200/70 rounded-3xl shadow-2xl shadow-emerald-950/15 overflow-hidden relative z-10"
       >
         {/* Top vibrant green accent bar */}
@@ -118,13 +90,12 @@ export default function Login() {
 
         <div className="p-7 sm:p-10 lg:p-11 relative z-10">
           {/* Brand Logo & Name */}
-          <motion.div variants={itemVariants} className="flex items-center gap-3.5 mb-6">
-            <motion.div
-              whileHover={{ scale: 1.08, rotate: 6 }}
+          <div className="flex items-center gap-3.5 mb-6">
+            <div
               className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-600/30 shrink-0"
             >
               <Leaf size={24} className="drop-shadow-xs" />
-            </motion.div>
+            </div>
             <div>
               <span className="text-2xl font-black tracking-tight text-slate-900 block leading-tight">
                 VegGo<span className="text-emerald-600 font-extrabold">Fresh</span>
@@ -133,40 +104,33 @@ export default function Login() {
                 Admin Platform
               </span>
             </div>
-          </motion.div>
+          </div>
 
           {/* Header */}
-          <motion.div variants={itemVariants} className="mb-6">
+          <div className="mb-6">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
               Sign in to console
             </h1>
             <p className="mt-1.5 text-sm text-slate-500 font-medium leading-relaxed">
               Operational console for farm sourcing, distribution hubs & settlements.
             </p>
-          </motion.div>
+          </div>
 
           {/* Error Message */}
-          <AnimatePresence mode="wait">
-            {errorMessage && (
-              <motion.div
-                key="error"
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2 }}
-                role="alert"
-                className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-800 text-sm shadow-xs"
-              >
-                <AlertCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
-                <span className="leading-relaxed text-xs sm:text-sm font-medium">{errorMessage}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {errorMessage && (
+            <div
+              role="alert"
+              className="mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-rose-800 text-sm shadow-xs"
+            >
+              <AlertCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+              <span className="leading-relaxed text-xs sm:text-sm font-medium">{errorMessage}</span>
+            </div>
+          )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
             {/* Email */}
-            <motion.div variants={itemVariants}>
+            <div>
               <label
                 htmlFor="admin-email"
                 className="block text-xs sm:text-sm font-bold text-slate-700 uppercase tracking-wider mb-2"
@@ -188,10 +152,10 @@ export default function Login() {
                   className="w-full pl-10 pr-4 py-3 bg-slate-50/70 border border-slate-200 hover:border-emerald-300 rounded-xl text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 transition-all shadow-2xs"
                 />
               </div>
-            </motion.div>
+            </div>
 
             {/* Password */}
-            <motion.div variants={itemVariants}>
+            <div>
               <div className="flex items-center justify-between mb-2">
                 <label
                   htmlFor="admin-password"
@@ -230,17 +194,13 @@ export default function Login() {
                   {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                 </button>
               </div>
-            </motion.div>
-
-
+            </div>
 
             {/* Submit Button (Vibrant & Eye-catching) */}
-            <motion.div variants={itemVariants} className="pt-2">
-              <motion.button
+            <div className="pt-2">
+              <button
                 type="submit"
                 disabled={loading}
-                whileHover={{ scale: loading ? 1 : 1.012 }}
-                whileTap={{ scale: loading ? 1 : 0.988 }}
                 className="w-full inline-flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:via-teal-500 hover:to-emerald-400 active:from-emerald-700 text-white font-bold text-sm sm:text-base shadow-lg shadow-emerald-600/30 hover:shadow-xl hover:shadow-emerald-600/40 transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer focus:outline-none focus:ring-4 focus:ring-emerald-500/25"
               >
                 {loading ? (
@@ -254,8 +214,8 @@ export default function Login() {
                     <ArrowRight size={18} />
                   </>
                 )}
-              </motion.button>
-            </motion.div>
+              </button>
+            </div>
           </form>
 
           {/* Bottom Security Note */}
@@ -269,7 +229,7 @@ export default function Login() {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Forgot Password Modal */}
       {isForgotOpen && (

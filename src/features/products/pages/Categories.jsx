@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Sidebar from "../../../layouts/Sidebar";
 import PageHeader from "../../../components/common/PageHeader";
-import { motion, AnimatePresence } from "framer-motion";
 
 import {
   searchCategories,
@@ -17,10 +16,7 @@ import InfiniteScrollFooter from "../components/InfiniteScrollFooter";
 import OrderControls from "../components/OrderControls";
 
 import {
-  Calendar,
-  RefreshCw,
   Search,
-  Filter,
   Plus,
   Edit3,
   X,
@@ -32,10 +28,6 @@ import {
   Loader2,
   Power,
   PowerOff,
-  ArrowUpRight,
-  ArrowDownRight,
-  Sparkles,
-  Zap,
   Image as ImageIcon,
 } from "lucide-react";
 
@@ -48,46 +40,7 @@ const STATUS_PARAM = {
   Inactive: "inactive",
 };
 
-function AnimatedValue({ value }) {
-  const [displayValue, setDisplayValue] = useState("");
 
-  useEffect(() => {
-    const targetNum = Number(value);
-
-    if (Number.isNaN(targetNum)) {
-      setDisplayValue(String(value ?? ""));
-      return;
-    }
-
-    const duration = 1000;
-    const startTime = performance.now();
-    let animationFrameId;
-
-    const updateCount = (timestamp) => {
-      const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      const easeProgress =
-        progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-
-      setDisplayValue(
-        Math.floor(easeProgress * targetNum).toLocaleString("en-IN")
-      );
-
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(updateCount);
-      } else {
-        setDisplayValue(targetNum.toLocaleString("en-IN"));
-      }
-    };
-
-    animationFrameId = requestAnimationFrame(updateCount);
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [value]);
-
-  return <span>{displayValue}</span>;
-}
 
 function ImageLightbox({ url, onClose }) {
   if (!url) return null;
@@ -105,12 +58,10 @@ function ImageLightbox({ url, onClose }) {
         <X size={20} />
       </button>
 
-      <motion.img
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
+      <img
         src={url}
         alt="Preview"
+        decoding="async"
         onClick={(e) => e.stopPropagation()}
         className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain"
       />
@@ -770,30 +721,20 @@ export default function Categories({ embedded = false }) {
           onActionClick={openAddPanel}
         />
 
-        <AnimatePresence>
-          {(errorMessage || successMessage) && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={`px-5 py-3.5 rounded-2xl border text-xs font-semibold ${
-                errorMessage
-                  ? "bg-rose-50 border-rose-200 text-rose-700"
-                  : "bg-emerald-50 border-emerald-200 text-emerald-700"
-              }`}
-            >
-              {errorMessage || successMessage}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {(errorMessage || successMessage) && (
+          <div
+            className={`px-5 py-3.5 rounded-2xl border text-xs font-semibold ${
+              errorMessage
+                ? "bg-rose-50 border-rose-200 text-rose-700"
+                : "bg-emerald-50 border-emerald-200 text-emerald-700"
+            }`}
+          >
+            {errorMessage || successMessage}
+          </div>
+        )}
 
         <section className="w-full">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
-          >
+          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
               {/* Left Side: Status Filter Buttons in Emerald Green */}
               <div className="flex items-center gap-2">
@@ -863,11 +804,8 @@ export default function Categories({ embedded = false }) {
                     </tr>
                   ) : categories.length > 0 ? (
                     categories.map((category, idx) => (
-                      <motion.tr
+                      <tr
                         key={category.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.3 + idx * 0.05 }}
                         onDragOver={(e) => {
                           if (canReorder && dragId) {
                             e.preventDefault();
@@ -1008,7 +946,7 @@ export default function Categories({ embedded = false }) {
                             </button>
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))
                   ) : (
                     <tr>
@@ -1039,9 +977,8 @@ export default function Categories({ embedded = false }) {
                 </div>
               ) : categories.length > 0 ? (
                 categories.map((category, idx) => (
-                  <motion.div
+                  <div
                     key={category.id}
-                    whileHover={{ scale: 1.01 }}
                     className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3 group"
                   >
                     <div className="flex items-center justify-between">
@@ -1177,7 +1114,7 @@ export default function Categories({ embedded = false }) {
                         )}
                       </button>
                     </div>
-                  </motion.div>
+                  </div>
                 ))
               ) : (
                 <div className="py-10 text-center">
@@ -1205,20 +1142,13 @@ export default function Categories({ embedded = false }) {
               onLoadMore={handleLoadMore}
               onRetry={handleRetryLoadMore}
             />
-          </motion.div>
+          </div>
         </section>
       </div>
 
-      <AnimatePresence>
-        {isPanelOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
-            >
+      {isPanelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative">
               <button
                 type="button"
                 onClick={closePanel}
@@ -1456,16 +1386,13 @@ export default function Categories({ embedded = false }) {
                   )}
                 </div>
               </form>
-            </motion.div>
+            </div>
           </div>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
-        {viewImageUrl && (
-          <ImageLightbox url={viewImageUrl} onClose={() => setViewImageUrl("")} />
-        )}
-      </AnimatePresence>
+      {viewImageUrl && (
+        <ImageLightbox url={viewImageUrl} onClose={() => setViewImageUrl("")} />
+      )}
     </div>
   );
 }

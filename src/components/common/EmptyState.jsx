@@ -1,7 +1,7 @@
 import React from 'react';
 import { Users, FolderSearch } from 'lucide-react';
 
-export default function EmptyState({
+function EmptyState({
   icon: Icon = Users,
   title = 'No records found',
   description = 'There are currently no records in the selected category.',
@@ -34,3 +34,5 @@ export default function EmptyState({
     </div>
   );
 }
+
+export default React.memo(EmptyState);

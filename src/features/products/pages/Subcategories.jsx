@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Sidebar from '../../../layouts/Sidebar';
 import PageHeader from '../../../components/common/PageHeader';
-import { motion, AnimatePresence } from 'framer-motion';
 
 import {
   Calendar,
@@ -55,46 +54,7 @@ const STATUS_PARAM = {
   Inactive: 'inactive'
 };
 
-function AnimatedValue({ value }) {
-  const [displayValue, setDisplayValue] = useState('');
 
-  useEffect(() => {
-    const targetNum = Number(value);
-
-    if (Number.isNaN(targetNum)) {
-      setDisplayValue(String(value ?? ''));
-      return;
-    }
-
-    const duration = 1000;
-    const startTime = performance.now();
-    let animationFrameId;
-
-    const updateCount = (timestamp) => {
-      const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      const easeProgress =
-        progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-
-      setDisplayValue(
-        Math.floor(easeProgress * targetNum).toLocaleString('en-IN')
-      );
-
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(updateCount);
-      } else {
-        setDisplayValue(targetNum.toLocaleString('en-IN'));
-      }
-    };
-
-    animationFrameId = requestAnimationFrame(updateCount);
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [value]);
-
-  return <span>{displayValue}</span>;
-}
 
 function ImageLightbox({ url, onClose }) {
   if (!url) return null;
@@ -112,12 +72,10 @@ function ImageLightbox({ url, onClose }) {
         <X size={20} />
       </button>
 
-      <motion.img
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
+      <img
         src={url}
         alt="Preview"
+        decoding="async"
         onClick={(e) => e.stopPropagation()}
         className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain"
       />
@@ -359,46 +317,40 @@ function CategorySelect({
         )}
       </div>
 
-      <AnimatePresence>
-        {open && !disabled && (
-          <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 4, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.15 }}
-            className="absolute left-0 right-0 top-full z-[90] max-h-56 sm:max-h-60 overflow-y-auto rounded-xl border border-emerald-200 bg-white shadow-xl shadow-slate-900/10 p-1.5"
-          >
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => {
-                const selected = String(option.id) === String(value);
+      {open && !disabled && (
+        <div
+          className="absolute left-0 right-0 top-full z-[90] max-h-56 sm:max-h-60 overflow-y-auto rounded-xl border border-emerald-200 bg-white shadow-xl shadow-slate-900/10 p-1.5"
+        >
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option) => {
+              const selected = String(option.id) === String(value);
 
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleSelect(option)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition-all ${
-                      selected
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'
-                    }`}
-                  >
-                    <span className="truncate">{option.name}</span>
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => handleSelect(option)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition-all ${
+                    selected
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'
+                  }`}
+                >
+                  <span className="truncate">{option.name}</span>
 
-                    {selected && <Check size={14} className="shrink-0 ml-2" />}
-                  </button>
-                );
-              })
-            ) : (
-              <div className="px-3 py-3 text-xs font-semibold text-slate-400 text-center">
-                {searchTerm
-                  ? `No category matches "${searchTerm}"`
-                  : 'No categories available'}
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  {selected && <Check size={14} className="shrink-0 ml-2" />}
+                </button>
+              );
+            })
+          ) : (
+            <div className="px-3 py-3 text-xs font-semibold text-slate-400 text-center">
+              {searchTerm
+                ? `No category matches "${searchTerm}"`
+                : 'No categories available'}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1246,28 +1198,20 @@ export default function Subcategories({ embedded = false }) {
           onActionClick={openAddPanel}
         />
 
-        <AnimatePresence>
-          {(errorMessage || successMessage) && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={`px-5 py-3.5 rounded-2xl border text-xs font-semibold ${
-                errorMessage
-                  ? 'bg-rose-50 border-rose-200 text-rose-700'
-                  : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-              }`}
-            >
-              {errorMessage || successMessage}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {(errorMessage || successMessage) && (
+          <div
+            className={`px-5 py-3.5 rounded-2xl border text-xs font-semibold ${
+              errorMessage
+                ? 'bg-rose-50 border-rose-200 text-rose-700'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+            }`}
+          >
+            {errorMessage || successMessage}
+          </div>
+        )}
 
         <section className="w-full">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
+          <div
             className="bg-white rounded-3xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow p-5 sm:p-6"
           >
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
@@ -1355,11 +1299,8 @@ export default function Subcategories({ embedded = false }) {
                     </tr>
                   ) : subcategories.length > 0 ? (
                     subcategories.map((subcategory, idx) => (
-                      <motion.tr
+                      <tr
                         key={subcategory.id || idx}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.3 + idx * 0.05 }}
                         onDragOver={(e) => {
                           if (canReorder && dragId) {
                             e.preventDefault();
@@ -1392,11 +1333,11 @@ export default function Subcategories({ embedded = false }) {
                             </div>
 
                             <div className="flex flex-col">
-                              <span className="font-semibold text-black group-hover:text-emerald-700 transition-colors">
+                              <span className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors">
                                 {subcategory.name || '-'}
                               </span>
 
-                              <span className="text-[10px] text-slate-500">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200/80 w-fit mt-0.5">
                                 {String(subcategory.categoryName || '').trim() ||
                                   'Subcategory'}
                               </span>
@@ -1404,8 +1345,8 @@ export default function Subcategories({ embedded = false }) {
                           </div>
                         </td>
 
-                        <td className="py-3.5 px-4">
-                          <span className="text-[10px] text-slate-500 font-semibold">
+                        <td className="py-3.5 px-4 align-middle">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-950 border border-emerald-300 shadow-2xs">
                             {String(subcategory.categoryName || '').trim() || '-'}
                           </span>
                         </td>
@@ -1507,7 +1448,7 @@ export default function Subcategories({ embedded = false }) {
                             </button>
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     ))
                   ) : (
                     <tr>
@@ -1538,9 +1479,8 @@ export default function Subcategories({ embedded = false }) {
                 </div>
               ) : subcategories.length > 0 ? (
                 subcategories.map((subcategory, idx) => (
-                  <motion.div
-                    key={subcategory.id}
-                    whileHover={{ scale: 1.01 }}
+                  <div
+                    key={subcategory.id || idx}
                     className="p-4 rounded-2xl border border-slate-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all space-y-3 group"
                   >
                     <div className="flex items-center justify-between">
@@ -1676,7 +1616,7 @@ export default function Subcategories({ embedded = false }) {
                         )}
                       </button>
                     </div>
-                  </motion.div>
+                  </div>
                 ))
               ) : (
                 <div className="py-10 text-center">
@@ -1706,20 +1646,15 @@ export default function Subcategories({ embedded = false }) {
               onLoadMore={handleLoadMore}
               onRetry={handleRetryLoadMore}
             />
-          </motion.div>
+          </div>
         </section>
       </div>
 
-      <AnimatePresence>
-        {isPanelOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
-            >
+      {isPanelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div
+            className="bg-white rounded-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
+          >
               <button
                 type="button"
                 onClick={closePanel}
@@ -1962,16 +1897,13 @@ export default function Subcategories({ embedded = false }) {
                   )}
                 </div>
               </form>
-            </motion.div>
+            </div>
           </div>
         )}
-      </AnimatePresence>
 
-      <AnimatePresence>
         {viewImageUrl && (
           <ImageLightbox url={viewImageUrl} onClose={() => setViewImageUrl('')} />
         )}
-      </AnimatePresence>
-    </div>
+      </div>
   );
 }

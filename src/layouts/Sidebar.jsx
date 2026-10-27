@@ -15,12 +15,10 @@ import {
   ShieldCheck,
   Dot,
   Store,
-  Truck,
   Bike,
   User,
   Tag,
   Layers,
-  TrendingUp,
   MessageSquareWarning,
   Megaphone,
   Ticket,
@@ -155,7 +153,6 @@ const menuGroups = [
   },
 ];
 
-let persistedExpandedGroup = null;
 
 function getActiveGroupForPath(pathname) {
   const active = menuGroups.find((group) =>
@@ -192,26 +189,25 @@ function Sidebar() {
   const isEffectiveCollapsed = !isMobile && isCollapsed;
 
   const [expandedGroup, setExpandedGroup] = useState(() => {
-    const active = getActiveGroupForPath(location.pathname);
-    return active !== null ? active : persistedExpandedGroup;
+    return getActiveGroupForPath(location.pathname);
   });
+  const [prevPath, setPrevPath] = useState(location.pathname);
+
+  // Auto-expand active group when route changes without cascading effect renders
+  if (prevPath !== location.pathname) {
+    setPrevPath(location.pathname);
+    const active = getActiveGroupForPath(location.pathname);
+    if (active && active !== expandedGroup) {
+      setExpandedGroup(active);
+    }
+  }
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const updateExpandedGroup = (groupId) => {
-    persistedExpandedGroup = groupId;
     setExpandedGroup(groupId);
   };
-
-  // Auto-expand active group when route changes without flickering
-  useEffect(() => {
-    const active = getActiveGroupForPath(location.pathname);
-    if (active) {
-      persistedExpandedGroup = active;
-      setExpandedGroup(active);
-    }
-  }, [location.pathname]);
 
   const toggleCollapse = () => {
     setIsCollapsed((prev) => {
@@ -575,4 +571,4 @@ function Sidebar() {
   );
 }
 
-export default Sidebar;
+export default React.memo(Sidebar);

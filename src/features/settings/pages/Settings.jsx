@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../../../layouts/Sidebar';
 import PageHeader from '../../../components/common/PageHeader';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings as SettingsIcon,
   Truck,
@@ -465,7 +464,7 @@ export default function Settings() {
                   {isLiveApi ? 'Live Backend Connected' : 'Operational Safe Mode Active'}
                 </span>
                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${isLiveApi ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${isLiveApi ? 'bg-emerald-600 animate-pulse' : 'bg-amber-500'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${isLiveApi ? 'bg-emerald-600' : 'bg-amber-500'}`} />
                   {isLiveApi ? 'Live Sync' : 'Local Fallback'}
                 </span>
               </div>
@@ -523,76 +522,67 @@ export default function Settings() {
 
         {/* Floating Sidebar/Popup Toast Notification */}
         <div className="fixed top-20 right-4 sm:right-6 z-50 max-w-sm w-full pointer-events-none">
-          <AnimatePresence>
-            {toast && (
-              <motion.div
-                key={toast.title + toast.desc}
-                initial={{ opacity: 0, x: 60, scale: 0.95 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 60, scale: 0.95 }}
-                transition={{ type: 'spring', damping: 22, stiffness: 280 }}
-                className={`pointer-events-auto w-full bg-white/95 backdrop-blur-md rounded-2xl border shadow-2xl p-4 overflow-hidden relative ${
-                  toast.type === 'error'
-                    ? 'border-rose-200/90 shadow-rose-950/10'
-                    : toast.type === 'info'
-                    ? 'border-sky-200/90 shadow-sky-950/10'
-                    : 'border-emerald-200/90 shadow-emerald-950/10'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={`p-2 rounded-xl border shrink-0 ${
-                      toast.type === 'error'
-                        ? 'bg-rose-50 border-rose-200 text-rose-600'
-                        : toast.type === 'info'
-                        ? 'bg-sky-50 border-sky-200 text-sky-600'
-                        : 'bg-emerald-50 border-emerald-200 text-emerald-600'
-                    }`}
-                  >
-                    {toast.type === 'error' ? (
-                      <AlertCircle size={18} />
-                    ) : toast.type === 'info' ? (
-                      <Info size={18} />
-                    ) : (
-                      <CheckCircle2 size={18} />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0 pr-1">
-                    <h4 className="text-xs font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
-                      {toast.title}
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                      {toast.desc}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setToast(null)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
-                    title="Dismiss notification"
-                  >
-                    <X size={14} />
-                  </button>
+          {toast && (
+            <div
+              key={toast.title + toast.desc}
+              className={`pointer-events-auto w-full bg-white/95 backdrop-blur-md rounded-2xl border shadow-2xl p-4 overflow-hidden relative ${
+                toast.type === 'error'
+                  ? 'border-rose-200/90 shadow-rose-950/10'
+                  : toast.type === 'info'
+                  ? 'border-sky-200/90 shadow-sky-950/10'
+                  : 'border-emerald-200/90 shadow-emerald-950/10'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`p-2 rounded-xl border shrink-0 ${
+                    toast.type === 'error'
+                      ? 'bg-rose-50 border-rose-200 text-rose-600'
+                      : toast.type === 'info'
+                      ? 'bg-sky-50 border-sky-200 text-sky-600'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                  }`}
+                >
+                  {toast.type === 'error' ? (
+                    <AlertCircle size={18} />
+                  ) : toast.type === 'info' ? (
+                    <Info size={18} />
+                  ) : (
+                    <CheckCircle2 size={18} />
+                  )}
                 </div>
 
-                {/* Animated Timeout Progress Bar */}
-                <motion.div
-                  initial={{ scaleX: 1 }}
-                  animate={{ scaleX: 0 }}
-                  transition={{ duration: 4.5, ease: 'linear' }}
-                  className={`absolute bottom-0 left-0 right-0 h-1 origin-left ${
-                    toast.type === 'error'
-                      ? 'bg-rose-500'
-                      : toast.type === 'info'
-                      ? 'bg-sky-500'
-                      : 'bg-emerald-500'
-                  }`}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <div className="flex-1 min-w-0 pr-1">
+                  <h4 className="text-xs font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                    {toast.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                    {toast.desc}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setToast(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+                  title="Dismiss notification"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* Progress Line */}
+              <div
+                className={`absolute bottom-0 left-0 right-0 h-1 ${
+                  toast.type === 'error'
+                    ? 'bg-rose-500'
+                    : toast.type === 'info'
+                    ? 'bg-sky-500'
+                    : 'bg-emerald-500'
+                }`}
+              />
+            </div>
+          )}
         </div>
 
         {/* Categorized Settings Grid */}

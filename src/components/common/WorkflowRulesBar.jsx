@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function WorkflowRulesBar({
+function WorkflowRulesBar({
   rulesText = 'All records across every onboarding phase with search, status filters, and one-click inspection.',
   showingCount = 0,
   itemLabel = 'records',
@@ -21,3 +21,5 @@ export default function WorkflowRulesBar({
     </div>
   );
 }
+
+export default React.memo(WorkflowRulesBar);

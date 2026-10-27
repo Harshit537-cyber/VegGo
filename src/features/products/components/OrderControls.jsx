@@ -7,7 +7,7 @@ import { ChevronUp, ChevronDown, GripVertical, Loader2 } from 'lucide-react';
  * editable position number input where users can type a specific position
  * (e.g. typing 1 when currently at 99 to jump straight to position 1).
  */
-export default function OrderControls({
+function OrderControls({
   order,
   canReorder,
   busy = false,
@@ -140,3 +140,5 @@ export default function OrderControls({
     </div>
   );
 }
+
+export default React.memo(OrderControls);

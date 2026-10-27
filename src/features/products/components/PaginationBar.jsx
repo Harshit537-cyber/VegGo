@@ -1,9 +1,10 @@
+import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
  * Server-side pagination footer (0-based `page`).
  */
-export default function PaginationBar({
+function PaginationBar({
   page,
   totalPages,
   totalElements,
@@ -57,3 +58,5 @@ export default function PaginationBar({
     </div>
   );
 }
+
+export default React.memo(PaginationBar);

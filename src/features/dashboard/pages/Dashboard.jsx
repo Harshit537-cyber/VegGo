@@ -3,7 +3,6 @@ import Sidebar from '../../../layouts/Sidebar';
 import PageHeader from '../../../components/common/PageHeader';
 import { getAdminDashboard } from '../services/dashboardService';
 import { LIGHT_ACCENTS, DASHBOARD_METRIC_THEMES } from '../../../constants/theme.constants';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users,
   UserRound,
@@ -18,44 +17,14 @@ import {
 } from 'lucide-react';
 
 function AnimatedValue({ value, prefix = '', suffix = '' }) {
-  const [displayValue, setDisplayValue] = useState('0');
-
-  useEffect(() => {
-    if (value === null || value === undefined || value === '') {
-      setDisplayValue('0');
-      return;
-    }
-
-    const targetNum = Number(value);
-    if (Number.isNaN(targetNum)) {
-      setDisplayValue(String(value));
-      return;
-    }
-
-    const duration = 700;
-    const startTime = performance.now();
-    let animationFrameId;
-
-    const updateCount = (timestamp) => {
-      const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      const currentValue = Math.floor(easeProgress * targetNum);
-
-      setDisplayValue(currentValue.toLocaleString('en-IN'));
-
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(updateCount);
-      } else {
-        setDisplayValue(targetNum.toLocaleString('en-IN'));
-      }
-    };
-
-    animationFrameId = requestAnimationFrame(updateCount);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [value]);
-
-  return <span>{prefix}{displayValue}{suffix}</span>;
+  if (value === null || value === undefined || value === '') {
+    return <span>{prefix}0{suffix}</span>;
+  }
+  const targetNum = Number(value);
+  if (Number.isNaN(targetNum)) {
+    return <span>{prefix}{String(value)}{suffix}</span>;
+  }
+  return <span>{prefix}{targetNum.toLocaleString('en-IN')}{suffix}</span>;
 }
 
 const formatDisplayText = (value) => {
@@ -207,31 +176,26 @@ export default function Dashboard() {
         />
 
         {/* Global Error Banner */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="p-4 rounded-2xl bg-rose-50 border border-rose-200/80 flex items-center justify-between gap-3 text-xs sm:text-sm font-semibold text-rose-800 shadow-2xs"
+        {error && (
+          <div
+            className="p-4 rounded-2xl bg-rose-50 border border-rose-200/80 flex items-center justify-between gap-3 text-xs sm:text-sm font-semibold text-rose-800 shadow-2xs"
+          >
+            <div className="flex items-center gap-2.5">
+              <AlertCircle size={18} className="text-rose-600 shrink-0" />
+              <span>
+                <strong>Failed to sync dashboard:</strong> {error}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchDashboard(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300/80 font-bold text-xs transition-colors shrink-0 cursor-pointer shadow-2xs"
             >
-              <div className="flex items-center gap-2.5">
-                <AlertCircle size={18} className="text-rose-600 shrink-0" />
-                <span>
-                  <strong>Failed to sync dashboard:</strong> {error}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => fetchDashboard(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300/80 font-bold text-xs transition-colors shrink-0 cursor-pointer shadow-2xs"
-              >
-                <RefreshCw size={12} />
-                Retry
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <RefreshCw size={12} />
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Minimal Single Main Container with Soft Green Styling */}
         <div className="relative bg-white/95 rounded-3xl border border-emerald-100/80 shadow-2xs hover:shadow-xs transition-shadow overflow-hidden backdrop-blur-xs">
@@ -270,7 +234,7 @@ export default function Dashboard() {
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    isHealthy ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                    isHealthy ? 'bg-emerald-400' : 'bg-rose-400'
                   }`}
                 />
                 {formatDisplayText(systemStatus)}
@@ -326,12 +290,9 @@ export default function Dashboard() {
                   const theme = item.theme;
 
                   return (
-                    <motion.tr
+                    <tr
                       key={item.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: idx * 0.04 }}
-                      className={`${theme.rowBg} transition-colors group`}
+                      className={`${theme.rowBg} group`}
                     >
                       {/* Metric Name + Soft Pastel Icon Box */}
                       <td className="py-4 px-5 sm:px-6">
@@ -366,7 +327,7 @@ export default function Dashboard() {
                           {item.status}
                         </span>
                       </td>
-                    </motion.tr>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -375,17 +336,14 @@ export default function Dashboard() {
 
           {/* Tablet & Phone Card View (shows on tab & mobile) */}
           <div className="lg:hidden p-3.5 sm:p-5 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            {metrics.map((item, idx) => {
+            {metrics.map((item) => {
               const Icon = item.icon;
               const theme = item.theme;
 
               return (
-                <motion.div
+                <div
                   key={`tab-card-${item.id}`}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: idx * 0.04 }}
-                  className={`p-4 rounded-2xl border transition-all ${theme.cardBg} flex flex-col justify-between gap-3`}
+                  className={`p-4 rounded-2xl border ${theme.cardBg} flex flex-col justify-between gap-3`}
                 >
                   <div className="flex items-start justify-between gap-2.5">
                     <div className="flex items-center gap-3 min-w-0">
@@ -418,7 +376,7 @@ export default function Dashboard() {
                       {item.status}
                     </span>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>

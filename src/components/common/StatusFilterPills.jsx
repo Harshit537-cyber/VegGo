@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function StatusFilterPills({
+function StatusFilterPills({
   filters = [],
   activeFilter,
   onFilterChange,
@@ -37,3 +37,5 @@ export default function StatusFilterPills({
     </div>
   );
 }
+
+export default React.memo(StatusFilterPills);

@@ -12,14 +12,9 @@ const Dashboard = lazy(() => import('../features/dashboard/pages/Dashboard'));
 
 // Products Feature
 const Products = lazy(() => import('../features/products/pages/Products'));
-const Categories = lazy(() => import('../features/products/pages/Categories'));
-const Subcategories = lazy(() => import('../features/products/pages/Subcategories'));
 
 // Marketing Feature (coupons + banners)
 const Marketing = lazy(() => import('../features/marketing/pages/Marketing'));
-
-// Management Feature
-const Management = lazy(() => import('../features/management/pages/Management'));
 
 // Customers Feature
 const Customer = lazy(() => import('../features/customers/pages/Customer'));
@@ -32,7 +27,6 @@ const Delivery = lazy(() => import('../features/delivery/pages/Delivery'));
 
 // Payouts Feature
 const Payouts = lazy(() => import('../features/payouts/pages/Payouts'));
-const Wallet = lazy(() => import('../features/payouts/pages/Wallet'));
 
 // Complaints Feature
 const Complaints = lazy(() => import('../features/complaints/pages/Complaints'));
