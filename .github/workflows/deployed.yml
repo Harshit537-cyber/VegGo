@@ -30,3 +30,4 @@ jobs:
             chmod +x deployed_admin.sh
             ./deployed_admin.sh
             EOF
+
