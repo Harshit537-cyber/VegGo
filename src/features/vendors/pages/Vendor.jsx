@@ -17,6 +17,7 @@ import {
   X,
   User,
   Phone,
+  Smartphone,
   Mail,
   MapPin,
   Landmark,
@@ -77,8 +78,21 @@ const normalizeVendor = (item) => {
       item?.fullName ||
       item?.name ||
       "-",
-    businessPhone: item?.businessPhone || item?.phone || "-",
-    loginPhone: item?.loginPhone || item?.phone || "",
+    businessPhone:
+      item?.businessPhone ||
+      item?.shopPhone ||
+      item?.businessContact ||
+      item?.phone ||
+      "-",
+    loginPhone:
+      item?.loginPhone ||
+      item?.phoneNumber ||
+      item?.mobileNumber ||
+      item?.user?.phone ||
+      item?.user?.phoneNumber ||
+      (item?.phone && item?.businessPhone && item.phone !== item.businessPhone
+        ? item.phone
+        : item?.loginPhone || ""),
     email: item?.email || "-",
     businessName: item?.businessName || item?.shopName || "-",
     businessType: item?.businessType || item?.category || "-",
@@ -341,7 +355,8 @@ export default function Vendor({ embedded = false }) {
         "Shop ID",
         "Merchant Name",
         "Business Name",
-        "Phone",
+        "Business Phone",
+        "Login Phone",
         "Email",
         "Category",
         "City",
@@ -365,7 +380,8 @@ export default function Vendor({ embedded = false }) {
         escapeCell(v.shopId || v.id || ""),
         escapeCell(v.ownerFullName || v.name || ""),
         escapeCell(v.businessName || v.shopName || ""),
-        escapeCell(v.businessPhone || v.phone || ""),
+        escapeCell(v.businessPhone !== "-" ? v.businessPhone : (v.phone || "")),
+        escapeCell(v.loginPhone || ""),
         escapeCell(v.email || ""),
         escapeCell(v.businessType || v.category || ""),
         escapeCell(v.city || v.address?.city || ""),
@@ -546,6 +562,7 @@ export default function Vendor({ embedded = false }) {
       (app) =>
         String(app.ownerFullName || app.name || "").toLowerCase().includes(query) ||
         String(app.businessPhone || app.phone || "").toLowerCase().includes(query) ||
+        String(app.loginPhone || "").toLowerCase().includes(query) ||
         String(app.email || "").toLowerCase().includes(query) ||
         String(app.businessName || app.shopName || "").toLowerCase().includes(query) ||
         String(app.businessType || app.category || "").toLowerCase().includes(query) ||
@@ -643,8 +660,8 @@ export default function Vendor({ embedded = false }) {
               type="button"
               onClick={handleSelectAllInAllTab}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${!approvedFilter && !onlineFilter
-                  ? "bg-emerald-700 text-white shadow-xs"
-                  : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+                ? "bg-emerald-700 text-white shadow-xs"
+                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
                 }`}
             >
               <Store
@@ -655,8 +672,8 @@ export default function Vendor({ embedded = false }) {
               {counts.total > 0 && (
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-black ${!approvedFilter && !onlineFilter
-                      ? "bg-emerald-800 text-emerald-100"
-                      : "bg-slate-100 text-slate-700"
+                    ? "bg-emerald-800 text-emerald-100"
+                    : "bg-slate-100 text-slate-700"
                     }`}
                 >
                   {counts.total}
@@ -669,8 +686,8 @@ export default function Vendor({ embedded = false }) {
               type="button"
               onClick={handleToggleKycApproved}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${approvedFilter
-                  ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
-                  : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+                ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
+                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
                 }`}
             >
               <CheckCircle2
@@ -681,8 +698,8 @@ export default function Vendor({ embedded = false }) {
               {counts.approved > 0 && (
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-black ${approvedFilter
-                      ? "bg-emerald-800 text-emerald-100"
-                      : "bg-slate-100 text-slate-700"
+                    ? "bg-emerald-800 text-emerald-100"
+                    : "bg-slate-100 text-slate-700"
                     }`}
                 >
                   {counts.approved}
@@ -695,8 +712,8 @@ export default function Vendor({ embedded = false }) {
               type="button"
               onClick={handleToggleOnline}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${onlineFilter
-                  ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
-                  : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
+                ? "bg-emerald-700 text-white shadow-xs ring-2 ring-emerald-500/30"
+                : "bg-white hover:bg-emerald-50 text-slate-700 border border-emerald-100/90 shadow-2xs"
                 }`}
             >
               <span
@@ -707,8 +724,8 @@ export default function Vendor({ embedded = false }) {
               {counts.online > 0 && (
                 <span
                   className={`px-2 py-0.5 rounded-full text-[10px] font-black ${onlineFilter
-                      ? "bg-emerald-800 text-emerald-100"
-                      : "bg-slate-100 text-slate-700"
+                    ? "bg-emerald-800 text-emerald-100"
+                    : "bg-slate-100 text-slate-700"
                     }`}
                 >
                   {counts.online}
@@ -816,19 +833,37 @@ export default function Vendor({ embedded = false }) {
                       >
                         {/* 1. Merchant / Owner */}
                         <td className="py-4 px-5">
-                          <div className="space-y-1">
+                          <div className="space-y-1.5">
                             <span className="font-bold text-slate-900 block text-xs sm:text-sm">
                               {app.ownerFullName || "-"}
                             </span>
+
+                            {/* Business Phone */}
                             {app.businessPhone && app.businessPhone !== "-" && (
-                              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-medium">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                                  Bussiness
+                                </span>
                                 <Phone size={11} className="text-emerald-600 shrink-0" />
                                 <span>{app.businessPhone}</span>
                               </div>
                             )}
+
+                            {/* App Login Phone */}
+                            {app.loginPhone && app.loginPhone !== "-" && (
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-medium">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                                  Login
+                                </span>
+                                <Smartphone size={11} className="text-blue-600 shrink-0" />
+                                <span>{app.loginPhone}</span>
+                              </div>
+                            )}
+
+                            {/* Email */}
                             {app.email && app.email !== "-" && (
                               <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
-                                <Mail size={11} className="text-emerald-600 shrink-0" />
+                                <Mail size={11} className="text-slate-400 shrink-0" />
                                 <span className="truncate max-w-[190px]">{app.email}</span>
                               </div>
                             )}
@@ -886,10 +921,10 @@ export default function Vendor({ embedded = false }) {
                         <td className="py-4 px-5 text-center">
                           <span
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${app.status === "Approved"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : app.status === "Rejected"
-                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                  : "bg-amber-50 text-amber-700 border border-amber-200"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : app.status === "Rejected"
+                                ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
                               }`}
                           >
                             {app.status === "Approved" ? (
@@ -941,19 +976,34 @@ export default function Vendor({ embedded = false }) {
                     className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/40 hover:bg-white hover:shadow-xs transition-all space-y-3"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         <span className="font-bold text-sm text-slate-900 block">
                           {app.ownerFullName || "-"}
                         </span>
+
                         {app.businessPhone && app.businessPhone !== "-" && (
-                          <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-medium">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                              Bussiness
+                            </span>
                             <Phone size={11} className="text-emerald-600 shrink-0" />
                             <span>{app.businessPhone}</span>
                           </div>
                         )}
+
+                        {app.loginPhone && app.loginPhone !== "-" && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-medium">
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                              Login
+                            </span>
+                            <Smartphone size={11} className="text-blue-600 shrink-0" />
+                            <span>{app.loginPhone}</span>
+                          </div>
+                        )}
+
                         {app.email && app.email !== "-" && (
                           <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                            <Mail size={11} className="text-emerald-600 shrink-0" />
+                            <Mail size={11} className="text-slate-400 shrink-0" />
                             <span className="truncate max-w-[200px]">{app.email}</span>
                           </div>
                         )}
@@ -963,10 +1013,10 @@ export default function Vendor({ embedded = false }) {
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${app.status === "Approved"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : app.status === "Rejected"
-                                ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : app.status === "Rejected"
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : "bg-amber-50 text-amber-700 border border-amber-200"
                             }`}
                         >
                           {app.status === "Approved" ? (
@@ -1092,500 +1142,522 @@ export default function Vendor({ embedded = false }) {
           <div
             className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200"
           >
-              {/* Modal Header */}
-              <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-orange-50/40 via-emerald-50/30 to-white">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-sm">
-                    <Store size={20} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base sm:text-lg font-bold text-slate-900">
-                        {selectedVendor?.businessName || selectedVendor?.shopName || "Merchant KYC Verification"}
-                      </h3>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
-                          isKycApproved(selectedVendor)
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : selectedVendor?.status === "Rejected" || String(selectedVendor?.kycStatus).toUpperCase() === "REJECTED"
-                              ? "bg-rose-50 text-rose-700 border border-rose-200"
-                              : "bg-amber-100 text-amber-800 border border-amber-200"
-                        }`}
-                      >
-                        {isKycApproved(selectedVendor) ? (
-                          <CheckCircle2 size={10} className="text-emerald-600" />
-                        ) : selectedVendor?.status === "Rejected" || String(selectedVendor?.kycStatus).toUpperCase() === "REJECTED" ? (
-                          <XCircle size={10} className="text-rose-600" />
-                        ) : (
-                          <Clock size={10} className="text-amber-600" />
-                        )}
-                        {selectedVendor?.status || "Pending"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">
-                      {selectedVendor?.businessType || "Merchant"} • Applied {formatDate(selectedVendor?.submittedAt)}
-                    </p>
-                  </div>
+            {/* Modal Header */}
+            <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-orange-50/40 via-emerald-50/30 to-white">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-sm">
+                  <Store size={20} />
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!actionLoading) {
-                      setShowDetail(false);
-                      setSelectedVendor(null);
-                      setShowRejectBox(false);
-                    }
-                  }}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-                >
-                  <X size={19} />
-                </button>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 text-slate-800">
-                {detailLoading ? (
-                  <div className="py-24 text-center text-slate-400 flex flex-col items-center gap-3">
-                    <RefreshCw size={28} className="animate-spin text-emerald-600" />
-                    <span className="text-xs font-semibold text-slate-600">
-                      Loading comprehensive merchant KYC dossier...
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                      {selectedVendor?.businessName || selectedVendor?.shopName || "Merchant KYC Verification"}
+                    </h3>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${isKycApproved(selectedVendor)
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : selectedVendor?.status === "Rejected" || String(selectedVendor?.kycStatus).toUpperCase() === "REJECTED"
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-amber-100 text-amber-800 border border-amber-200"
+                        }`}
+                    >
+                      {isKycApproved(selectedVendor) ? (
+                        <CheckCircle2 size={10} className="text-emerald-600" />
+                      ) : selectedVendor?.status === "Rejected" || String(selectedVendor?.kycStatus).toUpperCase() === "REJECTED" ? (
+                        <XCircle size={10} className="text-rose-600" />
+                      ) : (
+                        <Clock size={10} className="text-amber-600" />
+                      )}
+                      {selectedVendor?.status || "Pending"}
                     </span>
                   </div>
-                ) : (
-                  <>
-                    {actionError && (
-                      <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-                        <AlertCircle size={16} className="shrink-0 text-rose-600" />
-                        <span>{actionError}</span>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    {selectedVendor?.businessType || "Merchant"} • Applied {formatDate(selectedVendor?.submittedAt)}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!actionLoading) {
+                    setShowDetail(false);
+                    setSelectedVendor(null);
+                    setShowRejectBox(false);
+                  }
+                }}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 text-slate-800">
+              {detailLoading ? (
+                <div className="py-24 text-center text-slate-400 flex flex-col items-center gap-3">
+                  <RefreshCw size={28} className="animate-spin text-emerald-600" />
+                  <span className="text-xs font-semibold text-slate-600">
+                    Loading comprehensive merchant KYC dossier...
+                  </span>
+                </div>
+              ) : (
+                <>
+                  {actionError && (
+                    <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                      <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                      <span>{actionError}</span>
+                    </div>
+                  )}
+
+                  {/* SECTION 1: Merchant Profile & Contacts */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <User size={14} className="text-emerald-600" />
+                      <span>Merchant Profile & Contact Details</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Owner Full Name
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                          {selectedVendor?.ownerFullName || "-"}
+                        </span>
                       </div>
-                    )}
 
-                    {/* SECTION 1: Merchant Profile & Contacts */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                        <User size={14} className="text-emerald-600" />
-                        <span>Merchant Profile & Contact Details</span>
+                      {/* Business Phone Number */}
+                      <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Business Phone
+                          </span>
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Bussiness
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {selectedVendor?.businessPhone && selectedVendor?.businessPhone !== "-" ? (
+                            <>
+                              <Phone size={13} className="text-emerald-600 shrink-0" />
+                              <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono">
+                                {selectedVendor.businessPhone}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-medium">-</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+
+                      {/* App Login Mobile Number */}
+                      <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                        <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Owner Full Name
+                            App Login Phone
                           </span>
-                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
-                            {selectedVendor?.ownerFullName || "-"}
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                            Login
                           </span>
                         </div>
-
-                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Phone Number
-                          </span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {selectedVendor?.businessPhone && selectedVendor?.businessPhone !== "-" ? (
-                              <>
-                                <Phone size={13} className="text-emerald-600 shrink-0" />
-                                <span className="text-xs sm:text-sm font-bold text-slate-900">
-                                  {selectedVendor.businessPhone}
-                                </span>
-                              </>
-                            ) : selectedVendor?.loginPhone ? (
-                              <>
-                                <Phone size={13} className="text-emerald-600 shrink-0" />
-                                <span className="text-xs sm:text-sm font-bold text-slate-900">
-                                  {selectedVendor.loginPhone}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-xs text-slate-400">-</span>
-                            )}
-                          </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {selectedVendor?.loginPhone && selectedVendor?.loginPhone !== "-" ? (
+                            <>
+                              <Smartphone size={13} className="text-blue-600 shrink-0" />
+                              <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono">
+                                {selectedVendor.loginPhone}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-medium">-</span>
+                          )}
                         </div>
+                      </div>
 
-                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Email Address
-                          </span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {selectedVendor?.email && selectedVendor?.email !== "-" ? (
-                              <>
-                                <Mail size={13} className="text-emerald-600 shrink-0" />
-                                <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                                  {selectedVendor.email}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-xs text-slate-400">-</span>
-                            )}
-                          </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Email Address
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {selectedVendor?.email && selectedVendor?.email !== "-" ? (
+                            <>
+                              <Mail size={13} className="text-emerald-600 shrink-0" />
+                              <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                                {selectedVendor.email}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-slate-400">-</span>
+                          )}
                         </div>
+                      </div>
 
-                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Shop / Business Name
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
-                            {selectedVendor?.businessName || selectedVendor?.shopName || "-"}
-                          </span>
-                        </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Shop / Business Name
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                          {selectedVendor?.businessName || selectedVendor?.shopName || "-"}
+                        </span>
+                      </div>
 
-                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Business Type
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold text-emerald-800 block mt-0.5">
-                            {selectedVendor?.businessType || "-"}
-                          </span>
-                        </div>
+                      <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Business Type
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-emerald-800 block mt-0.5">
+                          {selectedVendor?.businessType || "-"}
+                        </span>
+                      </div>
 
-                        <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Registration Date
+                      <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/70">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Registration Date
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Calendar size={13} className="text-slate-500 shrink-0" />
+                          <span className="text-xs sm:text-sm font-bold text-slate-900">
+                            {formatDate(selectedVendor?.registeredAt || selectedVendor?.submittedAt)}
                           </span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <Calendar size={13} className="text-slate-500 shrink-0" />
-                            <span className="text-xs sm:text-sm font-bold text-slate-900">
-                              {formatDate(selectedVendor?.registeredAt || selectedVendor?.submittedAt)}
-                            </span>
-                          </div>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    {/* SECTION 2: Business Operating Address */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                        <MapPin size={14} className="text-orange-600" />
-                        <span>Operating Business Address</span>
+                  {/* SECTION 2: Business Operating Address */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <MapPin size={14} className="text-orange-600" />
+                      <span>Operating Business Address</span>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/70 space-y-3">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Full Address
+                        </span>
+                        <p className="text-xs sm:text-sm font-semibold text-slate-900 mt-0.5 leading-relaxed">
+                          {selectedVendor?.address?.fullAddress || selectedVendor?.address?.streetAddress || "No address details provided."}
+                        </p>
                       </div>
-                      <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/70 space-y-3">
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-200/60 text-xs">
                         <div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Full Address
-                          </span>
-                          <p className="text-xs sm:text-sm font-semibold text-slate-900 mt-0.5 leading-relaxed">
-                            {selectedVendor?.address?.fullAddress || selectedVendor?.address?.streetAddress || "No address details provided."}
-                          </p>
+                          <span className="text-[10px] text-slate-400 font-bold block">City</span>
+                          <span className="font-bold text-slate-800">{selectedVendor?.address?.city || "-"}</span>
                         </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-200/60 text-xs">
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold block">City</span>
-                            <span className="font-bold text-slate-800">{selectedVendor?.address?.city || "-"}</span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold block">State</span>
-                            <span className="font-bold text-slate-800">{selectedVendor?.address?.state || "-"}</span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold block">PIN / Postal Code</span>
-                            <span className="font-bold text-slate-800">{selectedVendor?.address?.zipCode || "-"}</span>
-                          </div>
-                          <div>
-                            <span className="text-[10px] text-slate-400 font-bold block">GPS Coordinates</span>
-                            {selectedVendor?.address?.latitude && selectedVendor?.address?.longitude ? (
-                              <a
-                                href={`https://www.google.com/maps?q=${selectedVendor.address.latitude},${selectedVendor.address.longitude}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
-                              >
-                                View Map <ExternalLink size={10} />
-                              </a>
-                            ) : (
-                              <span className="font-medium text-slate-400">-</span>
-                            )}
-                          </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold block">State</span>
+                          <span className="font-bold text-slate-800">{selectedVendor?.address?.state || "-"}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold block">PIN / Postal Code</span>
+                          <span className="font-bold text-slate-800">{selectedVendor?.address?.zipCode || "-"}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-bold block">GPS Coordinates</span>
+                          {selectedVendor?.address?.latitude && selectedVendor?.address?.longitude ? (
+                            <a
+                              href={`https://www.google.com/maps?q=${selectedVendor.address.latitude},${selectedVendor.address.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:text-emerald-800 hover:underline"
+                            >
+                              View Map <ExternalLink size={10} />
+                            </a>
+                          ) : (
+                            <span className="font-medium text-slate-400">-</span>
+                          )}
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    {/* SECTION 3: Bank & Settlement Details */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                        <Landmark size={14} className="text-emerald-600" />
-                        <span>Payout & Settlement Bank Details</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
-                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
-                            Bank Name
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
-                            {selectedVendor?.bank?.bankName || "-"}
-                          </span>
-                        </div>
-
-                        <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
-                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
-                            Account Holder
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
-                            {selectedVendor?.bank?.accountHolderName || "-"}
-                          </span>
-                        </div>
-
-                        <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
-                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
-                            Account Number
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono block mt-0.5">
-                            {selectedVendor?.bank?.accountNumber || "-"}
-                          </span>
-                        </div>
-
-                        <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
-                          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
-                            IFSC Code
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono block mt-0.5">
-                            {selectedVendor?.bank?.ifscCode || "-"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold ${selectedVendor?.bank?.agreedToPayoutTerms ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
-                          <Check size={12} />
-                          {selectedVendor?.bank?.agreedToPayoutTerms ? "Agreed to Payout Terms" : "Payout Terms Not Agreed"}
+                  {/* SECTION 3: Bank & Settlement Details */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <Landmark size={14} className="text-emerald-600" />
+                      <span>Payout & Settlement Bank Details</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                          Bank Name
                         </span>
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold ${selectedVendor?.bank?.provided ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>
-                          <Check size={12} />
-                          {selectedVendor?.bank?.provided ? "Bank Info Provided" : "Bank Info Pending"}
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                          {selectedVendor?.bank?.bankName || "-"}
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                          Account Holder
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 block mt-0.5">
+                          {selectedVendor?.bank?.accountHolderName || "-"}
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                          Account Number
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono block mt-0.5">
+                          {selectedVendor?.bank?.accountNumber || "-"}
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100">
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                          IFSC Code
+                        </span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono block mt-0.5">
+                          {selectedVendor?.bank?.ifscCode || "-"}
                         </span>
                       </div>
                     </div>
 
-                    {/* SECTION 4: Onboarding Verification Milestones */}
-                    <div className="space-y-2.5">
-                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                        <ShieldCheck size={14} className="text-emerald-600" />
-                        <span>Onboarding Progress Milestones</span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                        <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-700">Basic Info</span>
-                          {selectedVendor?.onboardingProgress?.basicInfoCompleted ? (
-                            <span className="p-1 rounded-full bg-emerald-100 text-emerald-700"><Check size={12} /></span>
-                          ) : (
-                            <span className="p-1 rounded-full bg-slate-200 text-slate-500"><Clock size={12} /></span>
-                          )}
-                        </div>
-
-                        <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-700">Location Info</span>
-                          {selectedVendor?.onboardingProgress?.businessLocationCompleted ? (
-                            <span className="p-1 rounded-full bg-emerald-100 text-emerald-700"><Check size={12} /></span>
-                          ) : (
-                            <span className="p-1 rounded-full bg-slate-200 text-slate-500"><Clock size={12} /></span>
-                          )}
-                        </div>
-
-                        <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-700">Bank Details</span>
-                          {selectedVendor?.onboardingProgress?.bankDetailsCompleted ? (
-                            <span className="p-1 rounded-full bg-emerald-100 text-emerald-700"><Check size={12} /></span>
-                          ) : (
-                            <span className="p-1 rounded-full bg-slate-200 text-slate-500"><Clock size={12} /></span>
-                          )}
-                        </div>
-
-                        <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
-                          <span className="text-xs font-semibold text-slate-700">Payment Settings</span>
-                          {selectedVendor?.onboardingProgress?.paymentSettingsConfigured ? (
-                            <span className="p-1 rounded-full bg-emerald-100 text-emerald-700"><Check size={12} /></span>
-                          ) : (
-                            <span className="p-1 rounded-full bg-slate-200 text-slate-500"><Clock size={12} /></span>
-                          )}
-                        </div>
-                      </div>
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold ${selectedVendor?.bank?.agreedToPayoutTerms ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
+                        <Check size={12} />
+                        {selectedVendor?.bank?.agreedToPayoutTerms ? "Agreed to Payout Terms" : "Payout Terms Not Agreed"}
+                      </span>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold ${selectedVendor?.bank?.provided ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>
+                        <Check size={12} />
+                        {selectedVendor?.bank?.provided ? "Bank Info Provided" : "Bank Info Pending"}
+                      </span>
                     </div>
+                  </div>
 
-                    {/* SECTION 5: Submitted KYC Documents with Visual Preview */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-                          <FileText size={14} className="text-emerald-600" />
-                          <span>Submitted KYC Documents ({vendorDocuments.length})</span>
-                        </div>
-                        {selectedVendor?.allDocumentsUploaded && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                            <Check size={11} /> All Documents Uploaded
-                          </span>
+                  {/* SECTION 4: Onboarding Verification Milestones */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <ShieldCheck size={14} className="text-emerald-600" />
+                      <span>Onboarding Progress Milestones</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-700">Basic Info</span>
+                        {selectedVendor?.onboardingProgress?.basicInfoCompleted ? (
+                          <span className="p-1 rounded-full bg-emerald-100 text-emerald-700"><Check size={12} /></span>
+                        ) : (
+                          <span className="p-1 rounded-full bg-slate-200 text-slate-500"><Clock size={12} /></span>
                         )}
                       </div>
 
-                      {vendorDocuments.length === 0 ? (
-                        <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500 font-medium">
-                          No document attachments found for this merchant.
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                          {vendorDocuments.map((doc, dIdx) => {
-                            const rawUrl = doc.fileUrl || doc.documentUrl || doc.url || "";
-                            // Clean markdown link formatting if URL was enclosed in markdown
-                            const docUrl = rawUrl.replace(/^\[?([^\]]+)\]?\(?([^)]*)\)?$/, "$1").replace(/[[\]]/g, "").trim();
-                            const docType = (doc.documentType || doc.type || `Document #${dIdx + 1}`).replace(/_/g, " ");
+                      <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-700">Location Info</span>
+                        {selectedVendor?.onboardingProgress?.businessLocationCompleted ? (
+                          <span className="p-1 rounded-full bg-emerald-100 text-emerald-700"><Check size={12} /></span>
+                        ) : (
+                          <span className="p-1 rounded-full bg-slate-200 text-slate-500"><Clock size={12} /></span>
+                        )}
+                      </div>
 
-                            return (
-                              <div
-                                key={dIdx}
-                                className="rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col hover:border-emerald-300 shadow-2xs group"
-                              >
-                                {/* Document Header */}
-                                <div className="p-3 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
-                                  <div className="min-w-0 pr-2">
-                                    <span className="font-bold text-xs text-slate-900 block truncate capitalize">
-                                      {docType}
-                                    </span>
-                                    <span className="text-[10px] text-slate-400 font-medium">
-                                      Uploaded {formatDate(doc.uploadedAt || doc.lastUpdatedAt)}
-                                    </span>
-                                  </div>
-                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
-                                    {doc.status || "PENDING"}
-                                  </span>
-                                </div>
+                      <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-700">Bank Details</span>
+                        {selectedVendor?.onboardingProgress?.bankDetailsCompleted ? (
+                          <span className="p-1 rounded-full bg-emerald-100 text-emerald-700"><Check size={12} /></span>
+                        ) : (
+                          <span className="p-1 rounded-full bg-slate-200 text-slate-500"><Clock size={12} /></span>
+                        )}
+                      </div>
 
-                                {/* Document Visual Preview */}
-                                <div className="relative w-full h-40 bg-slate-100 flex items-center justify-center overflow-hidden">
-                                  {docUrl ? (
-                                    <>
-                                      <img
-                                        src={docUrl}
-                                        alt={docType}
-                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                        onError={(e) => {
-                                          e.currentTarget.style.display = "none";
-                                        }}
-                                      />
-                                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <a
-                                          href={docUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="px-3 py-1.5 rounded-xl bg-white text-slate-900 font-bold text-xs shadow-md inline-flex items-center gap-1.5 hover:bg-emerald-50 transition-colors"
-                                        >
-                                          <ExternalLink size={13} />
-                                          Open Full Image
-                                        </a>
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <div className="flex flex-col items-center gap-1.5 text-slate-400 text-xs font-semibold">
-                                      <FileText size={24} />
-                                      <span>No preview available</span>
-                                    </div>
-                                  )}
-                                </div>
+                      <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-700">Payment Settings</span>
+                        {selectedVendor?.onboardingProgress?.paymentSettingsConfigured ? (
+                          <span className="p-1 rounded-full bg-emerald-100 text-emerald-700"><Check size={12} /></span>
+                        ) : (
+                          <span className="p-1 rounded-full bg-slate-200 text-slate-500"><Clock size={12} /></span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                                {/* Document Card Footer */}
-                                {docUrl && (
-                                  <div className="p-2.5 bg-white border-t border-slate-100 flex justify-end">
-                                    <a
-                                      href={docUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
-                                    >
-                                      View Original File <ExternalLink size={11} />
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                  {/* SECTION 5: Submitted KYC Documents with Visual Preview */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        <FileText size={14} className="text-emerald-600" />
+                        <span>Submitted KYC Documents ({vendorDocuments.length})</span>
+                      </div>
+                      {selectedVendor?.allDocumentsUploaded && (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                          <Check size={11} /> All Documents Uploaded
+                        </span>
                       )}
                     </div>
 
-                    {/* Rejection Reason Form */}
-                    {showRejectBox && (
-                      <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-3">
-                        <label className="block text-xs font-bold text-rose-900">
-                          Reason for Application Rejection
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={rejectReason}
-                          onChange={(e) => setRejectReason(e.target.value)}
-                          placeholder="Provide the reason for rejecting this KYC application (e.g., Unclear business license image, Tax ID mismatch, incomplete bank proof)..."
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-rose-500"
-                        />
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowRejectBox(false)}
-                            disabled={actionLoading}
-                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleReject}
-                            disabled={actionLoading}
-                            className="px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
-                          >
-                            {actionLoading && <RefreshCw size={12} className="animate-spin" />}
-                            Confirm Rejection
-                          </button>
-                        </div>
+                    {vendorDocuments.length === 0 ? (
+                      <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500 font-medium">
+                        No document attachments found for this merchant.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                        {vendorDocuments.map((doc, dIdx) => {
+                          const rawUrl = doc.fileUrl || doc.documentUrl || doc.url || "";
+                          // Clean markdown link formatting if URL was enclosed in markdown
+                          const docUrl = rawUrl.replace(/^\[?([^\]]+)\]?\(?([^)]*)\)?$/, "$1").replace(/[[\]]/g, "").trim();
+                          const docType = (doc.documentType || doc.type || `Document #${dIdx + 1}`).replace(/_/g, " ");
+
+                          return (
+                            <div
+                              key={dIdx}
+                              className="rounded-2xl border border-slate-200 bg-white overflow-hidden flex flex-col hover:border-emerald-300 shadow-2xs group"
+                            >
+                              {/* Document Header */}
+                              <div className="p-3 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+                                <div className="min-w-0 pr-2">
+                                  <span className="font-bold text-xs text-slate-900 block truncate capitalize">
+                                    {docType}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    Uploaded {formatDate(doc.uploadedAt || doc.lastUpdatedAt)}
+                                  </span>
+                                </div>
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                  {doc.status || "PENDING"}
+                                </span>
+                              </div>
+
+                              {/* Document Visual Preview */}
+                              <div className="relative w-full h-40 bg-slate-100 flex items-center justify-center overflow-hidden">
+                                {docUrl ? (
+                                  <>
+                                    <img
+                                      src={docUrl}
+                                      alt={docType}
+                                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = "none";
+                                      }}
+                                    />
+                                    <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <a
+                                        href={docUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-3 py-1.5 rounded-xl bg-white text-slate-900 font-bold text-xs shadow-md inline-flex items-center gap-1.5 hover:bg-emerald-50 transition-colors"
+                                      >
+                                        <ExternalLink size={13} />
+                                        Open Full Image
+                                      </a>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="flex flex-col items-center gap-1.5 text-slate-400 text-xs font-semibold">
+                                    <FileText size={24} />
+                                    <span>No preview available</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Document Card Footer */}
+                              {docUrl && (
+                                <div className="p-2.5 bg-white border-t border-slate-100 flex justify-end">
+                                  <a
+                                    href={docUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
+                                  >
+                                    View Original File <ExternalLink size={11} />
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
+                  </div>
+
+                  {/* Rejection Reason Form */}
+                  {showRejectBox && (
+                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-3">
+                      <label className="block text-xs font-bold text-rose-900">
+                        Reason for Application Rejection
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        placeholder="Provide the reason for rejecting this KYC application (e.g., Unclear business license image, Tax ID mismatch, incomplete bank proof)..."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-rose-200 bg-white text-xs font-semibold text-slate-900 focus:outline-none focus:border-rose-500"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowRejectBox(false)}
+                          disabled={actionLoading}
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleReject}
+                          disabled={actionLoading}
+                          className="px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
+                        >
+                          {actionLoading && <RefreshCw size={12} className="animate-spin" />}
+                          Confirm Rejection
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Modal Actions Footer */}
+            {!detailLoading && !showRejectBox && (
+              <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row items-center gap-3">
+                {isKycApproved(selectedVendor) ? (
+                  <div className="w-full flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                      <CheckCircle2 size={14} className="text-emerald-600" />
+                      <span>KYC Approved & Verified</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDetail(false);
+                        setSelectedVendor(null);
+                      }}
+                      className="px-5 py-2 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-100 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                    >
+                      Close
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectBox(true)}
+                      disabled={actionLoading}
+                      className="w-full sm:flex-1 py-3 px-4 rounded-xl border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-2"
+                    >
+                      <XCircle size={16} />
+                      Reject Application
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleApprove}
+                      disabled={actionLoading}
+                      className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      {actionLoading ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <CheckCircle2 size={16} />
+                      )}
+                      Approve Application
+                    </button>
                   </>
                 )}
               </div>
-
-              {/* Modal Actions Footer */}
-              {!detailLoading && !showRejectBox && (
-                <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row items-center gap-3">
-                  {isKycApproved(selectedVendor) ? (
-                    <div className="w-full flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                        <CheckCircle2 size={14} className="text-emerald-600" />
-                        <span>KYC Approved & Verified</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowDetail(false);
-                          setSelectedVendor(null);
-                        }}
-                        className="px-5 py-2 rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-100 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setShowRejectBox(true)}
-                        disabled={actionLoading}
-                        className="w-full sm:flex-1 py-3 px-4 rounded-xl border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-2"
-                      >
-                        <XCircle size={16} />
-                        Reject Application
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleApprove}
-                        disabled={actionLoading}
-                        className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-2 shadow-sm"
-                      >
-                        {actionLoading ? (
-                          <RefreshCw size={16} className="animate-spin" />
-                        ) : (
-                          <CheckCircle2 size={16} />
-                        )}
-                        Approve Application
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+            )}
           </div>
         </div>
       )}

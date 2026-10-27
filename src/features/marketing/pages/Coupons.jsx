@@ -21,6 +21,7 @@ import {
 import PageHeader from '../../../components/common/PageHeader';
 import EmptyState from '../../../components/common/EmptyState';
 import ConfirmModal from '../../../components/common/ConfirmModal';
+import DateTimePicker from '../../../components/common/DateTimePicker';
 import PaginationBar from '../../products/components/PaginationBar';
 import StatusBadge from '../components/StatusBadge';
 import FilterChips from '../components/FilterChips';
@@ -280,57 +281,119 @@ function RulesCell({ coupon }) {
   );
 }
 
-function ActionButtons({ coupon, busy, onEdit, onToggle, onDelete, onRedemptions }) {
-  const base =
-    'p-2 rounded-xl border transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+function ActionButtons({ coupon, busy, onEdit, onToggle, onDelete, onRedemptions, isMobile = false }) {
+  if (isMobile) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2.5 border-t border-slate-100">
+        <button
+          type="button"
+          onClick={() => onRedemptions(coupon)}
+          className="h-8.5 px-3 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+        >
+          <History size={13} className="text-emerald-600" />
+          <span>Usage</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onEdit(coupon)}
+          className="h-8.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200/90 hover:border-emerald-600 text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+        >
+          <Edit3 size={13} />
+          <span>Edit</span>
+        </button>
+
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onToggle(coupon)}
+          className={`h-8.5 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all shadow-2xs border cursor-pointer disabled:opacity-50 ${coupon.enabled
+              ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200/90'
+              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200/90'
+            }`}
+        >
+          {busy ? (
+            <Loader2 size={13} className="animate-spin text-current" />
+          ) : coupon.enabled ? (
+            <>
+              <PowerOff size={13} />
+              <span>Disable</span>
+            </>
+          ) : (
+            <>
+              <Power size={13} />
+              <span>Enable</span>
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onDelete(coupon)}
+          className="h-8.5 px-3 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+        >
+          <Trash2 size={13} />
+          <span>Delete</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center justify-end gap-1.5">
+    <div className="flex items-center justify-end gap-1.5 flex-nowrap">
       <button
         type="button"
-        title="Who used it"
+        title="View redemptions & usage"
         onClick={() => onRedemptions(coupon)}
-        className={`${base} bg-white border-slate-200 text-slate-600 hover:text-emerald-700 hover:border-emerald-300`}
+        className="h-8 px-2.5 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
       >
-        <History size={14} />
+        <History size={13} className="text-emerald-600" />
+        <span>Usage</span>
       </button>
 
       <button
         type="button"
-        title="Edit"
+        title="Edit coupon"
         onClick={() => onEdit(coupon)}
-        className={`${base} bg-white border-slate-200 text-slate-600 hover:text-emerald-700 hover:border-emerald-300`}
+        className="h-8 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200/90 hover:border-emerald-600 text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
       >
-        <Edit3 size={14} />
+        <Edit3 size={13} />
+        <span>Edit</span>
       </button>
 
       <button
         type="button"
         disabled={busy}
-        title={coupon.enabled ? 'Switch off' : 'Switch on'}
+        title={coupon.enabled ? 'Switch off coupon' : 'Switch on coupon'}
         onClick={() => onToggle(coupon)}
-        className={`${base} ${
-          coupon.enabled
-            ? 'bg-white border-slate-200 text-amber-600 hover:border-amber-300 hover:bg-amber-50'
-            : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-        }`}
+        className={`h-8 px-2.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs border cursor-pointer disabled:opacity-50 ${coupon.enabled
+            ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200/90'
+            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200/90'
+          }`}
       >
         {busy ? (
-          <Loader2 size={14} className="animate-spin" />
+          <Loader2 size={13} className="animate-spin text-current" />
         ) : coupon.enabled ? (
-          <PowerOff size={14} />
+          <>
+            <PowerOff size={13} />
+            <span>Disable</span>
+          </>
         ) : (
-          <Power size={14} />
+          <>
+            <Power size={13} />
+            <span>Enable</span>
+          </>
         )}
       </button>
 
       <button
         type="button"
-        title="Delete"
+        title="Delete coupon"
         onClick={() => onDelete(coupon)}
-        className={`${base} bg-white border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200`}
+        className="h-8 px-2.5 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
       >
-        <Trash2 size={14} />
+        <Trash2 size={13} />
+        <span>Delete</span>
       </button>
     </div>
   );
@@ -592,7 +655,6 @@ export default function Coupons() {
       <PageHeader
         icon={Ticket}
         title="Coupons"
-        subtitle="Create discount codes, set who can use them and how much they can give away. Discounts are paid from the platform margin, never from the vendor's price."
         stats={[{ label: 'Coupons', value: pageInfo.totalElements }]}
         actionButtonText="New Coupon"
         actionButtonIcon={Plus}
@@ -663,7 +725,7 @@ export default function Coupons() {
                   <th className="py-4 px-5">Who / limits</th>
                   <th className="py-4 px-5">Usage</th>
                   <th className="py-4 px-5 text-center">Status</th>
-                  <th className="py-4 px-5 text-right">Actions</th>
+                  <th className="py-4 px-5 text-right min-w-[340px]">Actions</th>
                 </tr>
               </thead>
 
@@ -751,6 +813,7 @@ export default function Coupons() {
                   onToggle={handleToggle}
                   onDelete={setDeleteTarget}
                   onRedemptions={openRedemptions}
+                  isMobile={true}
                 />
               </div>
             ))}
@@ -779,277 +842,276 @@ export default function Coupons() {
           <div
             className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
           >
-              <button
-                type="button"
-                onClick={closePanel}
-                disabled={saving}
-                className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50 z-10 cursor-pointer"
-              >
-                <X size={18} />
-              </button>
+            <button
+              type="button"
+              onClick={closePanel}
+              disabled={saving}
+              className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50 z-10 cursor-pointer"
+            >
+              <X size={18} />
+            </button>
 
-              <div className="flex items-center gap-3.5 mb-6 pr-8">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
-                  {editingCoupon ? <Edit3 size={20} /> : <Plus size={20} />}
-                </div>
-                <div>
-                  <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase">
-                    Coupon Management
-                  </span>
-                  <h3 className="text-lg font-bold text-black">
-                    {editingCoupon ? `Edit ${editingCoupon.code}` : 'Create Coupon'}
-                  </h3>
-                </div>
+            <div className="flex items-center gap-3.5 mb-6 pr-8">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
+                {editingCoupon ? <Edit3 size={20} /> : <Plus size={20} />}
               </div>
+              <div>
+                <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase">
+                  Coupon Management
+                </span>
+                <h3 className="text-lg font-bold text-black">
+                  {editingCoupon ? `Edit ${editingCoupon.code}` : 'Create Coupon'}
+                </h3>
+              </div>
+            </div>
 
-              <form onSubmit={handleSave} className="space-y-4">
-                {formError && (
-                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
-                    {formError}
-                  </div>
-                )}
-
-                {editingCoupon && (
-                  <div className="p-3 rounded-xl bg-sky-50 border border-sky-100 text-[11px] font-semibold text-sky-800 flex gap-2">
-                    <Info size={14} className="shrink-0 mt-0.5" />
-                    <span>
-                      Saving replaces all the rules: a limit you leave empty means &quot;no limit&quot;.
-                      {hasBeenUsed && ' This coupon has been used, so its code and discount type are locked.'}
-                    </span>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Code" required hint="3-40 chars: letters, digits, - or _. Stored in UPPER-CASE.">
-                    <input
-                      type="text"
-                      value={form.code}
-                      disabled={hasBeenUsed}
-                      onChange={(e) => setField('code', e.target.value.toUpperCase())}
-                      placeholder="WELCOME10"
-                      maxLength={40}
-                      className={`${inputClass} font-mono uppercase`}
-                    />
-                  </Field>
-
-                  <Field label="Discount type" required>
-                    <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-50 border border-slate-200 rounded-xl">
-                      {['PERCENT', 'FLAT'].map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          disabled={hasBeenUsed}
-                          onClick={() => setField('discountType', type)}
-                          className={`h-[30px] rounded-lg text-xs font-bold transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
-                            form.discountType === type
-                              ? 'bg-white text-emerald-800 shadow-xs border border-emerald-200'
-                              : 'text-slate-500 hover:text-slate-800'
-                          }`}
-                        >
-                          {type === 'PERCENT' ? 'Percentage (%)' : 'Flat amount (₹)'}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
+            <form onSubmit={handleSave} className="space-y-4">
+              {formError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+                  {formError}
                 </div>
+              )}
 
-                <Field label="Description" hint="Shown to customers in the offers list.">
-                  <textarea
-                    rows={2}
-                    maxLength={255}
-                    value={form.description}
-                    onChange={(e) => setField('description', e.target.value)}
-                    placeholder="10% off your first order"
-                    className={textareaClass}
+              {editingCoupon && (
+                <div className="p-3 rounded-xl bg-sky-50 border border-sky-100 text-[11px] font-semibold text-sky-800 flex gap-2">
+                  <Info size={14} className="shrink-0 mt-0.5" />
+                  <span>
+                    Saving replaces all the rules: a limit you leave empty means &quot;no limit&quot;.
+                    {hasBeenUsed && ' This coupon has been used, so its code and discount type are locked.'}
+                  </span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Code" required hint="3-40 chars: letters, digits, - or _. Stored in UPPER-CASE.">
+                  <input
+                    type="text"
+                    value={form.code}
+                    disabled={hasBeenUsed}
+                    onChange={(e) => setField('code', e.target.value.toUpperCase())}
+                    placeholder="WELCOME10"
+                    maxLength={40}
+                    className={`${inputClass} font-mono uppercase`}
                   />
                 </Field>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <Field
-                    label={form.discountType === 'PERCENT' ? 'Discount (%)' : 'Discount (₹)'}
-                    required
-                    hint={form.discountType === 'PERCENT' ? '1 to 100' : 'Not above the minimum order'}
-                  >
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={form.discountValue}
-                      onChange={(e) => setField('discountValue', e.target.value)}
-                      className={inputClass}
-                    />
-                  </Field>
-
-                  {form.discountType === 'PERCENT' && (
-                    <Field label="Max discount (₹)" required hint="Cap for one checkout">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.maxDiscount}
-                        onChange={(e) => setField('maxDiscount', e.target.value)}
-                        className={inputClass}
-                      />
-                    </Field>
-                  )}
-
-                  <Field label="Min order (₹)" hint="On items total; delivery + platform fee excluded">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={form.minOrderAmount}
-                      onChange={(e) => setField('minOrderAmount', e.target.value)}
-                      placeholder="0"
-                      className={inputClass}
-                    />
-                  </Field>
-                </div>
-
-                {offerPreview && (
-                  <div className="px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-800">
-                    Offer: {offerPreview}
+                <Field label="Discount type" required>
+                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-50 border border-slate-200 rounded-xl">
+                    {['PERCENT', 'FLAT'].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        disabled={hasBeenUsed}
+                        onClick={() => setField('discountType', type)}
+                        className={`h-[30px] rounded-lg text-xs font-bold transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${form.discountType === type
+                            ? 'bg-white text-emerald-800 shadow-xs border border-emerald-200'
+                            : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                      >
+                        {type === 'PERCENT' ? 'Percentage (%)' : 'Flat amount (₹)'}
+                      </button>
+                    ))}
                   </div>
+                </Field>
+              </div>
+
+              <Field label="Description" hint="Shown to customers in the offers list.">
+                <textarea
+                  rows={2}
+                  maxLength={255}
+                  value={form.description}
+                  onChange={(e) => setField('description', e.target.value)}
+                  placeholder="10% off your first order"
+                  className={textareaClass}
+                />
+              </Field>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Field
+                  label={form.discountType === 'PERCENT' ? 'Discount (%)' : 'Discount (₹)'}
+                  required
+                  hint={form.discountType === 'PERCENT' ? '1 to 100' : 'Not above the minimum order'}
+                >
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.discountValue}
+                    onChange={(e) => setField('discountValue', e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+
+                {form.discountType === 'PERCENT' && (
+                  <Field label="Max discount (₹)" required hint="Cap for one checkout">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form.maxDiscount}
+                      onChange={(e) => setField('maxDiscount', e.target.value)}
+                      className={inputClass}
+                    />
+                  </Field>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Starts at (IST)" hint="Empty = starts immediately">
-                    <input
-                      type="datetime-local"
-                      value={form.startsAt}
-                      onChange={(e) => setField('startsAt', e.target.value)}
-                      className={selectClass}
-                    />
-                  </Field>
+                <Field label="Min order (₹)" hint="On items total; delivery + platform fee excluded">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.minOrderAmount}
+                    onChange={(e) => setField('minOrderAmount', e.target.value)}
+                    placeholder="0"
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
 
-                  <Field label="Ends at (IST)" hint="Empty = never ends. End moment is exclusive.">
-                    <input
-                      type="datetime-local"
-                      value={form.endsAt}
-                      onChange={(e) => setField('endsAt', e.target.value)}
-                      className={selectClass}
-                    />
-                  </Field>
+              {offerPreview && (
+                <div className="px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-800">
+                  Offer: {offerPreview}
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Audience">
-                    <select
-                      value={form.audience}
-                      onChange={(e) => setField('audience', e.target.value)}
-                      className={selectClass}
-                    >
-                      {Object.entries(AUDIENCE_LABELS).map(([id, label]) => (
-                        <option key={id} value={id}>{label}</option>
-                      ))}
-                    </select>
-                  </Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Starts at (IST)" hint="Empty = starts immediately">
+                  <DateTimePicker
+                    value={form.startsAt}
+                    onChange={(val) => setField('startsAt', val)}
+                    placeholder="Starts immediately"
+                  />
+                </Field>
 
-                  {form.audience === 'RETURNING_CUSTOMERS' && (
-                    <Field label="Min previous orders" hint="Cancelled orders never count">
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={form.minPreviousOrders}
-                        onChange={(e) => setField('minPreviousOrders', e.target.value)}
-                        className={inputClass}
-                      />
-                    </Field>
-                  )}
-                </div>
+                <Field label="Ends at (IST)" hint="Empty = never ends. End moment is exclusive.">
+                  <DateTimePicker
+                    value={form.endsAt}
+                    onChange={(val) => setField('endsAt', val)}
+                    placeholder="Never ends"
+                    min={form.startsAt}
+                    align="right"
+                  />
+                </Field>
+              </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Total usage limit" hint="Uses across all customers (a checkout = 1 use). Empty = unlimited.">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Audience">
+                  <select
+                    value={form.audience}
+                    onChange={(e) => setField('audience', e.target.value)}
+                    className={selectClass}
+                  >
+                    {Object.entries(AUDIENCE_LABELS).map(([id, label]) => (
+                      <option key={id} value={id}>{label}</option>
+                    ))}
+                  </select>
+                </Field>
+
+                {form.audience === 'RETURNING_CUSTOMERS' && (
+                  <Field label="Min previous orders" hint="Cancelled orders never count">
                     <input
                       type="number"
                       min="1"
                       step="1"
-                      value={form.totalUsageLimit}
-                      onChange={(e) => setField('totalUsageLimit', e.target.value)}
-                      placeholder="Unlimited"
+                      value={form.minPreviousOrders}
+                      onChange={(e) => setField('minPreviousOrders', e.target.value)}
                       className={inputClass}
                     />
                   </Field>
+                )}
+              </div>
 
-                  <Field label="Total budget (₹)" hint="Max rupees the coupon may give away. Empty = unlimited.">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.totalBudget}
-                      onChange={(e) => setField('totalBudget', e.target.value)}
-                      placeholder="Unlimited"
-                      className={inputClass}
-                    />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Per-customer limit" hint="Empty = no limit per customer">
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={form.perCustomerLimit}
-                      onChange={(e) => setField('perCustomerLimit', e.target.value)}
-                      placeholder="No limit"
-                      className={inputClass}
-                    />
-                  </Field>
-
-                  <Field label="Per-customer period" hint="Day = midnight-midnight, week = Mon-Sun (IST)">
-                    <select
-                      value={form.perCustomerPeriod}
-                      disabled={form.perCustomerLimit === ''}
-                      onChange={(e) => setField('perCustomerPeriod', e.target.value)}
-                      className={selectClass}
-                    >
-                      <option value="DAY">Per day</option>
-                      <option value="WEEK">Per week</option>
-                      <option value="MONTH">Per month</option>
-                      <option value="LIFETIME">Lifetime</option>
-                    </select>
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <ToggleRow
-                    title="Listed"
-                    subtitle={form.listed ? 'Shown in customers\u2019 offers list' : 'Hidden code: works only when typed'}
-                    checked={form.listed}
-                    onChange={(v) => setField('listed', v)}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Total usage limit" hint="Uses across all customers (a checkout = 1 use). Empty = unlimited.">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.totalUsageLimit}
+                    onChange={(e) => setField('totalUsageLimit', e.target.value)}
+                    placeholder="Unlimited"
+                    className={inputClass}
                   />
-                  <ToggleRow
-                    title="Enabled"
-                    subtitle={form.enabled ? 'Kill switch is ON' : 'Switched off: cannot be applied'}
-                    checked={form.enabled}
-                    onChange={(v) => setField('enabled', v)}
-                  />
-                </div>
+                </Field>
 
-                <div className="flex items-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={closePanel}
-                    disabled={saving}
-                    className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-sm rounded-2xl border border-slate-100 transition-all cursor-pointer disabled:opacity-50"
+                <Field label="Total budget (₹)" hint="Max rupees the coupon may give away. Empty = unlimited.">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.totalBudget}
+                    onChange={(e) => setField('totalBudget', e.target.value)}
+                    placeholder="Unlimited"
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Per-customer limit" hint="Empty = no limit per customer">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.perCustomerLimit}
+                    onChange={(e) => setField('perCustomerLimit', e.target.value)}
+                    placeholder="No limit"
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field label="Per-customer period" hint="Day = midnight-midnight, week = Mon-Sun (IST)">
+                  <select
+                    value={form.perCustomerPeriod}
+                    disabled={form.perCustomerLimit === ''}
+                    onChange={(e) => setField('perCustomerPeriod', e.target.value)}
+                    className={selectClass}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-emerald-600/15 transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
-                  >
-                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    {saving ? 'Saving...' : editingCoupon ? 'Save Changes' : 'Create Coupon'}
-                  </button>
-                </div>
-              </form>
-            </div>
+                    <option value="DAY">Per day</option>
+                    <option value="WEEK">Per week</option>
+                    <option value="MONTH">Per month</option>
+                    <option value="LIFETIME">Lifetime</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <ToggleRow
+                  title="Listed"
+                  subtitle={form.listed ? 'Shown in customers\u2019 offers list' : 'Hidden code: works only when typed'}
+                  checked={form.listed}
+                  onChange={(v) => setField('listed', v)}
+                />
+                <ToggleRow
+                  title="Enabled"
+                  subtitle={form.enabled ? 'Kill switch is ON' : 'Switched off: cannot be applied'}
+                  checked={form.enabled}
+                  onChange={(v) => setField('enabled', v)}
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closePanel}
+                  disabled={saving}
+                  className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-sm rounded-2xl border border-slate-100 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-emerald-600/15 transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? 'Saving...' : editingCoupon ? 'Save Changes' : 'Create Coupon'}
+                </button>
+              </div>
+            </form>
           </div>
-        )}
+        </div>
+      )}
 
       {/* Redemptions modal */}
       {redeemCoupon && (
@@ -1059,92 +1121,92 @@ export default function Coupons() {
           <div
             className="bg-white rounded-3xl w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 relative"
           >
-              <button
-                type="button"
-                onClick={() => setRedeemCoupon(null)}
-                className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10 cursor-pointer"
-              >
-                <X size={18} />
-              </button>
+            <button
+              type="button"
+              onClick={() => setRedeemCoupon(null)}
+              className="absolute right-5 top-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10 cursor-pointer"
+            >
+              <X size={18} />
+            </button>
 
-              <div className="flex items-center gap-3.5 mb-5 pr-8">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
-                  <Users size={20} />
-                </div>
-                <div>
-                  <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase">
-                    Redemptions
-                  </span>
-                  <h3 className="text-lg font-bold text-black font-mono">{redeemCoupon.code}</h3>
-                </div>
+            <div className="flex items-center gap-3.5 mb-5 pr-8">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-700 border border-emerald-200/80 rounded-2xl flex items-center justify-center">
+                <Users size={20} />
               </div>
-
-              {redeemError && (
-                <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
-                  {redeemError}
-                </div>
-              )}
-
-              {redeemLoading ? (
-                <div className="py-12 flex flex-col items-center gap-3 text-slate-400">
-                  <Loader2 size={28} className="animate-spin text-emerald-600" />
-                  <span className="text-xs font-semibold">Loading...</span>
-                </div>
-              ) : redeemData.content.length === 0 ? (
-                <div className="py-12 text-center text-xs font-semibold text-slate-500">
-                  Nobody has used this coupon yet.
-                </div>
-              ) : (
-                <div className="overflow-x-auto border border-slate-200 rounded-2xl">
-                  <table className="w-full min-w-[560px] text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-slate-600 bg-slate-50/80">
-                        <th className="py-3 px-4">Customer</th>
-                        <th className="py-3 px-4">Discount</th>
-                        <th className="py-3 px-4">Orders</th>
-                        <th className="py-3 px-4">Used at (IST)</th>
-                        <th className="py-3 px-4">State</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {redeemData.content.map((r) => (
-                        <tr key={r.redemptionId} className="text-xs font-semibold text-black">
-                          <td className="py-3 px-4 font-mono">{r.phone || r.userId}</td>
-                          <td className="py-3 px-4 font-mono">{formatMoney(r.discount)}</td>
-                          <td className="py-3 px-4 text-[11px] text-slate-600 font-medium">{r.orderNumbers || '-'}</td>
-                          <td className="py-3 px-4 text-[11px] text-slate-600 font-medium">{formatUtcAsIst(r.usedAt)}</td>
-                          <td className="py-3 px-4">
-                            {r.released ? (
-                              <span
-                                className="text-[11px] font-bold text-slate-500"
-                                title={`Given back ${formatUtcAsIst(r.releasedAt)}`}
-                              >
-                                Given back
-                              </span>
-                            ) : (
-                              <span className="text-[11px] font-bold text-emerald-700">Used</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              <PaginationBar
-                page={redeemPage}
-                totalPages={redeemData.totalPages}
-                totalElements={redeemData.totalElements}
-                pageSize={10}
-                itemsOnPage={redeemData.content.length}
-                disabled={redeemLoading}
-                label="redemptions"
-                onPageChange={changeRedeemPage}
-              />
+              <div>
+                <span className="text-[10px] font-mono font-bold text-slate-400 tracking-wider uppercase">
+                  Redemptions
+                </span>
+                <h3 className="text-lg font-bold text-black font-mono">{redeemCoupon.code}</h3>
+              </div>
             </div>
+
+            {redeemError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+                {redeemError}
+              </div>
+            )}
+
+            {redeemLoading ? (
+              <div className="py-12 flex flex-col items-center gap-3 text-slate-400">
+                <Loader2 size={28} className="animate-spin text-emerald-600" />
+                <span className="text-xs font-semibold">Loading...</span>
+              </div>
+            ) : redeemData.content.length === 0 ? (
+              <div className="py-12 text-center text-xs font-semibold text-slate-500">
+                Nobody has used this coupon yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+                <table className="w-full min-w-[560px] text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-[10px] uppercase font-semibold tracking-wider text-slate-600 bg-slate-50/80">
+                      <th className="py-3 px-4">Customer</th>
+                      <th className="py-3 px-4">Discount</th>
+                      <th className="py-3 px-4">Orders</th>
+                      <th className="py-3 px-4">Used at (IST)</th>
+                      <th className="py-3 px-4">State</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {redeemData.content.map((r) => (
+                      <tr key={r.redemptionId} className="text-xs font-semibold text-black">
+                        <td className="py-3 px-4 font-mono">{r.phone || r.userId}</td>
+                        <td className="py-3 px-4 font-mono">{formatMoney(r.discount)}</td>
+                        <td className="py-3 px-4 text-[11px] text-slate-600 font-medium">{r.orderNumbers || '-'}</td>
+                        <td className="py-3 px-4 text-[11px] text-slate-600 font-medium">{formatUtcAsIst(r.usedAt)}</td>
+                        <td className="py-3 px-4">
+                          {r.released ? (
+                            <span
+                              className="text-[11px] font-bold text-slate-500"
+                              title={`Given back ${formatUtcAsIst(r.releasedAt)}`}
+                            >
+                              Given back
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-bold text-emerald-700">Used</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <PaginationBar
+              page={redeemPage}
+              totalPages={redeemData.totalPages}
+              totalElements={redeemData.totalElements}
+              pageSize={10}
+              itemsOnPage={redeemData.content.length}
+              disabled={redeemLoading}
+              label="redemptions"
+              onPageChange={changeRedeemPage}
+            />
           </div>
-        )}
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={Boolean(deleteTarget)}

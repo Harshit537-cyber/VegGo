@@ -23,6 +23,7 @@ import {
 import PageHeader from '../../../components/common/PageHeader';
 import EmptyState from '../../../components/common/EmptyState';
 import ConfirmModal from '../../../components/common/ConfirmModal';
+import DateTimePicker from '../../../components/common/DateTimePicker';
 import PaginationBar from '../../products/components/PaginationBar';
 import StatusBadge from '../components/StatusBadge';
 import FilterChips from '../components/FilterChips';
@@ -279,8 +280,6 @@ function TargetPicker({ actionType, value, onChange, initialLabel }) {
 
 const BannerCard = memo(function BannerCard({ banner, busy, onEdit, onToggle, onDelete }) {
   const reasons = getHiddenReasons(banner);
-  const btn =
-    'p-2 rounded-xl border transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
     <div
@@ -365,37 +364,51 @@ const BannerCard = memo(function BannerCard({ banner, busy, onEdit, onToggle, on
           </div>
         )}
 
-        <div className="mt-auto flex items-center justify-end gap-1.5 pt-1">
+        <div className="mt-auto grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
           <button
             type="button"
-            title="Edit"
+            title="Edit banner"
             onClick={() => onEdit(banner)}
-            className={`${btn} bg-white border-slate-200 text-slate-600 hover:text-emerald-700 hover:border-emerald-300`}
+            className="h-8 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-200/90 hover:border-emerald-600 text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
           >
-            <Edit3 size={14} />
+            <Edit3 size={13} />
+            <span>Edit</span>
           </button>
 
           <button
             type="button"
             disabled={busy}
-            title={banner.enabled ? 'Switch off' : 'Switch on'}
+            title={banner.enabled ? 'Switch off banner' : 'Switch on banner'}
             onClick={() => onToggle(banner)}
-            className={`${btn} ${
+            className={`h-8 px-2 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all shadow-2xs border cursor-pointer disabled:opacity-50 ${
               banner.enabled
-                ? 'bg-white border-slate-200 text-amber-600 hover:border-amber-300 hover:bg-amber-50'
-                : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200/90'
+                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200/90'
             }`}
           >
-            {busy ? <Loader2 size={14} className="animate-spin" /> : banner.enabled ? <PowerOff size={14} /> : <Power size={14} />}
+            {busy ? (
+              <Loader2 size={13} className="animate-spin text-current" />
+            ) : banner.enabled ? (
+              <>
+                <PowerOff size={13} />
+                <span>Disable</span>
+              </>
+            ) : (
+              <>
+                <Power size={13} />
+                <span>Enable</span>
+              </>
+            )}
           </button>
 
           <button
             type="button"
-            title="Delete"
+            title="Delete banner"
             onClick={() => onDelete(banner)}
-            className={`${btn} bg-white border-slate-200 text-rose-500 hover:bg-rose-50 hover:border-rose-200`}
+            className="h-8 px-2 rounded-xl bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
           >
-            <Trash2 size={14} />
+            <Trash2 size={13} />
+            <span>Delete</span>
           </button>
         </div>
       </div>
@@ -691,7 +704,6 @@ export default function Banners() {
       <PageHeader
         icon={ImageIcon}
         title="Banners"
-        subtitle="Home-screen banners shown to customers in this order. A banner can advertise a coupon and open a category or product when tapped."
         stats={[
           { label: 'Banners', value: pageInfo.totalElements },
           { label: 'Showing now (this page)', value: liveCount },
@@ -952,20 +964,20 @@ export default function Banners() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Starts at (IST)" hint="Empty = shows immediately">
-                    <input
-                      type="datetime-local"
+                    <DateTimePicker
                       value={form.startsAt}
-                      onChange={(e) => setField('startsAt', e.target.value)}
-                      className={selectClass}
+                      onChange={(val) => setField('startsAt', val)}
+                      placeholder="Shows immediately"
                     />
                   </Field>
 
                   <Field label="Ends at (IST)" hint="Empty = never ends">
-                    <input
-                      type="datetime-local"
+                    <DateTimePicker
                       value={form.endsAt}
-                      onChange={(e) => setField('endsAt', e.target.value)}
-                      className={selectClass}
+                      onChange={(val) => setField('endsAt', val)}
+                      placeholder="Never ends"
+                      min={form.startsAt}
+                      align="right"
                     />
                   </Field>
                 </div>

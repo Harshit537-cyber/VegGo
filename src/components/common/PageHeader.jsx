@@ -24,7 +24,7 @@ function PageHeader({
   return (
     <div className={`flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-2 ${className}`}>
       {/* Left: Big Icon Badge Box + Title + Subtitle */}
-      <div className="flex items-start sm:items-center gap-4">
+      <div className={`flex ${subtitle ? 'items-start sm:items-center' : 'items-center'} gap-4`}>
         {Icon && (
           <div className="h-14 w-14 rounded-2xl bg-emerald-50 border border-emerald-200/90 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs">
             <Icon size={28} />

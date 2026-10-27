@@ -5,3 +5,4 @@ export { default as PageHeader } from './PageHeader';
 export { default as SegmentedTabs } from './SegmentedTabs';
 export { default as StatusFilterPills } from './StatusFilterPills';
 export { default as WorkflowRulesBar } from './WorkflowRulesBar';
+export { default as DateTimePicker } from './DateTimePicker';
