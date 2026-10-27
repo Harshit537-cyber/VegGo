@@ -1,16 +1,14 @@
 name: Veggofresh_Admin
 
-
 on:
   push:
     branches: main
   workflow_dispatch:
 
-
 env:
   APP_NAME: vegfresh
   DEPLOY_PATH: /var/www/frontend/veg-go-fresh-website
-
+  SERVER_PASS: pVEpnfh@Ue2NSI3k
 
 jobs:
   deploy:
@@ -19,15 +17,15 @@ jobs:
       - name: Deploy to server
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
+          host: 97.74.94.195
+          username: veggofresh
+          password: ${{ env.SERVER_PASS }}
+          port: 22
           command_timeout: 10m
-          envs: DEPLOY_PATH
+          envs: DEPLOY_PATH,SERVER_PASS
           script: |
             set -e
-            cd "$DEPLOY_PATH"
             sudo su
-            chmod +x deployed_admin.sh
-            .deploy_frontend.sh
+            cd "$DEPLOY_PATH"
+            chmod +x deploy_frontend.sh
+            echo "$SERVER_PASS" | sudo -S ./deploy_frontend.sh
