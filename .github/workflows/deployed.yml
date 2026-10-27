@@ -2,13 +2,13 @@ name: Veggofresh_Admin
 
 on:
   push:
-    branches: main
+    branches: [main]
   workflow_dispatch:
 
 env:
   APP_NAME: vegfresh
   DEPLOY_PATH: /var/www/admin_veggo
-  SERVER_PASS: pVEpnfh@Ue2NSI3k
+  SERVER_PASS: ${{ secrets.SERVER_PASS }}
 
 jobs:
   deploy:
@@ -25,7 +25,9 @@ jobs:
           envs: DEPLOY_PATH,SERVER_PASS
           script: |
             set -e
-            sudo su
-            cd "$DEPLOY_PATH"
-            chmod +x deployed_admin.sh
-            echo "$SERVER_PASS" | sudo -S ./deploy_frontend.sh
+            echo "$SERVER_PASS" | sudo -S -p "" bash -c '
+              set -e
+              cd "$0"
+              chmod +x deployed_admin.sh
+              ./deployed_admin.sh
+            ' "$DEPLOY_PATH"
